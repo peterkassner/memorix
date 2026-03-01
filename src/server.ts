@@ -795,7 +795,7 @@ export async function createMemorixServer(cwd?: string, existingServer?: McpServ
   // Rules Sync Tool (P2 — Memorix differentiator)
   // ============================================================
 
-  const RULE_SOURCES: [string, ...string[]] = ['cursor', 'claude-code', 'codex', 'windsurf', 'antigravity', 'copilot', 'kiro'];
+  const RULE_SOURCES: [string, ...string[]] = ['cursor', 'claude-code', 'codex', 'windsurf', 'antigravity', 'copilot', 'kiro', 'opencode'];
 
   /** memorix_rules_sync — scan, dedup, and generate rules across agents */
   server.registerTool(
@@ -803,7 +803,7 @@ export async function createMemorixServer(cwd?: string, existingServer?: McpServ
     {
       title: 'Rules Sync',
       description:
-        'Scan project for agent rule files (Cursor, Claude Code, Codex, Windsurf, Antigravity, Copilot, Kiro), ' +
+        'Scan project for agent rule files (Cursor, Claude Code, Codex, Windsurf, Antigravity, Copilot, Kiro, OpenCode), ' +
         'deduplicate, detect conflicts, and optionally generate rules for a target agent format. ' +
         'Without target: returns sync status report. With target: generates converted rule files.',
       inputSchema: {
@@ -847,7 +847,8 @@ export async function createMemorixServer(cwd?: string, existingServer?: McpServ
 
       const rules = await syncer.scanRules();
       const deduped = syncer.deduplicateRules(rules);
-      const files = syncer.generateForTarget(deduped, target as RuleSource);
+      const effectiveTarget = target === 'opencode' ? 'codex' : target;
+      const files = syncer.generateForTarget(deduped, effectiveTarget as RuleSource);
 
       const lines = [
         `## Generated ${files.length} file(s) for ${target}`,
@@ -1006,7 +1007,7 @@ export async function createMemorixServer(cwd?: string, existingServer?: McpServ
         'Action "list": show all available skills from all agents. ' +
         'Action "generate": auto-generate project-specific skills from observation patterns (gotchas, decisions, how-it-works). ' +
         'Action "inject": return a specific skill\'s full content for direct use. ' +
-        'Generated skills follow the SKILL.md standard and can be synced across Cursor, Windsurf, Claude Code, Codex, Copilot, Kiro, and Antigravity.',
+        'Generated skills follow the SKILL.md standard and can be synced across Cursor, Windsurf, Claude Code, Codex, Copilot, Kiro, Antigravity, and OpenCode.',
       inputSchema: {
         action: z.enum(['list', 'generate', 'inject']).describe('Action: "list" to discover skills, "generate" to create from memory, "inject" to get skill content'),
         name: z.string().optional().describe('Skill name (required for "inject")'),
