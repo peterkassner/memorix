@@ -76,6 +76,16 @@ export const OBSERVATION_ICONS: Record<ObservationType, string> = {
   'trade-off': '⚖️',
 };
 
+/** Observation lifecycle status */
+export type ObservationStatus = 'active' | 'resolved' | 'archived';
+
+/** Progress tracking for task/feature observations */
+export interface ProgressInfo {
+  feature: string;
+  status: 'in-progress' | 'completed' | 'blocked';
+  completion?: number;
+}
+
 /** A rich observation record attached to an entity */
 export interface Observation {
   id: number;
@@ -98,6 +108,12 @@ export interface Observation {
   revisionCount?: number;
   /** Session ID this observation belongs to */
   sessionId?: string;
+  /** Lifecycle status: active (default) → resolved → archived */
+  status?: ObservationStatus;
+  /** ID of the observation that superseded this one (set when auto-resolved by topicKey upsert) */
+  supersededBy?: number;
+  /** Progress tracking for task/feature observations */
+  progress?: ProgressInfo;
 }
 
 // ============================================================
@@ -148,6 +164,8 @@ export interface SearchOptions {
   until?: string;
   /** Token budget — trim results to fit within this many tokens (0 = unlimited) */
   maxTokens?: number;
+  /** Filter by observation status. Default: 'active' (only show active memories) */
+  status?: ObservationStatus | 'all';
 }
 
 /** Topic key family heuristics for suggesting stable topic keys */
@@ -182,6 +200,8 @@ export interface MemorixDocument {
   accessCount: number;
   /** ISO timestamp of last access via search/detail */
   lastAccessedAt: string;
+  /** Lifecycle status: active, resolved, archived */
+  status: string;
 }
 
 // ============================================================

@@ -8,7 +8,7 @@
  * and in the Orama search index (for full-text + vector search).
  */
 
-import type { Observation, ObservationType, MemorixDocument } from '../types.js';
+import type { Observation, ObservationType, ObservationStatus, MemorixDocument, ProgressInfo } from '../types.js';
 import { TOPIC_KEY_FAMILIES } from '../types.js';
 import { insertObservation, generateEmbedding, batchGenerateEmbeddings, isEmbeddingEnabled } from '../store/orama-store.js';
 import { saveObservationsJson, loadObservationsJson, saveIdCounter, loadIdCounter } from '../store/persistence.js';
@@ -52,6 +52,7 @@ export async function storeObservation(input: {
   projectId: string;
   topicKey?: string;
   sessionId?: string;
+  progress?: ProgressInfo;
 }): Promise<{ observation: Observation; upserted: boolean }> {
   const now = new Date().toISOString();
 
@@ -109,6 +110,8 @@ export async function storeObservation(input: {
     topicKey: input.topicKey,
     revisionCount: 1,
     sessionId: input.sessionId,
+    status: 'active',
+    progress: input.progress,
   };
 
   observations.push(observation);
@@ -133,6 +136,7 @@ export async function storeObservation(input: {
     projectId: input.projectId,
     accessCount: 0,
     lastAccessedAt: '',
+    status: 'active',
     ...(embedding ? { embedding } : {}),
   };
 
@@ -183,6 +187,7 @@ async function upsertObservation(
     projectId: string;
     topicKey?: string;
     sessionId?: string;
+    progress?: ProgressInfo;
   },
   now: string,
 ): Promise<Observation> {
@@ -198,6 +203,9 @@ async function upsertObservation(
   const fullText = [input.title, input.narrative, ...(input.facts ?? []), ...enrichedFiles, ...enrichedConcepts].join(' ');
   const tokens = countTextTokens(fullText);
 
+  // Mark old observation as resolved (superseded by new version)
+  // Note: topicKey upsert replaces in-place, so we just bump revision
+
   // Update in-place
   existing.entityName = input.entityName;
   existing.type = input.type;
@@ -210,7 +218,9 @@ async function upsertObservation(
   existing.updatedAt = now;
   existing.hasCausalLanguage = extracted.hasCausalLanguage;
   existing.revisionCount = (existing.revisionCount ?? 1) + 1;
+  existing.status = 'active';
   if (input.sessionId) existing.sessionId = input.sessionId;
+  if (input.progress) existing.progress = input.progress;
 
   // Re-index in Orama
   const searchableText = [input.title, input.narrative, ...(input.facts ?? [])].join(' ');
@@ -231,6 +241,7 @@ async function upsertObservation(
     projectId: existing.projectId,
     accessCount: 0,
     lastAccessedAt: '',
+    status: 'active',
     ...(embedding ? { embedding } : {}),
   };
 
@@ -264,6 +275,69 @@ async function upsertObservation(
  */
 export function getObservation(id: number): Observation | undefined {
   return observations.find((o) => o.id === id);
+}
+
+/**
+ * Resolve observations — mark them as resolved (completed/no longer active).
+ * This prevents resolved memories from appearing in default search results.
+ */
+export async function resolveObservations(
+  ids: number[],
+  status: ObservationStatus = 'resolved',
+): Promise<{ resolved: number[]; notFound: number[] }> {
+  const resolved: number[] = [];
+  const notFound: number[] = [];
+  const now = new Date().toISOString();
+
+  for (const id of ids) {
+    const obs = observations.find(o => o.id === id);
+    if (!obs) {
+      notFound.push(id);
+      continue;
+    }
+    obs.status = status;
+    obs.updatedAt = now;
+    if (obs.progress) {
+      obs.progress.status = status === 'resolved' ? 'completed' : obs.progress.status;
+    }
+    resolved.push(id);
+
+    // Update Orama index
+    try {
+      const { removeObservation: removeObs } = await import('../store/orama-store.js');
+      await removeObs(`obs-${id}`);
+      // Re-insert with updated status
+      const embedding = await generateEmbedding([obs.title, obs.narrative, ...obs.facts].join(' '));
+      const doc: MemorixDocument = {
+        id: `obs-${obs.id}`,
+        observationId: obs.id,
+        entityName: obs.entityName,
+        type: obs.type,
+        title: obs.title,
+        narrative: obs.narrative,
+        facts: obs.facts.join('\n'),
+        filesModified: obs.filesModified.join('\n'),
+        concepts: obs.concepts.map(c => c.replace(/-/g, ' ')).join(', '),
+        tokens: obs.tokens,
+        createdAt: obs.createdAt,
+        projectId: obs.projectId,
+        accessCount: 0,
+        lastAccessedAt: '',
+        status,
+        ...(embedding ? { embedding } : {}),
+      };
+      await insertObservation(doc);
+    } catch { /* best effort */ }
+  }
+
+  // Persist
+  if (projectDir && resolved.length > 0) {
+    await withFileLock(projectDir, async () => {
+      await saveObservationsJson(projectDir!, observations);
+    });
+  }
+
+  return { resolved, notFound };
 }
 
 /**
@@ -399,6 +473,7 @@ export async function reindexObservations(): Promise<number> {
         projectId: obs.projectId,
         accessCount: 0,
         lastAccessedAt: '',
+        status: obs.status ?? 'active',
         ...(embedding ? { embedding } : {}),
       };
       await insertObservation(doc);

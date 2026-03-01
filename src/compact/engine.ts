@@ -92,6 +92,7 @@ export async function compactDetail(
         projectId: obs.projectId,
         accessCount: 0,
         lastAccessedAt: '',
+        status: obs.status ?? 'active',
       });
     }
   }

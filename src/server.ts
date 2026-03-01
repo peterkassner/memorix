@@ -238,9 +238,14 @@ export async function createMemorixServer(cwd?: string, existingServer?: McpServ
           'If an observation with the same topicKey already exists in this project, it will be UPDATED instead of creating a new one. ' +
           'Use memorix_suggest_topic_key to generate a stable key. Good for evolving decisions, architecture docs, etc.',
         ),
+        progress: z.object({
+          feature: z.string().describe('Feature or task name'),
+          status: z.enum(['in-progress', 'completed', 'blocked']).describe('Current status'),
+          completion: z.number().optional().describe('Completion percentage 0-100'),
+        }).optional().describe('Progress tracking for task/feature observations'),
       },
     },
-    async ({ entityName, type, title, narrative, facts, filesModified, concepts, topicKey }) => {
+    async ({ entityName, type, title, narrative, facts, filesModified, concepts, topicKey, progress }) => {
       // Defensive coercion: Claude Code CLI + GLM may send string-encoded arrays
       const safeFacts = facts ? coerceStringArray(facts) : undefined;
       const safeFiles = filesModified ? coerceStringArray(filesModified) : undefined;
@@ -272,6 +277,7 @@ export async function createMemorixServer(cwd?: string, existingServer?: McpServ
         projectId: project.id,
         topicKey,
         sessionId,
+        progress: progress as import('./types.js').ProgressInfo | undefined,
       });
 
       // Add a reference to the entity's observations
@@ -368,9 +374,12 @@ export async function createMemorixServer(cwd?: string, existingServer?: McpServ
         ),
         since: z.string().optional().describe('Only return observations created after this date (ISO 8601 or natural like "2025-01-15")'),
         until: z.string().optional().describe('Only return observations created before this date (ISO 8601 or natural like "2025-02-01")'),
+        status: z.enum(['active', 'resolved', 'archived', 'all']).optional().default('active').describe(
+          'Filter by memory status. "active" (default) shows current memories, "all" includes resolved/archived.',
+        ),
       },
     },
-    async ({ query, limit, type, maxTokens, scope, since, until }) => {
+    async ({ query, limit, type, maxTokens, scope, since, until, status }) => {
       const safeLimit = limit != null ? coerceNumber(limit, 20) : undefined;
       const safeMaxTokens = maxTokens != null ? coerceNumber(maxTokens, 0) : undefined;
       const result = await compactSearch({
@@ -383,6 +392,7 @@ export async function createMemorixServer(cwd?: string, existingServer?: McpServ
         // Default to project-scoped search to prevent cross-project pollution.
         // Use scope: 'global' to explicitly search all projects.
         projectId: scope === 'global' ? undefined : project.id,
+        status: (status as 'active' | 'resolved' | 'archived' | 'all') ?? 'active',
       });
 
       // Append sync advisory on first search of the session
@@ -399,6 +409,47 @@ export async function createMemorixServer(cwd?: string, existingServer?: McpServ
             text,
           },
         ],
+      };
+    },
+  );
+
+  /**
+   * memorix_resolve — Mark memories as resolved/completed
+   *
+   * Prevents resolved memories from polluting future searches.
+   * Default search only returns 'active' memories.
+   */
+  server.registerTool(
+    'memorix_resolve',
+    {
+      title: 'Resolve Memories',
+      description:
+        'Mark observations as resolved (completed/no longer active). ' +
+        'Resolved memories are hidden from default search but can still be found with status="all". ' +
+        'Use this to mark completed tasks, fixed bugs, or outdated information so they don\'t pollute future context.',
+      inputSchema: {
+        ids: z.array(z.number()).describe('Observation IDs to mark as resolved'),
+        status: z.enum(['resolved', 'archived']).optional().default('resolved').describe(
+          'Target status: "resolved" (default, completed/done) or "archived" (permanently hidden)',
+        ),
+      },
+    },
+    async ({ ids, status }) => {
+      const { resolveObservations } = await import('./memory/observations.js');
+      const safeIds = (Array.isArray(ids) ? ids : [ids]).map(id => coerceNumber(id, 0)).filter(id => id > 0);
+      const result = await resolveObservations(safeIds, (status as 'resolved' | 'archived') ?? 'resolved');
+
+      const parts: string[] = [];
+      if (result.resolved.length > 0) {
+        parts.push(`✅ Resolved ${result.resolved.length} observation(s): #${result.resolved.join(', #')}`);
+      }
+      if (result.notFound.length > 0) {
+        parts.push(`⚠️ Not found: #${result.notFound.join(', #')}`);
+      }
+      parts.push('\nResolved memories are hidden from default search. Use status="all" to include them.');
+
+      return {
+        content: [{ type: 'text' as const, text: parts.join('\n') }],
       };
     },
   );
@@ -540,6 +591,7 @@ export async function createMemorixServer(cwd?: string, existingServer?: McpServ
         projectId: obs.projectId,
         accessCount: 0,
         lastAccessedAt: '',
+        status: obs.status ?? 'active',
       }));
 
       if (docs.length === 0) {

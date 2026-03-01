@@ -43,6 +43,7 @@ export async function getDb(): Promise<AnyOrama> {
     projectId: 'string' as const,
     accessCount: 'number' as const,
     lastAccessedAt: 'string' as const,
+    status: 'string' as const,
   };
 
   const schema = embeddingEnabled
@@ -193,6 +194,9 @@ export async function searchObservations(options: SearchOptions): Promise<IndexE
 
   const results = await search(database, searchParams);
 
+  // Status filter: default to 'active' only
+  const statusFilter = options.status ?? 'active';
+
   // Build intermediate results with rawTime for temporal filtering
   let intermediate = results.hits
     // Post-filter by project aliases when multiple aliases exist (Orama doesn't support `in` for strings)
@@ -201,9 +205,24 @@ export async function searchObservations(options: SearchOptions): Promise<IndexE
       const doc = hit.document as unknown as MemorixDocument;
       return projectIds.includes(doc.projectId);
     })
+    // Post-filter by status (active/resolved/archived)
+    .filter((hit) => {
+      if (statusFilter === 'all') return true;
+      const doc = hit.document as unknown as MemorixDocument;
+      return (doc.status || 'active') === statusFilter;
+    })
     .map((hit) => {
       const doc = hit.document as unknown as MemorixDocument;
       const obsType = doc.type as ObservationType;
+      // Time decay: newer memories get higher boost
+      const ageMs = Date.now() - new Date(doc.createdAt).getTime();
+      const DAY = 86_400_000;
+      let recencyBoost: number;
+      if (ageMs < 1 * DAY) recencyBoost = 1.0;
+      else if (ageMs < 7 * DAY) recencyBoost = 0.85;
+      else if (ageMs < 30 * DAY) recencyBoost = 0.6;
+      else recencyBoost = 0.35;
+
       return {
         id: doc.observationId,
         time: formatTime(doc.createdAt),
@@ -212,8 +231,12 @@ export async function searchObservations(options: SearchOptions): Promise<IndexE
         icon: OBSERVATION_ICONS[obsType] ?? '❓',
         title: doc.title,
         tokens: doc.tokens,
+        score: (hit.score ?? 1) * recencyBoost,
       };
     });
+
+  // Re-sort by time-decayed score
+  intermediate.sort((a, b) => b.score - a.score);
 
   // Temporal filtering: since/until date range
   if (options.since) {
