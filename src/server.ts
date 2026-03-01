@@ -1469,10 +1469,17 @@ export async function createMemorixServer(cwd?: string, existingServer?: McpServ
       const { startSession } = await import('./memory/session.js');
       const result = await startSession(projectDir, project.id, { sessionId, agent });
 
+      const llmStatus = isLLMEnabled()
+        ? `LLM enhanced mode: ${getLLMConfig()?.provider}/${getLLMConfig()?.model} (fact extraction + auto-dedup active)`
+        : 'LLM mode: off (set MEMORIX_LLM_API_KEY to enable enhanced memory quality)';
+
       const lines = [
         `✅ Session started: ${result.session.id}`,
         `Project: ${project.name} (${project.id})`,
         result.session.agent ? `Agent: ${result.session.agent}` : '',
+        llmStatus,
+        '',
+        '💡 Tips: Use `memorix_resolve` to mark completed tasks. Use `progress` param in `memorix_store` for task tracking. Use `topicKey` to prevent duplicate memories.',
         '',
       ];
 
