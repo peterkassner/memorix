@@ -13,6 +13,7 @@
 import type { ObservationType } from '../types.js';
 import { normalizeHookInput } from './normalizer.js';
 import { detectBestPattern, patternToObservationType } from './pattern-detector.js';
+import { isSignificantKnowledge, isRetrievedResult, isTrivialCommand } from './significance-filter.js';
 import type { HookEvent, HookOutput, NormalizedHookInput } from './types.js';
 
 // ─── Constants ───
@@ -358,8 +359,17 @@ export async function handleHookEvent(input: NormalizedHookInput): Promise<{
     return { observation: null, output: defaultOutput };
   }
 
-  // Noise command filter (with cd-prefix stripping)
-  if (category === 'command' && input.command && isNoiseCommand(input.command)) {
+  // ─── Significance Filter (Cipher-style noise rejection) ───
+  // Skip trivial commands (ls, cd, git status, etc.)
+  if (category === 'command' && input.command) {
+    const realCmd = extractRealCommand(input.command);
+    if (isTrivialCommand(realCmd)) {
+      return { observation: null, output: defaultOutput };
+    }
+  }
+
+  // Skip retrieved/search results (prevent memory pollution)
+  if (isRetrievedResult(content)) {
     return { observation: null, output: defaultOutput };
   }
 
@@ -369,15 +379,25 @@ export async function handleHookEvent(input: NormalizedHookInput): Promise<{
     return { observation: null, output: defaultOutput };
   }
 
-  // User prompts & AI responses are direct interaction — always store
+  // User prompts & AI responses are direct interaction — check significance
   const effectiveStore = (input.event === 'user_prompt' || input.event === 'post_response')
     ? 'always' as const
     : policy.store;
 
-  // For 'if_substantial': require pattern OR content > 200 chars
+  // ─── Significance check for non-direct interactions ───
+  // For tool results and commands, apply significance filter
+  if (effectiveStore !== 'always') {
+    const significance = isSignificantKnowledge(content);
+    if (!significance.isSignificant) {
+      return { observation: null, output: defaultOutput };
+    }
+  }
+
+  // For 'if_substantial': require pattern OR content > 200 chars OR significance
   if (effectiveStore === 'if_substantial') {
     const pattern = detectBestPattern(content);
-    if (!pattern && content.length < 200) {
+    const significance = isSignificantKnowledge(content);
+    if (!pattern && content.length < 200 && !significance.isSignificant) {
       return { observation: null, output: defaultOutput };
     }
   }
