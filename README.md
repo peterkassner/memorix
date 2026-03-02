@@ -169,10 +169,20 @@ Captures decisions, errors, and gotchas automatically. Pattern detection in Engl
 
 ### Hybrid Search
 
-BM25 fulltext out of the box. Add semantic search with one command:
+BM25 fulltext out of the box (~50MB RAM). Semantic search is **opt-in** to minimize resource usage:
 
 ```bash
-npm install -g @huggingface/transformers   # or: npm install -g fastembed
+# Enable semantic search (optional — requires 300-500MB RAM)
+# Set in your MCP config env, or export before starting:
+MEMORIX_EMBEDDING=fastembed    # ONNX, fastest (~300MB)
+MEMORIX_EMBEDDING=transformers # Pure JS (~500MB)
+MEMORIX_EMBEDDING=off          # Default — BM25 only, minimal resources
+```
+
+Install the provider you chose:
+```bash
+npm install -g fastembed              # for MEMORIX_EMBEDDING=fastembed
+npm install -g @huggingface/transformers  # for MEMORIX_EMBEDDING=transformers
 ```
 
 Both run 100% locally. Zero API calls.

@@ -1,13 +1,23 @@
 /**
  * Embedding Provider — Abstraction Layer
  *
- * Extensible embedding interface. Supports graceful degradation:
- *   - fastembed installed       → local ONNX inference (384-dim bge-small)
- *   - @huggingface/transformers → pure JS WASM inference (384-dim MiniLM)
- *   - nothing installed         → null provider, search falls back to BM25
+ * Extensible embedding interface. **Disabled by default** to minimize resource usage.
+ *
+ * Environment variable MEMORIX_EMBEDDING controls which provider to use:
+ *   - MEMORIX_EMBEDDING=off (default) → no embedding, BM25 fulltext search only (~50MB RAM)
+ *   - MEMORIX_EMBEDDING=fastembed     → local ONNX inference (384-dim bge-small, ~300MB RAM)
+ *   - MEMORIX_EMBEDDING=transformers  → pure JS WASM inference (384-dim MiniLM, ~500MB RAM)
+ *   - MEMORIX_EMBEDDING=auto          → try fastembed → transformers → off (legacy behavior)
+ *
+ * Resource impact of local embedding:
+ *   - First load: 90%+ CPU for 5-30 seconds (model initialization)
+ *   - Steady state: 300-500MB RAM (model in memory)
+ *   - Per-query: 10-50ms CPU (embedding generation)
+ *
+ * Most users don't need vector search — BM25 fulltext is sufficient for keyword matching.
+ * Vector search is useful for semantic similarity (e.g., "auth" matches "authentication").
  *
  * Architecture inspired by Mem0's multi-provider embedding design.
- * Adding a new embedding backend only requires implementing EmbeddingProvider.
  */
 
 export interface EmbeddingProvider {
@@ -26,19 +36,65 @@ let provider: EmbeddingProvider | null = null;
 let initPromise: Promise<EmbeddingProvider | null> | null = null;
 
 /**
- * Get the embedding provider. Returns null if none available.
+ * Get configured embedding mode from environment.
+ * Default is 'off' to minimize resource usage.
+ */
+function getEmbeddingMode(): 'off' | 'fastembed' | 'transformers' | 'auto' {
+  const env = process.env.MEMORIX_EMBEDDING?.toLowerCase()?.trim();
+  if (env === 'fastembed' || env === 'transformers' || env === 'auto') {
+    return env;
+  }
+  // Default: OFF — user must explicitly enable embedding
+  return 'off';
+}
+
+/**
+ * Get the embedding provider. Returns null if disabled or unavailable.
  * Lazy-initialized on first call. Concurrent callers share the same Promise.
  *
- * Provider priority:
- *   1. fastembed (fastest, but requires native ONNX binding)
- *   2. @huggingface/transformers (pure JS, best cross-platform compatibility)
- *   3. null → fulltext search only (BM25)
+ * Controlled by MEMORIX_EMBEDDING environment variable (default: off).
  */
 export async function getEmbeddingProvider(): Promise<EmbeddingProvider | null> {
   if (initPromise) return initPromise;
 
   initPromise = (async () => {
-    // Try fastembed first (local ONNX, fastest)
+    const mode = getEmbeddingMode();
+
+    // Explicit OFF — skip all embedding initialization
+    if (mode === 'off') {
+      console.error('[memorix] Embedding disabled (MEMORIX_EMBEDDING=off) — using BM25 fulltext search');
+      return null;
+    }
+
+    // Explicit fastembed
+    if (mode === 'fastembed') {
+      try {
+        const { FastEmbedProvider } = await import('./fastembed-provider.js');
+        provider = await FastEmbedProvider.create();
+        console.error(`[memorix] Embedding provider: ${provider!.name} (${provider!.dimensions}d)`);
+        return provider;
+      } catch (e) {
+        console.error(`[memorix] Failed to load fastembed: ${e instanceof Error ? e.message : e}`);
+        console.error('[memorix] Install with: npm install fastembed');
+        return null;
+      }
+    }
+
+    // Explicit transformers
+    if (mode === 'transformers') {
+      try {
+        const { TransformersProvider } = await import('./transformers-provider.js');
+        provider = await TransformersProvider.create();
+        console.error(`[memorix] Embedding provider: ${provider!.name} (${provider!.dimensions}d)`);
+        return provider;
+      } catch (e) {
+        console.error(`[memorix] Failed to load transformers: ${e instanceof Error ? e.message : e}`);
+        console.error('[memorix] Install with: npm install @huggingface/transformers');
+        return null;
+      }
+    }
+
+    // Auto mode: try fastembed → transformers → off (legacy behavior)
     try {
       const { FastEmbedProvider } = await import('./fastembed-provider.js');
       provider = await FastEmbedProvider.create();
@@ -48,7 +104,6 @@ export async function getEmbeddingProvider(): Promise<EmbeddingProvider | null> 
       // fastembed not installed — try next
     }
 
-    // Try @huggingface/transformers (pure JS, no native deps)
     try {
       const { TransformersProvider } = await import('./transformers-provider.js');
       provider = await TransformersProvider.create();
@@ -58,7 +113,7 @@ export async function getEmbeddingProvider(): Promise<EmbeddingProvider | null> 
       // transformers not installed — degrade to fulltext
     }
 
-    console.error('[memorix] No embedding provider available — using fulltext search only');
+    console.error('[memorix] No embedding provider available — using BM25 fulltext search');
     return null;
   })();
 
