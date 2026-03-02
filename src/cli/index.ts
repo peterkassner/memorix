@@ -36,6 +36,7 @@ async function interactiveMenu(): Promise<void> {
       { value: 'status', label: 'Project status', hint: 'info + stats' },
       { value: 'cleanup', label: 'Clean up', hint: 'remove old memories' },
       { value: 'sync', label: 'Sync rules', hint: 'cross-agent sync' },
+      { value: 'configure', label: 'Configure', hint: 'LLM + embedding settings' },
       { value: 'serve', label: 'Start MCP server', hint: 'for IDE integration' },
     ],
   });
@@ -76,10 +77,146 @@ async function interactiveMenu(): Promise<void> {
     case 'sync':
       await runCommand('sync');
       break;
+    case 'configure':
+      await runConfigure();
+      break;
     case 'serve':
       p.log.info('Starting MCP server on stdio...');
       await runCommand('serve');
       break;
+  }
+}
+
+async function runConfigure(): Promise<void> {
+  const configPath = `${process.env.HOME || process.env.USERPROFILE}/.memorix/config.json`;
+  
+  // Load existing config
+  let config: { llm?: { apiKey?: string; provider?: string; model?: string; baseUrl?: string }; embedding?: string } = {};
+  try {
+    const fs = await import('node:fs');
+    if (fs.existsSync(configPath)) {
+      config = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
+    }
+  } catch { /* ignore */ }
+
+  const section = await p.select({
+    message: 'What would you like to configure?',
+    options: [
+      { value: 'llm', label: 'LLM Enhanced Mode', hint: 'smart dedup + fact extraction' },
+      { value: 'embedding', label: 'Embedding Provider', hint: 'semantic search' },
+      { value: 'show', label: 'Show current config', hint: 'view settings' },
+    ],
+  });
+
+  if (p.isCancel(section)) return;
+
+  if (section === 'show') {
+    console.log('\nCurrent configuration:');
+    console.log(`  Config file: ${configPath}`);
+    console.log(`  LLM Provider: ${config.llm?.provider ?? 'not configured'}`);
+    console.log(`  LLM Model: ${config.llm?.model ?? 'default'}`);
+    console.log(`  LLM API Key: ${config.llm?.apiKey ? '***configured***' : 'not set'}`);
+    console.log(`  Embedding: ${config.embedding ?? 'off (BM25 only)'}`);
+    console.log('\nEnvironment overrides:');
+    console.log(`  MEMORIX_LLM_API_KEY: ${process.env.MEMORIX_LLM_API_KEY ? '***set***' : 'not set'}`);
+    console.log(`  OPENAI_API_KEY: ${process.env.OPENAI_API_KEY ? '***set***' : 'not set'}`);
+    console.log(`  MEMORIX_EMBEDDING: ${process.env.MEMORIX_EMBEDDING ?? 'not set'}`);
+    console.log('');
+    return;
+  }
+
+  if (section === 'llm') {
+    const provider = await p.select({
+      message: 'Select LLM provider:',
+      options: [
+        { value: 'openai', label: 'OpenAI', hint: 'gpt-4o-mini recommended' },
+        { value: 'anthropic', label: 'Anthropic', hint: 'claude-3-haiku' },
+        { value: 'openrouter', label: 'OpenRouter', hint: 'multi-provider' },
+        { value: 'custom', label: 'Custom endpoint', hint: 'OpenAI-compatible' },
+        { value: 'disable', label: 'Disable LLM', hint: 'use free heuristic mode' },
+      ],
+    });
+
+    if (p.isCancel(provider)) return;
+
+    if (provider === 'disable') {
+      config.llm = undefined;
+      const fs = await import('node:fs');
+      const dir = `${process.env.HOME || process.env.USERPROFILE}/.memorix`;
+      if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+      fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
+      p.log.success('LLM mode disabled. Using free heuristic deduplication.');
+      return;
+    }
+
+    const apiKey = await p.password({
+      message: 'Enter API key:',
+    });
+
+    if (p.isCancel(apiKey) || !apiKey) {
+      p.cancel('Configuration cancelled');
+      return;
+    }
+
+    let model = 'gpt-4o-mini';
+    if (provider === 'anthropic') model = 'claude-3-haiku-20240307';
+    
+    const customModel = await p.text({
+      message: 'Model name:',
+      placeholder: model,
+      defaultValue: model,
+    });
+
+    let baseUrl: string | undefined;
+    if (provider === 'custom') {
+      const url = await p.text({
+        message: 'Base URL:',
+        placeholder: 'https://api.example.com/v1',
+      });
+      if (!p.isCancel(url) && url) baseUrl = url;
+    }
+
+    config.llm = {
+      provider: provider === 'custom' ? 'openai' : provider,
+      apiKey,
+      model: p.isCancel(customModel) ? model : (customModel || model),
+      baseUrl,
+    };
+
+    const fs = await import('node:fs');
+    const dir = `${process.env.HOME || process.env.USERPROFILE}/.memorix`;
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
+    p.log.success(`LLM configured: ${config.llm.provider}/${config.llm.model}`);
+    p.log.info('Restart MCP server to apply changes.');
+  }
+
+  if (section === 'embedding') {
+    const embedding = await p.select({
+      message: 'Select embedding provider:',
+      options: [
+        { value: 'off', label: 'Off (default)', hint: 'BM25 fulltext only, ~50MB RAM' },
+        { value: 'fastembed', label: 'FastEmbed', hint: 'ONNX, ~300MB RAM' },
+        { value: 'transformers', label: 'Transformers', hint: 'Pure JS, ~500MB RAM' },
+      ],
+    });
+
+    if (p.isCancel(embedding)) return;
+
+    config.embedding = embedding;
+
+    const fs = await import('node:fs');
+    const dir = `${process.env.HOME || process.env.USERPROFILE}/.memorix`;
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
+
+    if (embedding === 'off') {
+      p.log.success('Embedding disabled. Using BM25 fulltext search.');
+    } else {
+      p.log.success(`Embedding set to: ${embedding}`);
+      p.log.info(`Install with: npm install -g ${embedding === 'fastembed' ? 'fastembed' : '@huggingface/transformers'}`);
+    }
+    p.log.info('Set MEMORIX_EMBEDDING env var in your MCP config to apply.');
   }
 }
 
