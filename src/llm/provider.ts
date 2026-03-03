@@ -35,35 +35,23 @@ let currentConfig: LLMConfig | null = null;
  * Returns null if no API key is configured — Memorix gracefully degrades.
  */
 export function initLLM(): LLMConfig | null {
-  // Check env vars in priority order
-  const apiKey =
-    process.env.MEMORIX_LLM_API_KEY ||
-    process.env.OPENAI_API_KEY ||
-    process.env.ANTHROPIC_API_KEY ||
-    process.env.OPENROUTER_API_KEY;
+  // Unified config: env vars > config.json > defaults
+  const { getLLMApiKey, getLLMProvider, getLLMModel, getLLMBaseUrl } = require('../config.js');
 
+  const apiKey = getLLMApiKey();
   if (!apiKey) {
     currentConfig = null;
     return null;
   }
 
-  // Auto-detect provider from env var name
-  let provider: LLMConfig['provider'] = 'openai';
-  if (process.env.MEMORIX_LLM_PROVIDER) {
-    provider = process.env.MEMORIX_LLM_PROVIDER as LLMConfig['provider'];
-  } else if (process.env.ANTHROPIC_API_KEY && !process.env.OPENAI_API_KEY) {
-    provider = 'anthropic';
-  } else if (process.env.OPENROUTER_API_KEY && !process.env.OPENAI_API_KEY) {
-    provider = 'openrouter';
-  }
-
+  const provider = getLLMProvider() as LLMConfig['provider'];
   const defaults = PROVIDER_DEFAULTS[provider] ?? PROVIDER_DEFAULTS.openai;
 
   currentConfig = {
     provider,
     apiKey,
-    model: process.env.MEMORIX_LLM_MODEL || defaults.model,
-    baseUrl: process.env.MEMORIX_LLM_BASE_URL || defaults.baseUrl,
+    model: getLLMModel(defaults.model),
+    baseUrl: getLLMBaseUrl(defaults.baseUrl),
   };
 
   return currentConfig;

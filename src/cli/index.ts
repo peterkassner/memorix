@@ -99,10 +99,11 @@ async function runHooksMenu(): Promise<void> {
       { value: 'install', label: 'Install hooks', hint: 'set up auto-capture' },
       { value: 'uninstall', label: 'Uninstall hooks', hint: 'remove from all agents' },
       { value: 'status', label: 'Status', hint: 'show installed hooks' },
+      { value: 'back', label: '← Back', hint: 'return to main menu' },
     ],
   });
 
-  if (p.isCancel(action)) return;
+  if (p.isCancel(action) || action === 'back') return;
 
   switch (action) {
     case 'install': {
@@ -125,218 +126,224 @@ async function runHooksMenu(): Promise<void> {
 
 async function runConfigure(): Promise<void> {
   const configPath = `${process.env.HOME || process.env.USERPROFILE}/.memorix/config.json`;
-  
-  // Load existing config
-  let config: { llm?: { apiKey?: string; provider?: string; model?: string; baseUrl?: string }; embedding?: string } = {};
-  try {
-    const fs = await import('node:fs');
-    if (fs.existsSync(configPath)) {
-      config = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
-    }
-  } catch { /* ignore */ }
 
-  const section = await p.select({
-    message: 'What would you like to configure?',
-    options: [
-      { value: 'llm', label: 'LLM Enhanced Mode', hint: 'smart dedup + fact extraction' },
-      { value: 'embedding', label: 'Embedding Provider', hint: 'semantic search' },
-      { value: 'show', label: 'Show current config', hint: 'view settings' },
-    ],
-  });
-
-  if (p.isCancel(section)) return;
-
-  if (section === 'show') {
-    console.log('\nCurrent configuration:');
-    console.log(`  Config file: ${configPath}`);
-    console.log(`  LLM Provider: ${config.llm?.provider ?? 'not configured'}`);
-    console.log(`  LLM Model: ${config.llm?.model ?? 'default'}`);
-    console.log(`  LLM API Key: ${config.llm?.apiKey ? '***configured***' : 'not set'}`);
-    console.log(`  Embedding: ${config.embedding ?? 'off (BM25 only)'}`);
-    if (config.embedding === 'api') {
-      const apiConf = (config as any).embeddingApi;
-      if (apiConf) {
-        console.log(`  Embedding Model: ${apiConf.model ?? 'text-embedding-3-small'}`);
-        console.log(`  Embedding Base URL: ${apiConf.baseUrl ?? '(default)'}`);
-        console.log(`  Embedding API Key: ${apiConf.apiKey ? '***configured***' : '(reusing LLM key)'}`);
-        if (apiConf.dimensions) console.log(`  Embedding Dimensions: ${apiConf.dimensions}`);
-      }
-    }
-    console.log('\nEnvironment overrides:');
-    console.log(`  MEMORIX_LLM_API_KEY: ${process.env.MEMORIX_LLM_API_KEY ? '***set***' : 'not set'}`);
-    console.log(`  OPENAI_API_KEY: ${process.env.OPENAI_API_KEY ? '***set***' : 'not set'}`);
-    console.log(`  MEMORIX_EMBEDDING: ${process.env.MEMORIX_EMBEDDING ?? 'not set'}`);
-    if (process.env.MEMORIX_EMBEDDING === 'api') {
-      console.log(`  MEMORIX_EMBEDDING_API_KEY: ${process.env.MEMORIX_EMBEDDING_API_KEY ? '***set***' : 'not set'}`);
-      console.log(`  MEMORIX_EMBEDDING_BASE_URL: ${process.env.MEMORIX_EMBEDDING_BASE_URL ?? 'not set'}`);
-      console.log(`  MEMORIX_EMBEDDING_MODEL: ${process.env.MEMORIX_EMBEDDING_MODEL ?? 'text-embedding-3-small'}`);
-      console.log(`  MEMORIX_EMBEDDING_DIMENSIONS: ${process.env.MEMORIX_EMBEDDING_DIMENSIONS ?? 'auto'}`);
-    }
-    console.log('');
-    return;
-  }
-
-  if (section === 'llm') {
-    const provider = await p.select({
-      message: 'Select LLM provider:',
-      options: [
-        { value: 'openai', label: 'OpenAI', hint: 'gpt-4o-mini recommended' },
-        { value: 'anthropic', label: 'Anthropic', hint: 'claude-3-haiku' },
-        { value: 'openrouter', label: 'OpenRouter', hint: 'multi-provider' },
-        { value: 'custom', label: 'Custom endpoint', hint: 'OpenAI-compatible' },
-        { value: 'disable', label: 'Disable LLM', hint: 'use free heuristic mode' },
-      ],
-    });
-
-    if (p.isCancel(provider)) return;
-
-    if (provider === 'disable') {
-      config.llm = undefined;
+  // Helper: load config from disk
+  const loadConfig = async () => {
+    try {
       const fs = await import('node:fs');
-      const dir = `${process.env.HOME || process.env.USERPROFILE}/.memorix`;
-      if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-      fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
-      p.log.success('LLM mode disabled. Using free heuristic deduplication.');
-      return;
-    }
+      if (fs.existsSync(configPath)) {
+        return JSON.parse(fs.readFileSync(configPath, 'utf-8'));
+      }
+    } catch { /* ignore */ }
+    return {};
+  };
 
-    const apiKey = await p.password({
-      message: 'Enter API key:',
-    });
-
-    if (p.isCancel(apiKey) || !apiKey) {
-      p.cancel('Configuration cancelled');
-      return;
-    }
-
-    let model = 'gpt-4o-mini';
-    if (provider === 'anthropic') model = 'claude-3-haiku-20240307';
-    
-    const customModel = await p.text({
-      message: 'Model name:',
-      placeholder: model,
-      defaultValue: model,
-    });
-
-    let baseUrl: string | undefined;
-    if (provider === 'custom') {
-      const url = await p.text({
-        message: 'Base URL:',
-        placeholder: 'https://api.example.com/v1',
-      });
-      if (!p.isCancel(url) && url) baseUrl = url;
-    }
-
-    config.llm = {
-      provider: provider === 'custom' ? 'openai' : provider,
-      apiKey,
-      model: p.isCancel(customModel) ? model : (customModel || model),
-      baseUrl,
-    };
-
+  // Helper: save config to disk
+  const saveConfig = async (config: Record<string, unknown>) => {
     const fs = await import('node:fs');
     const dir = `${process.env.HOME || process.env.USERPROFILE}/.memorix`;
     if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
     fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
-    p.log.success(`LLM configured: ${config.llm.provider}/${config.llm.model}`);
-    p.log.info('Restart MCP server to apply changes.');
-  }
+  };
 
-  if (section === 'embedding') {
-    const embedding = await p.select({
-      message: 'Select embedding provider:',
+  // Loop: configure multiple things without going back to main menu
+  while (true) {
+    const config = await loadConfig();
+
+    const section = await p.select({
+      message: 'What would you like to configure?',
       options: [
-        { value: 'off', label: 'Off (default)', hint: 'BM25 fulltext only, ~50MB RAM' },
-        { value: 'api', label: 'API (recommended)', hint: 'OpenAI-compatible, zero local RAM, best quality' },
-        { value: 'fastembed', label: 'FastEmbed', hint: 'local ONNX, ~300MB RAM' },
-        { value: 'transformers', label: 'Transformers', hint: 'local JS/WASM, ~500MB RAM' },
+        { value: 'llm', label: 'LLM Enhanced Mode', hint: 'smart dedup + fact extraction' },
+        { value: 'embedding', label: 'Embedding Provider', hint: 'semantic search' },
+        { value: 'show', label: 'Show current config', hint: 'view settings' },
+        { value: 'back', label: '\u2190 Back', hint: 'return to main menu' },
       ],
     });
 
-    if (p.isCancel(embedding)) return;
+    if (p.isCancel(section) || section === 'back') return;
 
-    if (embedding === 'api') {
-      // API embedding configuration
-      const apiKey = await p.password({
-        message: 'Embedding API key (or reuse LLM key if same provider):',
-      });
+    if (section === 'show') {
+      console.log('\nCurrent configuration:');
+      console.log(`  Config file: ${configPath}`);
+      console.log(`  LLM Provider: ${config.llm?.provider ?? 'not configured'}`);
+      console.log(`  LLM Model: ${config.llm?.model ?? 'default'}`);
+      console.log(`  LLM Base URL: ${config.llm?.baseUrl ?? '(default)'}`);
+      console.log(`  LLM API Key: ${config.llm?.apiKey ? '***configured***' : 'not set'}`);
+      console.log(`  Embedding: ${config.embedding ?? 'off (BM25 only)'}`);
+      if (config.embedding === 'api') {
+        const apiConf = config.embeddingApi;
+        if (apiConf) {
+          console.log(`  Embedding Model: ${apiConf.model ?? 'text-embedding-3-small'}`);
+          console.log(`  Embedding Base URL: ${apiConf.baseUrl ?? '(default)'}`);
+          console.log(`  Embedding API Key: ${apiConf.apiKey ? '***configured***' : '(reusing LLM key)'}`);
+          if (apiConf.dimensions) console.log(`  Embedding Dimensions: ${apiConf.dimensions}`);
+        }
+      }
+      console.log('\nEnvironment overrides (take priority over config.json):');
+      console.log(`  MEMORIX_LLM_API_KEY: ${process.env.MEMORIX_LLM_API_KEY ? '***set***' : 'not set'}`);
+      console.log(`  OPENAI_API_KEY: ${process.env.OPENAI_API_KEY ? '***set***' : 'not set'}`);
+      console.log(`  MEMORIX_EMBEDDING: ${process.env.MEMORIX_EMBEDDING ?? 'not set'}`);
+      if (process.env.MEMORIX_EMBEDDING === 'api') {
+        console.log(`  MEMORIX_EMBEDDING_API_KEY: ${process.env.MEMORIX_EMBEDDING_API_KEY ? '***set***' : 'not set'}`);
+        console.log(`  MEMORIX_EMBEDDING_BASE_URL: ${process.env.MEMORIX_EMBEDDING_BASE_URL ?? 'not set'}`);
+        console.log(`  MEMORIX_EMBEDDING_MODEL: ${process.env.MEMORIX_EMBEDDING_MODEL ?? 'text-embedding-3-small'}`);
+        console.log(`  MEMORIX_EMBEDDING_DIMENSIONS: ${process.env.MEMORIX_EMBEDDING_DIMENSIONS ?? 'auto'}`);
+      }
+      console.log('');
+      continue; // Back to configure menu
+    }
 
-      if (p.isCancel(apiKey)) return;
-
-      const baseUrl = await p.text({
-        message: 'Base URL:',
-        placeholder: 'https://api.openai.com/v1',
-        defaultValue: '',
-      });
-
-      const modelChoice = await p.select({
-        message: 'Embedding model:',
+    if (section === 'llm') {
+      const provider = await p.select({
+        message: 'Select LLM provider:',
         options: [
-          { value: 'text-embedding-3-small', label: 'OpenAI text-embedding-3-small', hint: '1536d, $0.02/1M tokens' },
-          { value: 'text-embedding-3-large', label: 'OpenAI text-embedding-3-large', hint: '3072d, best quality' },
-          { value: 'text-embedding-v3', label: 'Qwen text-embedding-v3', hint: '1024d, Chinese+English' },
-          { value: 'custom', label: 'Custom model', hint: 'enter model name' },
+          { value: 'openai', label: 'OpenAI', hint: 'gpt-4o-mini recommended' },
+          { value: 'anthropic', label: 'Anthropic', hint: 'claude-3-haiku' },
+          { value: 'openrouter', label: 'OpenRouter', hint: 'multi-provider' },
+          { value: 'custom', label: 'Custom endpoint', hint: 'OpenAI-compatible proxy / local' },
+          { value: 'disable', label: 'Disable LLM', hint: 'use free heuristic mode' },
         ],
       });
 
-      if (p.isCancel(modelChoice)) return;
+      if (p.isCancel(provider)) continue; // Back to configure menu
 
-      let model: string = modelChoice;
-      if (modelChoice === 'custom') {
-        const customName = await p.text({
-          message: 'Model name:',
-          placeholder: 'e.g., BAAI/bge-m3',
-        });
-        if (p.isCancel(customName) || !customName) return;
-        model = customName;
+      if (provider === 'disable') {
+        config.llm = undefined;
+        await saveConfig(config);
+        p.log.success('LLM mode disabled. Using free heuristic deduplication.');
+        continue;
       }
 
-      const dimInput = await p.text({
-        message: 'Dimension override (optional, press Enter to skip):',
-        placeholder: 'e.g., 512 for cost savings',
-        defaultValue: '',
+      const apiKey = await p.password({
+        message: 'Enter API key:',
       });
 
-      const dims = (!p.isCancel(dimInput) && dimInput) ? parseInt(dimInput, 10) : null;
+      if (p.isCancel(apiKey) || !apiKey) {
+        continue; // Back to configure menu
+      }
 
-      config.embedding = 'api';
-      (config as any).embeddingApi = {
-        apiKey: apiKey || undefined,
-        baseUrl: (!p.isCancel(baseUrl) && baseUrl) || undefined,
-        model,
-        dimensions: (dims && !isNaN(dims)) ? dims : undefined,
+      let defaultModel = 'gpt-4o-mini';
+      if (provider === 'anthropic') defaultModel = 'claude-3-haiku-20240307';
+
+      // Custom endpoint always asks for base URL first
+      let baseUrl: string | undefined;
+      if (provider === 'custom') {
+        const url = await p.text({
+          message: 'Base URL (OpenAI-compatible):',
+          placeholder: 'http://localhost:11434/v1',
+        });
+        if (p.isCancel(url)) { continue; }
+        if (url) baseUrl = url;
+      }
+
+      const customModel = await p.text({
+        message: 'Model name:',
+        placeholder: defaultModel,
+        defaultValue: defaultModel,
+      });
+
+      if (p.isCancel(customModel)) { continue; }
+
+      config.llm = {
+        provider: provider === 'custom' ? 'openai' : provider,
+        apiKey,
+        model: customModel || defaultModel,
+        baseUrl,
       };
 
-      const fs = await import('node:fs');
-      const dir = `${process.env.HOME || process.env.USERPROFILE}/.memorix`;
-      if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-      fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
-
-      p.log.success(`API embedding configured: ${model}`);
-      p.log.info('Set these env vars in your MCP config:');
-      p.log.info('  MEMORIX_EMBEDDING=api');
-      if (apiKey) p.log.info('  MEMORIX_EMBEDDING_API_KEY=***');
-      if (!p.isCancel(baseUrl) && baseUrl) p.log.info(`  MEMORIX_EMBEDDING_BASE_URL=${baseUrl}`);
-      p.log.info(`  MEMORIX_EMBEDDING_MODEL=${model}`);
-      if (dims && !isNaN(dims)) p.log.info(`  MEMORIX_EMBEDDING_DIMENSIONS=${dims}`);
-      p.log.info('Or if LLM and embedding use the same provider, just set MEMORIX_EMBEDDING=api');
-      return;
+      await saveConfig(config);
+      p.log.success(`LLM configured: ${config.llm.model} @ ${config.llm.baseUrl || 'default'}`);
+      p.log.info('Saved to config.json. Restart MCP server to apply.');
+      continue;
     }
 
-    config.embedding = embedding;
+    if (section === 'embedding') {
+      const embedding = await p.select({
+        message: 'Select embedding provider:',
+        options: [
+          { value: 'off', label: 'Off (default)', hint: 'BM25 fulltext only, ~50MB RAM' },
+          { value: 'api', label: 'API (recommended)', hint: 'OpenAI-compatible, zero local RAM, best quality' },
+          { value: 'fastembed', label: 'FastEmbed', hint: 'local ONNX, ~300MB RAM' },
+          { value: 'transformers', label: 'Transformers', hint: 'local JS/WASM, ~500MB RAM' },
+        ],
+      });
 
-    const fs = await import('node:fs');
-    const dir = `${process.env.HOME || process.env.USERPROFILE}/.memorix`;
-    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-    fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
+      if (p.isCancel(embedding)) continue; // Back to configure menu
 
-    if (embedding === 'off') {
-      p.log.success('Embedding disabled. Using BM25 fulltext search.');
-    } else {
-      p.log.success(`Embedding set to: ${embedding}`);
-      p.log.info(`Install with: npm install -g ${embedding === 'fastembed' ? 'fastembed' : '@huggingface/transformers'}`);
+      if (embedding === 'api') {
+        const apiKey = await p.password({
+          message: 'Embedding API key (leave empty to reuse LLM key):',
+        });
+
+        if (p.isCancel(apiKey)) continue;
+
+        const baseUrl = await p.text({
+          message: 'Base URL:',
+          placeholder: 'https://api.openai.com/v1',
+          defaultValue: '',
+        });
+
+        if (p.isCancel(baseUrl)) continue;
+
+        const modelChoice = await p.select({
+          message: 'Embedding model:',
+          options: [
+            { value: 'text-embedding-3-small', label: 'OpenAI text-embedding-3-small', hint: '1536d, $0.02/1M tokens' },
+            { value: 'text-embedding-3-large', label: 'OpenAI text-embedding-3-large', hint: '3072d, best quality' },
+            { value: 'text-embedding-v3', label: 'Qwen text-embedding-v3', hint: '1024d, Chinese+English' },
+            { value: 'text-embedding-v4', label: 'Qwen text-embedding-v4', hint: 'latest, Chinese+English' },
+            { value: 'custom', label: 'Custom model', hint: 'enter model name' },
+          ],
+        });
+
+        if (p.isCancel(modelChoice)) continue;
+
+        let model: string = modelChoice;
+        if (modelChoice === 'custom') {
+          const customName = await p.text({
+            message: 'Model name:',
+            placeholder: 'e.g., BAAI/bge-m3',
+          });
+          if (p.isCancel(customName) || !customName) continue;
+          model = customName;
+        }
+
+        const dimInput = await p.text({
+          message: 'Dimension override (optional, press Enter to auto-detect):',
+          placeholder: 'e.g., 512 for cost savings',
+          defaultValue: '',
+        });
+
+        const dims = (!p.isCancel(dimInput) && dimInput) ? parseInt(dimInput, 10) : null;
+
+        config.embedding = 'api';
+        config.embeddingApi = {
+          apiKey: apiKey || undefined,
+          baseUrl: baseUrl || undefined,
+          model,
+          dimensions: (dims && !isNaN(dims)) ? dims : undefined,
+        };
+
+        await saveConfig(config);
+        p.log.success(`API embedding configured: ${model}`);
+        p.log.info('Saved to config.json. Restart MCP server to apply.');
+        continue;
+      }
+
+      config.embedding = embedding;
+      delete config.embeddingApi;
+
+      await saveConfig(config);
+
+      if (embedding === 'off') {
+        p.log.success('Embedding disabled. Using BM25 fulltext search.');
+      } else {
+        p.log.success(`Embedding set to: ${embedding}`);
+        p.log.info(`Install with: npm install -g ${embedding === 'fastembed' ? 'fastembed' : '@huggingface/transformers'}`);
+      }
+      p.log.info('Saved to config.json. Restart MCP server to apply.');
+      continue;
     }
-    p.log.info('Set MEMORIX_EMBEDDING env var in your MCP config to apply.');
   }
 }
 

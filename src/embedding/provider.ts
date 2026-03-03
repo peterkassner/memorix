@@ -47,12 +47,16 @@ let initPromise: Promise<EmbeddingProvider | null> | null = null;
  * Default is 'off' to minimize resource usage.
  */
 function getEmbeddingMode(): 'off' | 'fastembed' | 'transformers' | 'api' | 'auto' {
-  const env = process.env.MEMORIX_EMBEDDING?.toLowerCase()?.trim();
-  if (env === 'fastembed' || env === 'transformers' || env === 'api' || env === 'auto') {
-    return env;
+  // Unified: env vars > config.json > 'off'
+  try {
+    const { getEmbeddingMode: cfgMode } = require('../config.js');
+    return cfgMode();
+  } catch {
+    // Fallback if config module not available
+    const env = process.env.MEMORIX_EMBEDDING?.toLowerCase()?.trim();
+    if (env === 'fastembed' || env === 'transformers' || env === 'api' || env === 'auto') return env;
+    return 'off';
   }
-  // Default: OFF — user must explicitly enable embedding
-  return 'off';
 }
 
 /**

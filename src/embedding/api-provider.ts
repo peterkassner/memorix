@@ -192,28 +192,40 @@ export class APIEmbeddingProvider implements EmbeddingProvider {
    * Falls back to LLM config → OpenAI defaults.
    */
   private static resolveConfig(): APIEmbeddingConfig {
-    const apiKey =
-      process.env.MEMORIX_EMBEDDING_API_KEY ||
-      process.env.MEMORIX_LLM_API_KEY ||
-      process.env.OPENAI_API_KEY;
+    // Unified config: env vars > config.json > defaults
+    let apiKey: string | undefined;
+    let baseUrl: string;
+    let model: string;
+    let requestedDimensions: number | null;
+
+    try {
+      const cfg = require('../config.js');
+      apiKey = cfg.getEmbeddingApiKey();
+      baseUrl = cfg.getEmbeddingBaseUrl();
+      model = cfg.getEmbeddingModel();
+      requestedDimensions = cfg.getEmbeddingDimensions();
+    } catch {
+      // Fallback: direct env var reading
+      apiKey =
+        process.env.MEMORIX_EMBEDDING_API_KEY ||
+        process.env.MEMORIX_LLM_API_KEY ||
+        process.env.OPENAI_API_KEY;
+      baseUrl =
+        process.env.MEMORIX_EMBEDDING_BASE_URL ||
+        process.env.MEMORIX_LLM_BASE_URL ||
+        'https://api.openai.com/v1';
+      model = process.env.MEMORIX_EMBEDDING_MODEL || 'text-embedding-3-small';
+      const dimStr = process.env.MEMORIX_EMBEDDING_DIMENSIONS;
+      requestedDimensions = dimStr ? parseInt(dimStr, 10) : null;
+    }
 
     if (!apiKey) {
       throw new Error(
-        'No API key for embedding. Set MEMORIX_EMBEDDING_API_KEY, MEMORIX_LLM_API_KEY, or OPENAI_API_KEY.',
+        'No API key for embedding. Set MEMORIX_EMBEDDING_API_KEY, MEMORIX_LLM_API_KEY, or OPENAI_API_KEY, or run `memorix configure`.',
       );
     }
 
-    const baseUrl = (
-      process.env.MEMORIX_EMBEDDING_BASE_URL ||
-      process.env.MEMORIX_LLM_BASE_URL ||
-      'https://api.openai.com/v1'
-    ).replace(/\/+$/, ''); // Strip trailing slash
-
-    const model =
-      process.env.MEMORIX_EMBEDDING_MODEL || 'text-embedding-3-small';
-
-    const dimStr = process.env.MEMORIX_EMBEDDING_DIMENSIONS;
-    const requestedDimensions = dimStr ? parseInt(dimStr, 10) : null;
+    baseUrl = baseUrl.replace(/\/+$/, ''); // Strip trailing slash
 
     return { apiKey, baseUrl, model, requestedDimensions };
   }
