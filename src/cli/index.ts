@@ -153,10 +153,25 @@ async function runConfigure(): Promise<void> {
     console.log(`  LLM Model: ${config.llm?.model ?? 'default'}`);
     console.log(`  LLM API Key: ${config.llm?.apiKey ? '***configured***' : 'not set'}`);
     console.log(`  Embedding: ${config.embedding ?? 'off (BM25 only)'}`);
+    if (config.embedding === 'api') {
+      const apiConf = (config as any).embeddingApi;
+      if (apiConf) {
+        console.log(`  Embedding Model: ${apiConf.model ?? 'text-embedding-3-small'}`);
+        console.log(`  Embedding Base URL: ${apiConf.baseUrl ?? '(default)'}`);
+        console.log(`  Embedding API Key: ${apiConf.apiKey ? '***configured***' : '(reusing LLM key)'}`);
+        if (apiConf.dimensions) console.log(`  Embedding Dimensions: ${apiConf.dimensions}`);
+      }
+    }
     console.log('\nEnvironment overrides:');
     console.log(`  MEMORIX_LLM_API_KEY: ${process.env.MEMORIX_LLM_API_KEY ? '***set***' : 'not set'}`);
     console.log(`  OPENAI_API_KEY: ${process.env.OPENAI_API_KEY ? '***set***' : 'not set'}`);
     console.log(`  MEMORIX_EMBEDDING: ${process.env.MEMORIX_EMBEDDING ?? 'not set'}`);
+    if (process.env.MEMORIX_EMBEDDING === 'api') {
+      console.log(`  MEMORIX_EMBEDDING_API_KEY: ${process.env.MEMORIX_EMBEDDING_API_KEY ? '***set***' : 'not set'}`);
+      console.log(`  MEMORIX_EMBEDDING_BASE_URL: ${process.env.MEMORIX_EMBEDDING_BASE_URL ?? 'not set'}`);
+      console.log(`  MEMORIX_EMBEDDING_MODEL: ${process.env.MEMORIX_EMBEDDING_MODEL ?? 'text-embedding-3-small'}`);
+      console.log(`  MEMORIX_EMBEDDING_DIMENSIONS: ${process.env.MEMORIX_EMBEDDING_DIMENSIONS ?? 'auto'}`);
+    }
     console.log('');
     return;
   }
@@ -232,12 +247,81 @@ async function runConfigure(): Promise<void> {
       message: 'Select embedding provider:',
       options: [
         { value: 'off', label: 'Off (default)', hint: 'BM25 fulltext only, ~50MB RAM' },
-        { value: 'fastembed', label: 'FastEmbed', hint: 'ONNX, ~300MB RAM' },
-        { value: 'transformers', label: 'Transformers', hint: 'Pure JS, ~500MB RAM' },
+        { value: 'api', label: 'API (recommended)', hint: 'OpenAI-compatible, zero local RAM, best quality' },
+        { value: 'fastembed', label: 'FastEmbed', hint: 'local ONNX, ~300MB RAM' },
+        { value: 'transformers', label: 'Transformers', hint: 'local JS/WASM, ~500MB RAM' },
       ],
     });
 
     if (p.isCancel(embedding)) return;
+
+    if (embedding === 'api') {
+      // API embedding configuration
+      const apiKey = await p.password({
+        message: 'Embedding API key (or reuse LLM key if same provider):',
+      });
+
+      if (p.isCancel(apiKey)) return;
+
+      const baseUrl = await p.text({
+        message: 'Base URL:',
+        placeholder: 'https://api.openai.com/v1',
+        defaultValue: '',
+      });
+
+      const modelChoice = await p.select({
+        message: 'Embedding model:',
+        options: [
+          { value: 'text-embedding-3-small', label: 'OpenAI text-embedding-3-small', hint: '1536d, $0.02/1M tokens' },
+          { value: 'text-embedding-3-large', label: 'OpenAI text-embedding-3-large', hint: '3072d, best quality' },
+          { value: 'text-embedding-v3', label: 'Qwen text-embedding-v3', hint: '1024d, Chinese+English' },
+          { value: 'custom', label: 'Custom model', hint: 'enter model name' },
+        ],
+      });
+
+      if (p.isCancel(modelChoice)) return;
+
+      let model: string = modelChoice;
+      if (modelChoice === 'custom') {
+        const customName = await p.text({
+          message: 'Model name:',
+          placeholder: 'e.g., BAAI/bge-m3',
+        });
+        if (p.isCancel(customName) || !customName) return;
+        model = customName;
+      }
+
+      const dimInput = await p.text({
+        message: 'Dimension override (optional, press Enter to skip):',
+        placeholder: 'e.g., 512 for cost savings',
+        defaultValue: '',
+      });
+
+      const dims = (!p.isCancel(dimInput) && dimInput) ? parseInt(dimInput, 10) : null;
+
+      config.embedding = 'api';
+      (config as any).embeddingApi = {
+        apiKey: apiKey || undefined,
+        baseUrl: (!p.isCancel(baseUrl) && baseUrl) || undefined,
+        model,
+        dimensions: (dims && !isNaN(dims)) ? dims : undefined,
+      };
+
+      const fs = await import('node:fs');
+      const dir = `${process.env.HOME || process.env.USERPROFILE}/.memorix`;
+      if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+      fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
+
+      p.log.success(`API embedding configured: ${model}`);
+      p.log.info('Set these env vars in your MCP config:');
+      p.log.info('  MEMORIX_EMBEDDING=api');
+      if (apiKey) p.log.info('  MEMORIX_EMBEDDING_API_KEY=***');
+      if (!p.isCancel(baseUrl) && baseUrl) p.log.info(`  MEMORIX_EMBEDDING_BASE_URL=${baseUrl}`);
+      p.log.info(`  MEMORIX_EMBEDDING_MODEL=${model}`);
+      if (dims && !isNaN(dims)) p.log.info(`  MEMORIX_EMBEDDING_DIMENSIONS=${dims}`);
+      p.log.info('Or if LLM and embedding use the same provider, just set MEMORIX_EMBEDDING=api');
+      return;
+    }
 
     config.embedding = embedding;
 

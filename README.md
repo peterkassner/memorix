@@ -14,7 +14,7 @@
   <a href="https://www.npmjs.com/package/memorix"><img src="https://img.shields.io/npm/dm/memorix.svg?style=flat-square&color=blue" alt="downloads"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache%202.0-green.svg?style=flat-square" alt="license"></a>
   <a href="https://github.com/AVIDS2/memorix"><img src="https://img.shields.io/github/stars/AVIDS2/memorix?style=flat-square&color=yellow" alt="stars"></a>
-  <img src="https://img.shields.io/badge/tests-576%20passed-brightgreen?style=flat-square" alt="tests">
+  <img src="https://img.shields.io/badge/tests-593%20passed-brightgreen?style=flat-square" alt="tests">
 </p>
 
 <p align="center">
@@ -169,17 +169,39 @@ Captures decisions, errors, and gotchas automatically. Pattern detection in Engl
 
 ### Hybrid Search
 
-BM25 fulltext out of the box (~50MB RAM). Semantic search is **opt-in** to minimize resource usage:
+BM25 fulltext out of the box (~50MB RAM). Semantic search is **opt-in** — 3 providers:
 
 ```bash
-# Enable semantic search (optional — requires 300-500MB RAM)
-# Set in your MCP config env, or export before starting:
-MEMORIX_EMBEDDING=fastembed    # ONNX, fastest (~300MB)
-MEMORIX_EMBEDDING=transformers # Pure JS (~500MB)
-MEMORIX_EMBEDDING=off          # Default — BM25 only, minimal resources
+# Set in your MCP config env:
+MEMORIX_EMBEDDING=api           # ⭐ Recommended — zero local RAM, best quality
+MEMORIX_EMBEDDING=fastembed     # Local ONNX (~300MB RAM)
+MEMORIX_EMBEDDING=transformers  # Local JS/WASM (~500MB RAM)
+MEMORIX_EMBEDDING=off           # Default — BM25 only, minimal resources
 ```
 
-Install the provider you chose:
+#### API Embedding (Recommended)
+
+Works with any OpenAI-compatible endpoint — OpenAI, Qwen, Cohere, 中转站/反代, Ollama:
+
+```bash
+MEMORIX_EMBEDDING=api
+MEMORIX_EMBEDDING_API_KEY=sk-xxx              # or reuse OPENAI_API_KEY
+MEMORIX_EMBEDDING_MODEL=text-embedding-3-small # default
+MEMORIX_EMBEDDING_BASE_URL=https://api.openai.com/v1  # optional
+MEMORIX_EMBEDDING_DIMENSIONS=512              # optional dimension shortening
+```
+
+**Performance advantages over competitors:**
+- **10K LRU cache + disk persistence** — repeat queries cost $0 and take 0ms
+- **Batch API calls** — up to 2048 texts per request (competitors: 1-by-1)
+- **4x concurrent processing** — parallel batch chunks
+- **Text normalization** — better cache hit rates via whitespace dedup
+- **Debounced disk writes** — 5s coalesce window, not per-call I/O
+- **Zero external dependencies** — no Chroma, no SQLite, just native `fetch`
+- **Smart key fallback** — auto-reuses LLM API key if same provider
+
+#### Local Embedding
+
 ```bash
 npm install -g fastembed              # for MEMORIX_EMBEDDING=fastembed
 npm install -g @huggingface/transformers  # for MEMORIX_EMBEDDING=transformers

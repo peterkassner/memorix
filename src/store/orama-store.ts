@@ -47,8 +47,10 @@ export async function getDb(): Promise<AnyOrama> {
     status: 'string' as const,
   };
 
+  // Dynamic vector dimensions based on provider (384 for local, 1024+ for API)
+  const dims = provider?.dimensions ?? 384;
   const schema = embeddingEnabled
-    ? { ...baseSchema, embedding: 'vector[384]' as const }
+    ? { ...baseSchema, embedding: `vector[${dims}]` as const }
     : baseSchema;
 
   db = await create({ schema });

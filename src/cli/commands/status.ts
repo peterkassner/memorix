@@ -48,15 +48,24 @@ export default defineCommand({
     // Embedding / vector search status
     let embeddingStatus = '❌ None (fulltext/BM25 only)';
     let embeddingHint = '';
+    const embeddingMode = process.env.MEMORIX_EMBEDDING?.toLowerCase()?.trim() || 'off';
     try {
       const provider = await getEmbeddingProvider();
       if (provider) {
         embeddingStatus = `✅ ${provider.name} (${provider.dimensions}d)`;
+        if (embeddingMode === 'api') {
+          const model = process.env.MEMORIX_EMBEDDING_MODEL || 'text-embedding-3-small';
+          embeddingHint = `\n  🌐 API: ${model}`;
+        }
       } else {
-        embeddingHint = '\n  💡 Install fastembed or @huggingface/transformers for hybrid search';
+        if (embeddingMode === 'api') {
+          embeddingHint = '\n  ⚠️  API embedding configured but failed to connect — check API key/URL';
+        } else {
+          embeddingHint = '\n  💡 Set MEMORIX_EMBEDDING=api for best quality, or install fastembed for local';
+        }
       }
     } catch {
-      embeddingHint = '\n  💡 Install fastembed or @huggingface/transformers for hybrid search';
+      embeddingHint = '\n  💡 Set MEMORIX_EMBEDDING=api for best quality, or install fastembed for local';
     }
 
     p.note(

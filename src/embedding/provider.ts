@@ -7,7 +7,14 @@
  *   - MEMORIX_EMBEDDING=off (default) → no embedding, BM25 fulltext search only (~50MB RAM)
  *   - MEMORIX_EMBEDDING=fastembed     → local ONNX inference (384-dim bge-small, ~300MB RAM)
  *   - MEMORIX_EMBEDDING=transformers  → pure JS WASM inference (384-dim MiniLM, ~500MB RAM)
+ *   - MEMORIX_EMBEDDING=api           → remote API via OpenAI-compatible /v1/embeddings (zero local RAM)
  *   - MEMORIX_EMBEDDING=auto          → try fastembed → transformers → off (legacy behavior)
+ *
+ * API mode env vars (MEMORIX_EMBEDDING=api):
+ *   - MEMORIX_EMBEDDING_API_KEY       → API key (fallback: MEMORIX_LLM_API_KEY → OPENAI_API_KEY)
+ *   - MEMORIX_EMBEDDING_BASE_URL      → base URL (fallback: MEMORIX_LLM_BASE_URL)
+ *   - MEMORIX_EMBEDDING_MODEL         → model (default: text-embedding-3-small)
+ *   - MEMORIX_EMBEDDING_DIMENSIONS    → optional dimension override
  *
  * Resource impact of local embedding:
  *   - First load: 90%+ CPU for 5-30 seconds (model initialization)
@@ -39,9 +46,9 @@ let initPromise: Promise<EmbeddingProvider | null> | null = null;
  * Get configured embedding mode from environment.
  * Default is 'off' to minimize resource usage.
  */
-function getEmbeddingMode(): 'off' | 'fastembed' | 'transformers' | 'auto' {
+function getEmbeddingMode(): 'off' | 'fastembed' | 'transformers' | 'api' | 'auto' {
   const env = process.env.MEMORIX_EMBEDDING?.toLowerCase()?.trim();
-  if (env === 'fastembed' || env === 'transformers' || env === 'auto') {
+  if (env === 'fastembed' || env === 'transformers' || env === 'api' || env === 'auto') {
     return env;
   }
   // Default: OFF — user must explicitly enable embedding
@@ -90,6 +97,19 @@ export async function getEmbeddingProvider(): Promise<EmbeddingProvider | null> 
       } catch (e) {
         console.error(`[memorix] Failed to load transformers: ${e instanceof Error ? e.message : e}`);
         console.error('[memorix] Install with: npm install @huggingface/transformers');
+        return null;
+      }
+    }
+
+    // API mode: remote embedding via OpenAI-compatible endpoint
+    if (mode === 'api') {
+      try {
+        const { APIEmbeddingProvider } = await import('./api-provider.js');
+        provider = await APIEmbeddingProvider.create();
+        console.error(`[memorix] Embedding provider: ${provider!.name} (${provider!.dimensions}d)`);
+        return provider;
+      } catch (e) {
+        console.error(`[memorix] Failed to init API embedding: ${e instanceof Error ? e.message : e}`);
         return null;
       }
     }
