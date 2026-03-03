@@ -171,11 +171,15 @@ export async function searchObservations(options: SearchOptions): Promise<IndexE
   };
 
   // If embedding provider is available and we have a query, use hybrid search
+  let queryVector: number[] | null = null;
   if (embeddingEnabled && hasQuery) {
     try {
       const provider = await getEmbeddingProvider();
       if (provider) {
-        const queryVector = await provider.embed(options.query!);
+        queryVector = await provider.embed(options.query!);
+        // Detect CJK-heavy queries: BM25 can't tokenize Chinese/Japanese/Korean well
+        const cjkRatio = (options.query!.match(/[\u4e00-\u9fff\u3040-\u309f\u30a0-\u30ff\uac00-\ud7af]/g) || []).length / options.query!.length;
+        const isCJKHeavy = cjkRatio > 0.3;
         searchParams = {
           ...searchParams,
           mode: 'hybrid',
@@ -183,11 +187,10 @@ export async function searchObservations(options: SearchOptions): Promise<IndexE
             value: queryVector,
             property: 'embedding',
           },
-          similarity: 0.5,
-          hybridWeights: {
-            text: 0.6,
-            vector: 0.4,
-          },
+          similarity: isCJKHeavy ? 0.3 : 0.5,
+          hybridWeights: isCJKHeavy
+            ? { text: 0.2, vector: 0.8 }  // CJK: trust vector over BM25
+            : { text: 0.6, vector: 0.4 },
         };
       }
     } catch {
@@ -195,7 +198,27 @@ export async function searchObservations(options: SearchOptions): Promise<IndexE
     }
   }
 
-  const results = await search(database, searchParams);
+  let results = await search(database, searchParams);
+
+  // Fallback: if hybrid returned nothing but we have a vector, retry with vector-only
+  if (results.count === 0 && queryVector && embeddingEnabled) {
+    try {
+      const vectorOnlyParams: Record<string, unknown> = {
+        term: '',
+        limit: requestLimit,
+        ...(Object.keys(filters).length > 0 ? { where: filters } : {}),
+        mode: 'vector',
+        vector: {
+          value: queryVector,
+          property: 'embedding',
+        },
+        similarity: 0.25,
+      };
+      results = await search(database, vectorOnlyParams);
+    } catch {
+      // Keep original empty results
+    }
+  }
 
   // Status filter: default to 'active' only
   const statusFilter = options.status ?? 'active';
