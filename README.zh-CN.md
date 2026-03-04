@@ -183,7 +183,7 @@ MEMORIX_EMBEDDING=off           # 默认 — 仅 BM25
 
 #### API Embedding（推荐）
 
-兼容任何 OpenAI 格式的 API——OpenAI、Qwen、Cohere、Ollama 或任何 API 代理：
+兼容任何 OpenAI 格式的 API——OpenAI、Qwen、OpenRouter、Ollama 或任何 API 代理：
 
 ```bash
 MEMORIX_EMBEDDING=api
@@ -202,6 +202,38 @@ npm install -g @huggingface/transformers  # MEMORIX_EMBEDDING=transformers
 ```
 
 100% 本地运行，零 API 调用。
+
+### LLM 增强模式（可选）
+
+用你自己的 API Key 启用智能记忆去重和事实提取：
+
+```bash
+# 在 MCP 配置的 env 中设置：
+MEMORIX_LLM_API_KEY=sk-xxx          # OpenAI 格式的 API Key
+MEMORIX_LLM_PROVIDER=openai         # openai | anthropic | openrouter
+MEMORIX_LLM_MODEL=gpt-4o-mini       # 模型名称
+MEMORIX_LLM_BASE_URL=https://...    # 自定义端点（可选）
+```
+
+或直接使用已有的环境变量——Memorix 自动检测：
+- `OPENAI_API_KEY` → OpenAI
+- `ANTHROPIC_API_KEY` → Anthropic
+- `OPENROUTER_API_KEY` → OpenRouter
+
+**没有 LLM**：免费启发式去重（基于相似度）
+**有 LLM**：智能合并、事实提取、矛盾检测
+
+> **Embedding vs LLM 的区别**：Embedding 用于语义搜索（把文本变成向量），LLM 用于智能去重（理解文本含义）。两者独立配置，都是可选的。
+
+### 交互式 CLI
+
+```bash
+memorix              # 交互菜单（无参数）
+memorix configure    # LLM + Embedding 配置向导
+memorix status       # 项目信息 + 统计
+memorix dashboard    # Web UI（localhost:3210）
+memorix hooks install # 为 IDE 安装自动记忆
+```
 
 ---
 

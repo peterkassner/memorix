@@ -183,7 +183,7 @@ MEMORIX_EMBEDDING=off           # Default — BM25 only, minimal resources
 
 #### API Embedding (Recommended)
 
-Works with any OpenAI-compatible API — OpenAI, Qwen, Cohere, Ollama, or any API proxy:
+Works with any OpenAI-compatible API — OpenAI, Qwen, OpenRouter, Ollama, or any API proxy:
 
 ```bash
 MEMORIX_EMBEDDING=api
