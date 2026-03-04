@@ -43,9 +43,9 @@ export default defineCommand({
         args.global ?? false,
       );
       if (ok) {
-        console.log(`✅ ${agent}: hooks removed`);
+        console.log(`[OK] ${agent}: hooks removed`);
       } else {
-        console.log(`⚠️  ${agent}: no hooks found`);
+        console.log(`[SKIP] ${agent}: no hooks found`);
       }
     }
   },

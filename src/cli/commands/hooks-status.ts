@@ -23,7 +23,7 @@ export default defineCommand({
     console.log('═'.repeat(50));
 
     for (const { agent, installed, configPath } of statuses) {
-      const icon = installed ? '✅' : '⬚';
+      const icon = installed ? '[OK]' : '[ ]';
       const label = agent.charAt(0).toUpperCase() + agent.slice(1);
       console.log(`${icon} ${label.padEnd(12)} ${installed ? configPath : '(not installed)'}`);
     }

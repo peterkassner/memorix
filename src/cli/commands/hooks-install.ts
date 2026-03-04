@@ -32,7 +32,7 @@ export default defineCommand({
       cwd = process.cwd();
     } catch {
       cwd = os.homedir();
-      console.log(`⚠️ Could not access current directory, using home: ${cwd}`);
+      console.log(`[WARN] Could not access current directory, using home: ${cwd}`);
     }
 
     let agents: string[];
@@ -54,10 +54,10 @@ export default defineCommand({
           cwd,
           args.global ?? false,
         );
-        console.log(`✅ ${agent}: hooks installed → ${config.configPath}`);
+        console.log(`[OK] ${agent}: hooks installed -> ${config.configPath}`);
         console.log(`   Events: ${config.events.join(', ')}`);
       } catch (err) {
-        console.error(`❌ ${agent}: failed — ${err}`);
+        console.error(`[FAIL] ${agent}: failed - ${err}`);
       }
     }
 

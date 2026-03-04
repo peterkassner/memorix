@@ -16,14 +16,14 @@ import type { AgentName, AgentHookConfig } from '../types.js';
 
 /**
  * Resolve the hook command for the current platform.
- * On Windows, bare 'memorix' resolves to a .ps1 script that non-PowerShell
- * environments (like Windsurf hooks) can't execute.
- * Solution: use 'cmd /c memorix' which invokes the .cmd shim npm creates.
- * This avoids embedding machine-specific absolute paths in hook configs.
+ * On Windows, bare 'memorix' may resolve to a .ps1 script that non-PowerShell
+ * environments can't execute. Using 'memorix.cmd' explicitly targets the CMD
+ * shim that npm creates, which works in all shell environments and properly
+ * forwards stdin (unlike 'cmd /c memorix' which can break stdin piping).
  */
 function resolveHookCommand(): string {
   if (process.platform === 'win32') {
-    return 'cmd /c memorix';
+    return 'memorix.cmd';
   }
   return 'memorix';
 }

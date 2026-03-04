@@ -114,7 +114,7 @@ function installUpdateInBackground(targetVersion: string): void {
         if (error) {
           console.error(`[memorix] Auto-update failed: ${error.message}`);
         } else {
-          console.error(`[memorix] ✅ Auto-updated to v${targetVersion} — takes effect on next restart`);
+          console.error(`[memorix] Auto-updated to v${targetVersion} — takes effect on next restart`);
         }
       },
     );

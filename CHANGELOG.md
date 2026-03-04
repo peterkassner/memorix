@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.10.5] — 2026-03-05
+
+### Fixed
+- **🔴 Critical: Antigravity MCP connection failure** — CLI banner (starting with 🧠 emoji, UTF-8 `F0 9F A7 A0`) was written to `stdout` via `console.log` in the non-interactive branch. When `citty` dispatches to `serve` subcommand, it calls parent `run()` first, polluting the MCP JSON-RPC stream. Go's `encoding/json` in Antigravity failed on the first byte `0xF0` with `invalid character 'ð'`. Fix: `console.log` → `console.error` for all CLI banner output.
+- **🔴 Critical: Claude Code Stop hook schema validation failure** — `hookSpecificOutput` was returned for all hook events, but Claude Code only supports it for `PreToolUse`, `UserPromptSubmit`, and `PostToolUse`. Events like `SessionStart`, `Stop`, and `PreCompact` with `hookSpecificOutput` triggered `JSON validation failed: Invalid input`. Fix: only include `hookSpecificOutput` for the 3 supported event types.
+- **Claude Code hook_event_name not read** — Handler read `payload.hookEventName` (camelCase) but Claude Code sends `hook_event_name` (snake_case), causing `hookEventName` to always be empty and `hookSpecificOutput` to be `{}`.
+- **Windows hook stdin piping broken** — `cmd /c memorix hook` wrapper broke stdin piping for hook event JSON. Changed to `memorix.cmd hook` which directly invokes the CMD shim and properly forwards stdin.
+- **CLI emoji removed** — All emoji in CLI output replaced with plain text markers (`[OK]`, `[FAIL]`, `[WARN]`, `[SKIP]`, `[DRY RUN]`) for enterprise-grade compatibility and to prevent future UTF-8 encoding issues.
+
 ## [0.9.25] — 2026-02-28
 
 ### Fixed

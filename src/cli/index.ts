@@ -476,16 +476,16 @@ const main = defineCommand({
       await interactiveMenu();
     } else {
       // Non-interactive mode: show usage hint
-      console.log(`🧠 Memorix v${pkg.version} — Cross-Agent Memory Bridge\n`);
-      console.log('Usage: memorix <command>\n');
-      console.log('Commands:');
-      console.log('  serve      Start MCP Server on stdio');
-      console.log('  status     Show project info + stats');
-      console.log('  dashboard  Open Web Dashboard');
-      console.log('  hooks      Install hooks for IDEs');
-      console.log('  cleanup    Remove old memories');
-      console.log('  sync       Cross-agent rule sync');
-      console.log('\nRun `memorix` in an interactive terminal for guided menu.');
+      console.error(`Memorix v${pkg.version} — Cross-Agent Memory Bridge\n`);
+      console.error('Usage: memorix <command>\n');
+      console.error('Commands:');
+      console.error('  serve      Start MCP Server on stdio');
+      console.error('  status     Show project info + stats');
+      console.error('  dashboard  Open Web Dashboard');
+      console.error('  hooks      Install hooks for IDEs');
+      console.error('  cleanup    Remove old memories');
+      console.error('  sync       Cross-agent rule sync');
+      console.error('\nRun `memorix` in an interactive terminal for guided menu.');
     }
   },
 });

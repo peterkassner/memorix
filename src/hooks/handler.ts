@@ -468,7 +468,7 @@ export async function runHook(): Promise<void> {
   });
 
   if (!rawInput) {
-    process.stdout.write(JSON.stringify({ continue: true, hookSpecificOutput: {} }));
+    process.stdout.write(JSON.stringify({ continue: true }));
     return;
   }
 
@@ -476,7 +476,7 @@ export async function runHook(): Promise<void> {
   try {
     payload = JSON.parse(rawInput);
   } catch {
-    process.stdout.write(JSON.stringify({ continue: true, hookSpecificOutput: {} }));
+    process.stdout.write(JSON.stringify({ continue: true }));
     return;
   }
 
@@ -510,12 +510,24 @@ export async function runHook(): Promise<void> {
     }
   }
 
-  // Include hookSpecificOutput for VS Code Copilot compatibility
-  const hookEventName = (payload.hookEventName as string) ?? '';
+  // Build hookSpecificOutput — Claude Code only supports it for 3 event types:
+  //   PreToolUse, UserPromptSubmit, PostToolUse
+  // Other events (SessionStart, Stop, PreCompact) must NOT include hookSpecificOutput.
+  // Claude Code sends hook_event_name (snake_case), Copilot sends hookEventName (camelCase)
+  const rawEventName = (payload.hook_event_name as string)
+    ?? (payload.hookEventName as string)
+    ?? '';
   const finalOutput: Record<string, unknown> = { ...output };
-  finalOutput.hookSpecificOutput = {
-    ...(hookEventName ? { hookEventName } : {}),
-    ...(output.systemMessage ? { additionalContext: output.systemMessage } : {}),
-  };
+  const HSO_EVENTS = new Set(['PreToolUse', 'UserPromptSubmit', 'PostToolUse', 'postToolUse', 'preToolUse', 'userPromptSubmitted']);
+  if (rawEventName && HSO_EVENTS.has(rawEventName)) {
+    const hso: Record<string, unknown> = { hookEventName: rawEventName };
+    // additionalContext is REQUIRED for UserPromptSubmit, optional for others
+    if (output.systemMessage) {
+      hso.additionalContext = output.systemMessage;
+    } else if (rawEventName === 'UserPromptSubmit') {
+      hso.additionalContext = '';
+    }
+    finalOutput.hookSpecificOutput = hso;
+  }
   process.stdout.write(JSON.stringify(finalOutput));
 }

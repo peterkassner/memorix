@@ -51,11 +51,11 @@ export default defineCommand({
         const project = detectProject();
 
         if (project.id.startsWith('placeholder/')) {
-            console.error('⚠️ Not in a valid project directory — using degraded mode.');
+            console.error('[WARN] Not in a valid project directory - using degraded mode.');
             console.error('Set MEMORIX_PROJECT_ROOT or --cwd for best results.');
         }
 
-        console.log(`\n📦 Project: ${project.name} (${project.id})\n`);
+        console.log(`\nProject: ${project.name} (${project.id})\n`);
 
         const dataDir = await getProjectDataDir(project.id);
         const allObs = await loadObservationsJson(dataDir) as Array<{
@@ -69,7 +69,7 @@ export default defineCommand({
         }>;
 
         if (allObs.length === 0) {
-            console.log('✅ No observations found — nothing to clean up.');
+            console.log('[OK] No observations found - nothing to clean up.');
             return;
         }
 
@@ -93,21 +93,21 @@ export default defineCommand({
 
         const toRemove = [...lowQuality, ...duplicates];
 
-        console.log(`📊 Analysis:`);
+        console.log(`Analysis:`);
         console.log(`   Total observations:   ${allObs.length}`);
-        console.log(`   🟢 High quality:       ${unique.length}`);
-        console.log(`   🔴 Low quality:        ${lowQuality.length}`);
-        console.log(`   🟡 Duplicates:         ${duplicates.length}`);
-        console.log(`   🗑️  To remove:          ${toRemove.length}`);
+        console.log(`   High quality:       ${unique.length}`);
+        console.log(`   Low quality:        ${lowQuality.length}`);
+        console.log(`   Duplicates:         ${duplicates.length}`);
+        console.log(`   To remove:          ${toRemove.length}`);
         console.log();
 
         if (toRemove.length === 0) {
-            console.log('✅ All observations are high quality — nothing to clean up!');
+            console.log('[OK] All observations are high quality - nothing to clean up!');
             return;
         }
 
         // Preview
-        console.log('🔍 Examples of items to remove:');
+        console.log('Examples of items to remove:');
         toRemove.slice(0, 10).forEach(o => {
             const tag = isLowQuality(o.title ?? '') ? '(low-quality)' : '(duplicate)';
             console.log(`   ${tag} #${o.id ?? '?'} "${o.title}" [${o.type}]`);
@@ -118,7 +118,7 @@ export default defineCommand({
         console.log();
 
         if (args.dry) {
-            console.log('🔒 Dry run — no changes made.');
+            console.log('[DRY RUN] No changes made.');
             return;
         }
 
@@ -127,12 +127,12 @@ export default defineCommand({
             const readline = await import('node:readline');
             const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
             const answer = await new Promise<string>(resolve => {
-                rl.question(`⚠️  Delete ${toRemove.length} observations? (y/N) `, resolve);
+                rl.question(`Delete ${toRemove.length} observations? (y/N) `, resolve);
             });
             rl.close();
 
             if (answer.trim().toLowerCase() !== 'y') {
-                console.log('❌ Cancelled.');
+                console.log('Cancelled.');
                 return;
             }
         }
@@ -143,6 +143,6 @@ export default defineCommand({
 
         await saveObservationsJson(dataDir, remaining);
 
-        console.log(`✅ Removed ${toRemove.length} observations. ${remaining.length} remaining.`);
+        console.log(`[OK] Removed ${toRemove.length} observations. ${remaining.length} remaining.`);
     },
 });
