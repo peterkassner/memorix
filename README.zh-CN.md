@@ -6,7 +6,7 @@
 
 <p align="center">
   <strong>AI 编码 Agent 的持久化记忆层</strong><br>
-  一个 MCP 服务器，九个 Agent，零上下文丢失。
+  一个 MCP 服务器，十个 Agent，零上下文丢失。
 </p>
 
 <p align="center">
@@ -14,7 +14,7 @@
   <a href="https://www.npmjs.com/package/memorix"><img src="https://img.shields.io/npm/dm/memorix.svg?style=flat-square&color=blue" alt="downloads"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache%202.0-green.svg?style=flat-square" alt="license"></a>
   <a href="https://github.com/AVIDS2/memorix"><img src="https://img.shields.io/github/stars/AVIDS2/memorix?style=flat-square&color=yellow" alt="stars"></a>
-  <img src="https://img.shields.io/badge/tests-606%20passed-brightgreen?style=flat-square" alt="tests">
+  <img src="https://img.shields.io/badge/tests-641%20passed-brightgreen?style=flat-square" alt="tests">
 </p>
 
 <p align="center">
@@ -26,6 +26,7 @@
   <img src="https://img.shields.io/badge/-Kiro-red?style=flat-square" alt="Kiro">
   <img src="https://img.shields.io/badge/-Antigravity-grey?style=flat-square" alt="Antigravity">
   <img src="https://img.shields.io/badge/-OpenCode-teal?style=flat-square" alt="OpenCode">
+  <img src="https://img.shields.io/badge/-Trae-FF6B35?style=flat-square" alt="Trae">
   <img src="https://img.shields.io/badge/-Gemini%20CLI-4285F4?style=flat-square" alt="Gemini CLI">
 </p>
 
@@ -127,6 +128,14 @@ args = ["serve"]
 </details>
 
 <details>
+<summary><strong>Trae</strong> · <code>~/%APPDATA%/Trae/User/mcp.json</code></summary>
+
+```json
+{ "mcpServers": { "memorix": { "command": "memorix", "args": ["serve"] } } }
+```
+</details>
+
+<details>
 <summary><strong>Gemini CLI</strong> · <code>.gemini/settings.json</code></summary>
 
 ```json
@@ -153,7 +162,7 @@ args = ["serve"]
 | **记忆** | `memorix_store` · `memorix_search` · `memorix_detail` · `memorix_timeline` · `memorix_resolve` · `memorix_deduplicate` · `memorix_suggest_topic_key` — 3 层渐进式展示，节省约 10 倍 token |
 | **会话** | `memorix_session_start` · `memorix_session_end` · `memorix_session_context` — 新会话自动注入上次上下文 |
 | **知识图谱** | `create_entities` · `create_relations` · `add_observations` · `delete_entities` · `delete_observations` · `delete_relations` · `search_nodes` · `open_nodes` · `read_graph` — 兼容 [MCP 官方 Memory Server](https://github.com/modelcontextprotocol/servers/tree/main/src/memory) |
-| **工作区同步** | `memorix_workspace_sync` · `memorix_rules_sync` · `memorix_skills` — 跨 9 个 Agent 迁移 MCP 配置、规则和技能 |
+| **工作区同步** | `memorix_workspace_sync` · `memorix_rules_sync` · `memorix_skills` — 跨 10 个 Agent 迁移 MCP 配置、规则和技能 |
 | **维护** | `memorix_retention` · `memorix_consolidate` · `memorix_export` · `memorix_import` — 衰减评分、去重、备份 |
 | **仪表盘** | `memorix_dashboard` — Web UI，D3.js 知识图谱、观察浏览器、衰减面板 |
 
@@ -241,7 +250,7 @@ memorix hooks install # 为 IDE 安装自动记忆
 
 ```
 ┌─────────┐  ┌───────────┐  ┌────────────┐  ┌───────┐  ┌──────────┐
-│ Cursor  │  │ Claude    │  │ Windsurf   │  │ Codex │  │ +4 more  │
+│ Cursor  │  │ Claude    │  │ Windsurf   │  │ Codex │  │ +5 more  │
 │         │  │ Code      │  │            │  │       │  │          │
 └────┬────┘  └─────┬─────┘  └─────┬──────┘  └───┬───┘  └────┬─────┘
      │             │              │              │           │
@@ -277,7 +286,7 @@ git clone https://github.com/AVIDS2/memorix.git
 cd memorix && npm install
 
 npm run dev       # 监听模式
-npm test          # 606 个测试
+npm test          # 641 个测试
 npm run build     # 生产构建
 ```
 

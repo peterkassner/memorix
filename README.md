@@ -6,7 +6,7 @@
 
 <p align="center">
   <strong>Persistent memory layer for AI coding agents.</strong><br>
-  One MCP server. Nine agents. Zero context loss.
+  One MCP server. Ten agents. Zero context loss.
 </p>
 
 <p align="center">
@@ -14,7 +14,7 @@
   <a href="https://www.npmjs.com/package/memorix"><img src="https://img.shields.io/npm/dm/memorix.svg?style=flat-square&color=blue" alt="downloads"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache%202.0-green.svg?style=flat-square" alt="license"></a>
   <a href="https://github.com/AVIDS2/memorix"><img src="https://img.shields.io/github/stars/AVIDS2/memorix?style=flat-square&color=yellow" alt="stars"></a>
-  <img src="https://img.shields.io/badge/tests-606%20passed-brightgreen?style=flat-square" alt="tests">
+  <img src="https://img.shields.io/badge/tests-641%20passed-brightgreen?style=flat-square" alt="tests">
 </p>
 
 <p align="center">
@@ -26,6 +26,7 @@
   <img src="https://img.shields.io/badge/-Kiro-red?style=flat-square" alt="Kiro">
   <img src="https://img.shields.io/badge/-Antigravity-grey?style=flat-square" alt="Antigravity">
   <img src="https://img.shields.io/badge/-OpenCode-teal?style=flat-square" alt="OpenCode">
+  <img src="https://img.shields.io/badge/-Trae-FF6B35?style=flat-square" alt="Trae">
   <img src="https://img.shields.io/badge/-Gemini%20CLI-4285F4?style=flat-square" alt="Gemini CLI">
 </p>
 
@@ -120,6 +121,14 @@ args = ["serve"]
 
 <details>
 <summary><strong>OpenCode</strong> · <code>~/.config/opencode/config.json</code></summary>
+
+```json
+{ "mcpServers": { "memorix": { "command": "memorix", "args": ["serve"] } } }
+```
+</details>
+
+<details>
+<summary><strong>Trae</strong> · <code>~/%APPDATA%/Trae/User/mcp.json</code></summary>
 
 ```json
 { "mcpServers": { "memorix": { "command": "memorix", "args": ["serve"] } } }
@@ -247,7 +256,7 @@ memorix hooks install # Auto-capture for IDEs
 
 ```
 ┌─────────┐  ┌───────────┐  ┌────────────┐  ┌───────┐  ┌──────────┐
-│ Cursor  │  │ Claude    │  │ Windsurf   │  │ Codex │  │ +4 more  │
+│ Cursor  │  │ Claude    │  │ Windsurf   │  │ Codex │  │ +5 more  │
 │         │  │ Code      │  │            │  │       │  │          │
 └────┬────┘  └─────┬─────┘  └─────┬──────┘  └───┬───┘  └────┬─────┘
      │             │              │              │           │
@@ -283,7 +292,7 @@ git clone https://github.com/AVIDS2/memorix.git
 cd memorix && npm install
 
 npm run dev       # watch mode
-npm test          # 606 tests
+npm test          # 641 tests
 npm run build     # production build
 ```
 
