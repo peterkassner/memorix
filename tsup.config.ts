@@ -7,7 +7,6 @@ export default defineConfig([
     target: 'node20',
     dts: true,
     sourcemap: true,
-    clean: true,
     splitting: false,
     shims: true,
     external: ['fastembed', '@huggingface/transformers'],
@@ -18,6 +17,7 @@ export default defineConfig([
     target: 'node20',
     dts: true,
     sourcemap: true,
+    clean: true,
     splitting: false,
     shims: true,
     banner: {

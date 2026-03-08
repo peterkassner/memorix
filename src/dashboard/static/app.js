@@ -649,9 +649,16 @@ async function loadGraph() {
           <div class="graph-tooltip-name"></div>
           <div class="graph-tooltip-type"></div>
         </div>
-      </div>
-      <div id="graph-detail" class="graph-detail">
-        <div class="graph-detail-empty">${t('clickNodeToView') || 'Click a node to view details'}</div>
+        <div class="graph-panel" id="graph-panel">
+          <div class="graph-panel-tabs">
+            <button class="gp-tab active" data-gptab="stats">STATS</button>
+            <button class="gp-tab" data-gptab="legend">LEGEND</button>
+            <button class="gp-tab" data-gptab="filter">FILTER</button>
+            <button class="gp-tab" data-gptab="search">SEARCH</button>
+          </div>
+          <div class="gp-content" id="gp-content"></div>
+        </div>
+        <div class="graph-detail-drawer" id="graph-detail-drawer"></div>
       </div>
     </div>
   `;
@@ -680,10 +687,22 @@ function renderGraph(graph) {
   const W = rect.width;
   const H = rect.height;
 
+  // --- Cosmic starfield background ---
+  const stars = [];
+  for (let i = 0; i < 180; i++) {
+    stars.push({
+      x: Math.random() * W,
+      y: Math.random() * H,
+      r: Math.random() * 1.2 + 0.2,
+      a: Math.random() * 0.5 + 0.05,
+      twinkle: Math.random() * Math.PI * 2,
+    });
+  }
+
   // --- InfraNodus-inspired vibrant palette ---
   const palette = [
-    '#22c55e', '#f97316', '#a855f7', '#06b6d4',
-    '#eab308', '#ec4899', '#3b82f6', '#ef4444',
+    '#69F0AE', '#FFAB40', '#D0BCFF', '#80D8FF',
+    '#FFD54F', '#FFB8D1', '#82B1FF', '#FF8A80',
   ];
   const typeColors = {};
   let colorIdx = 0;
@@ -748,75 +767,114 @@ function renderGraph(graph) {
     return { x: (sx - W / 2) / cam.zoom + cam.x, y: (sy - H / 2) / cam.zoom + cam.y };
   }
 
-  // --- Physics (organic layout, not circular) ---
-  const REPULSION = 3000;
+  // --- Physics (cluster-based layout — separate galaxies per type) ---
+  const REPULSION = 4000;
   const ATTRACTION = 0.008;
   const DAMPING = 0.82;
-  const IDEAL_DIST = 70;
+  const IDEAL_DIST = 80;
+  const CLUSTER_PULL = 0.012;       // Pull nodes toward their cluster center
+  const INTER_CLUSTER_REPEL = 8000; // Repel cluster centers apart
 
-  let animating = true;
   let hoveredNode = null;
   let selectedNode = null;
   let dragNode = null;
   let panStart = null;
   let simTick = 0;
 
-  // Group nodes by color for clustered initial placement
+  // Group nodes by color → separate galaxies
   const colorGroups = {};
   nodes.forEach(n => { (colorGroups[n.color] = colorGroups[n.color] || []).push(n); });
   const groupKeys = Object.keys(colorGroups);
+
+  // Assign cluster centers with asymmetric organic placement
+  const clusterCenters = {};
+  const baseR = Math.min(W, H) * 0.28;
   groupKeys.forEach((color, gi) => {
-    const angle = (gi / groupKeys.length) * Math.PI * 2;
-    const groupR = Math.min(W, H) * 0.15;
-    const cx = Math.cos(angle) * groupR;
-    const cy = Math.sin(angle) * groupR;
+    // Irregular angle spacing + random orbit distance
+    const baseAngle = (gi / groupKeys.length) * Math.PI * 2;
+    const angleJitter = (Math.random() - 0.5) * (Math.PI * 0.4);
+    const angle = baseAngle + angleJitter;
+    const r = baseR * (0.5 + Math.random() * 0.7);
+    clusterCenters[color] = {
+      x: Math.cos(angle) * r + (Math.random() - 0.5) * baseR * 0.3,
+      y: Math.sin(angle) * r + (Math.random() - 0.5) * baseR * 0.3,
+    };
+  });
+
+  // Initial placement near cluster centers
+  groupKeys.forEach((color) => {
+    const cc = clusterCenters[color];
+    const spread = 40 + colorGroups[color].length * 5;
     colorGroups[color].forEach(n => {
-      n.x = cx + (Math.random() - 0.5) * groupR * 0.8;
-      n.y = cy + (Math.random() - 0.5) * groupR * 0.8;
+      n.x = cc.x + (Math.random() - 0.5) * spread;
+      n.y = cc.y + (Math.random() - 0.5) * spread;
     });
   });
 
   function simulate() {
     simTick++;
-    // Repulsion
+
+    // --- Inter-cluster repulsion (push cluster centers apart) ---
+    for (let i = 0; i < groupKeys.length; i++) {
+      for (let j = i + 1; j < groupKeys.length; j++) {
+        const ca = clusterCenters[groupKeys[i]], cb = clusterCenters[groupKeys[j]];
+        let dx = cb.x - ca.x, dy = cb.y - ca.y;
+        let dist = Math.sqrt(dx * dx + dy * dy) || 1;
+        let force = INTER_CLUSTER_REPEL / (dist * dist);
+        ca.x -= (dx / dist) * force * 0.01;
+        ca.y -= (dy / dist) * force * 0.01;
+        cb.x += (dx / dist) * force * 0.01;
+        cb.y += (dy / dist) * force * 0.01;
+      }
+    }
+
+    // --- Node-to-node repulsion ---
     for (let i = 0; i < nodes.length; i++) {
       for (let j = i + 1; j < nodes.length; j++) {
         const a = nodes[i], b = nodes[j];
         let dx = b.x - a.x, dy = b.y - a.y;
         let dist = Math.sqrt(dx * dx + dy * dy) || 1;
         let force = REPULSION / (dist * dist);
-        // Same-color nodes repel less (stay closer → clusters)
-        if (a.color === b.color) force *= 0.5;
+        // Same-color nodes repel less (stay in galaxy)
+        if (a.color === b.color) force *= 0.4;
         let fx = (dx / dist) * force, fy = (dy / dist) * force;
         a.vx -= fx; a.vy -= fy;
         b.vx += fx; b.vy += fy;
       }
     }
-    // Attraction (edges)
+
+    // --- Edge attraction (gradual warmup to prevent violent bouncing) ---
+    const warmup = Math.min(1, simTick / 120);
+    const curAttraction = ATTRACTION * warmup;
     for (const edge of edges) {
       let dx = edge.target.x - edge.source.x, dy = edge.target.y - edge.source.y;
       let dist = Math.sqrt(dx * dx + dy * dy) || 1;
-      let force = (dist - IDEAL_DIST) * ATTRACTION;
+      let force = (dist - IDEAL_DIST) * curAttraction;
       let fx = (dx / dist) * force, fy = (dy / dist) * force;
       edge.source.vx += fx; edge.source.vy += fy;
       edge.target.vx -= fx; edge.target.vy -= fy;
     }
-    // Weak center gravity (connected nodes stronger, isolated weaker)
+
+    // --- Cluster gravity (pull each node toward its galaxy center) ---
     for (const node of nodes) {
-      const grav = node.degree > 0 ? 0.006 : 0.002;
-      node.vx += (0 - node.x) * grav;
-      node.vy += (0 - node.y) * grav;
+      const cc = clusterCenters[node.color];
+      if (!cc) continue;
+      node.vx += (cc.x - node.x) * CLUSTER_PULL;
+      node.vy += (cc.y - node.y) * CLUSTER_PULL;
     }
-    // Random jitter in early frames to break symmetry
-    const jitter = simTick < 100 ? 0.3 : 0;
+
+    // --- Continuous breathing jitter (subtle early, gentler forever) ---
+    const jitter = simTick < 80 ? 0.15 : 0.03;
+    const maxV = 3.0; // Cap velocity to prevent wild bouncing
     let totalMovement = 0;
     for (const node of nodes) {
       if (node === dragNode) continue;
       node.vx *= DAMPING; node.vy *= DAMPING;
-      if (jitter > 0) {
-        node.vx += (Math.random() - 0.5) * jitter;
-        node.vy += (Math.random() - 0.5) * jitter;
-      }
+      node.vx += (Math.random() - 0.5) * jitter;
+      node.vy += (Math.random() - 0.5) * jitter;
+      // Clamp velocity
+      const speed = Math.sqrt(node.vx * node.vx + node.vy * node.vy);
+      if (speed > maxV) { node.vx *= maxV / speed; node.vy *= maxV / speed; }
       node.x += node.vx; node.y += node.vy;
       totalMovement += Math.abs(node.vx) + Math.abs(node.vy);
     }
@@ -833,9 +891,34 @@ function renderGraph(graph) {
   }
 
   // --- Draw (InfraNodus style) ---
+  // Canvas always renders dark cosmic background, independent of page theme
   function draw() {
     ctx.clearRect(0, 0, W, H);
-    const light = isLight();
+
+    // --- Cosmic background (always dark) ---
+    const bgGrad = ctx.createRadialGradient(W * 0.5, H * 1.2, 0, W * 0.5, H * 0.5, H * 1.1);
+    bgGrad.addColorStop(0, '#1a1040');
+    bgGrad.addColorStop(0.4, '#0e0e1e');
+    bgGrad.addColorStop(1, '#06060C');
+    ctx.fillStyle = bgGrad;
+    ctx.fillRect(0, 0, W, H);
+
+    // Stars with subtle twinkle
+    const t0 = Date.now() * 0.001;
+    for (const star of stars) {
+      const flicker = 0.6 + 0.4 * Math.sin(t0 * 0.8 + star.twinkle);
+      ctx.beginPath();
+      ctx.arc(star.x, star.y, star.r, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(220,210,255,${star.a * flicker})`;
+      ctx.fill();
+    }
+
+    // Subtle nebula glow
+    const neb = ctx.createRadialGradient(W * 0.3, H * 0.7, 0, W * 0.3, H * 0.7, W * 0.35);
+    neb.addColorStop(0, 'rgba(100, 60, 180, 0.04)');
+    neb.addColorStop(1, 'rgba(100, 60, 180, 0)');
+    ctx.fillStyle = neb;
+    ctx.fillRect(0, 0, W, H);
 
     // --- Edges: ALL colored with gradient (InfraNodus signature) ---
     for (const edge of edges) {
@@ -850,6 +933,20 @@ function renderGraph(graph) {
 
       if (edge.source._dimmed || edge.target._dimmed) { ctx.globalAlpha = 0.03; }
 
+      // --- Edge glow (chain-like, zditor style) ---
+      if (edgeLen > 2) {
+        // Outer glow layer
+        ctx.beginPath();
+        ctx.moveTo(s.x, s.y);
+        ctx.quadraticCurveTo(mx + ox, my + oy, t2.x, t2.y);
+        const glowGrad = ctx.createLinearGradient(s.x, s.y, t2.x, t2.y);
+        glowGrad.addColorStop(0, hexRGBA(edge.source.color, isActive ? 0.25 : 0.12));
+        glowGrad.addColorStop(1, hexRGBA(edge.target.color, isActive ? 0.25 : 0.12));
+        ctx.strokeStyle = glowGrad;
+        ctx.lineWidth = isActive ? 12 * cam.zoom : 6 * cam.zoom;
+        ctx.stroke();
+      }
+
       ctx.beginPath();
       ctx.moveTo(s.x, s.y);
       ctx.quadraticCurveTo(mx + ox, my + oy, t2.x, t2.y);
@@ -857,46 +954,52 @@ function renderGraph(graph) {
       // Fix: avoid degenerate gradient when endpoints overlap
       let edgeStyle;
       if (edgeLen < 2) {
-        edgeStyle = hexRGBA(edge.source.color, isActive ? 0.8 : 0.3);
+        edgeStyle = hexRGBA(edge.source.color, isActive ? 1.0 : 0.7);
       } else {
         const grad = ctx.createLinearGradient(s.x, s.y, t2.x, t2.y);
         if (isActive) {
-          grad.addColorStop(0, hexRGBA(edge.source.color, 0.8));
-          grad.addColorStop(1, hexRGBA(edge.target.color, 0.8));
+          grad.addColorStop(0, hexRGBA(edge.source.color, 1.0));
+          grad.addColorStop(1, hexRGBA(edge.target.color, 1.0));
         } else {
-          grad.addColorStop(0, hexRGBA(edge.source.color, light ? 0.2 : 0.35));
-          grad.addColorStop(1, hexRGBA(edge.target.color, light ? 0.2 : 0.35));
+          grad.addColorStop(0, hexRGBA(edge.source.color, 0.7));
+          grad.addColorStop(1, hexRGBA(edge.target.color, 0.7));
         }
         edgeStyle = grad;
       }
       ctx.strokeStyle = edgeStyle;
-      ctx.lineWidth = isActive ? 2.5 * cam.zoom : Math.max(0.8, 1.2 * cam.zoom);
+      ctx.lineWidth = isActive ? 3.0 * cam.zoom : Math.max(1.5, 2.0 * cam.zoom);
       ctx.stroke();
 
       // Active edge: label
       if (isActive) {
         ctx.font = `500 ${Math.max(9, 10 * cam.zoom)}px Inter, sans-serif`;
-        ctx.fillStyle = light ? 'rgba(0,0,0,0.6)' : 'rgba(255,255,255,0.6)';
+        ctx.fillStyle = 'rgba(255,255,255,0.6)';
         ctx.textAlign = 'center';
         ctx.fillText(edge.type, mx + ox, my + oy - 6 * cam.zoom);
       }
       ctx.globalAlpha = 1;
     }
 
-    // --- Nodes: solid filled with subtle glow (InfraNodus style) ---
+    // --- Breathing time variable ---
+    const breathT = Date.now() * 0.001;
+
+    // --- Nodes: solid with breathing glow (zditor-style) ---
     for (const node of nodes) {
       const active = node === hoveredNode || node === selectedNode;
       const p = worldToScreen(node.x, node.y);
       const r = node.radius * cam.zoom;
 
-      if (p.x + r * 4 < 0 || p.x - r * 4 > W || p.y + r * 4 < 0 || p.y - r * 4 > H) continue;
-      if (node._dimmed) { ctx.globalAlpha = 0.08; }
+      if (p.x + r * 5 < 0 || p.x - r * 5 > W || p.y + r * 5 < 0 || p.y - r * 5 > H) continue;
+      if (node._dimmed) { ctx.globalAlpha = 0.06; }
 
-      // --- Subtle outer glow (reduced in light mode) ---
-      const glowAlpha = light ? (active ? 0.15 : 0.06) : (active ? 0.35 : 0.12);
-      const glowR = r * (active ? 3.5 : 2.2);
-      const glow = ctx.createRadialGradient(p.x, p.y, r * 0.3, p.x, p.y, glowR);
+      // --- Breathing outer glow (pulsing nebula effect) ---
+      const breathPhase = Math.sin(breathT * 1.2 + node.x * 0.01 + node.y * 0.01);
+      const breathScale = 0.85 + 0.15 * breathPhase;
+      const glowAlpha = active ? 0.4 : 0.18 * breathScale;
+      const glowR = r * (active ? 4.0 : 3.0) * breathScale;
+      const glow = ctx.createRadialGradient(p.x, p.y, r * 0.2, p.x, p.y, glowR);
       glow.addColorStop(0, hexRGBA(node.color, glowAlpha));
+      glow.addColorStop(0.5, hexRGBA(node.color, glowAlpha * 0.3));
       glow.addColorStop(1, hexRGBA(node.color, 0));
       ctx.beginPath();
       ctx.arc(p.x, p.y, glowR, 0, Math.PI * 2);
@@ -910,13 +1013,13 @@ function renderGraph(graph) {
       ctx.fill();
 
       // Specular highlight
-      if (r > 4) {
+      if (r > 3) {
         const spec = ctx.createRadialGradient(
           p.x - r * 0.3, p.y - r * 0.3, 0,
           p.x, p.y, r * 0.9
         );
-        spec.addColorStop(0, 'rgba(255,255,255,0.3)');
-        spec.addColorStop(0.5, 'rgba(255,255,255,0.05)');
+        spec.addColorStop(0, 'rgba(255,255,255,0.35)');
+        spec.addColorStop(0.4, 'rgba(255,255,255,0.08)');
         spec.addColorStop(1, 'rgba(255,255,255,0)');
         ctx.beginPath();
         ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
@@ -924,29 +1027,22 @@ function renderGraph(graph) {
         ctx.fill();
       }
 
-      // --- Labels: InfraNodus style — NODE COLOR text, size ~ importance ---
-      const isImportant = node.degree >= maxDegree * 0.2 || node.radius >= 14;
-      const showLabel = active || isImportant || cam.zoom > 0.6;
+      // --- Labels: BELOW the node, only on hover/select (zditor-style) ---
+      const showLabel = active || cam.zoom > 1.8;
 
       if (showLabel) {
-        // InfraNodus: important labels are HUGE (up to 28px), small ones ~9px
-        const baseFontSize = active ? 18 : (isImportant ? Math.min(12 + node.radius * 0.6, 28) : 9);
-        const fontSize = Math.max(7, baseFontSize * cam.zoom);
-        ctx.font = `${active || isImportant ? '700' : '400'} ${fontSize}px Inter, sans-serif`;
+        const baseFontSize = active ? 14 : 10;
+        const fontSize = Math.max(8, baseFontSize * cam.zoom);
+        ctx.font = `${active ? '600' : '500'} ${fontSize}px Inter, sans-serif`;
         ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
+        ctx.textBaseline = 'top';
 
-        const labelText = node.id.length > 24 && !active ? node.id.slice(0, 22) + '…' : node.id;
+        const labelText = node.id.length > 20 && !active ? node.id.slice(0, 18) + '\u2026' : node.id;
+        const labelY = p.y + r + 5 * cam.zoom;
 
-        // Text shadow for readability
-        ctx.strokeStyle = light ? 'rgba(255,255,255,0.85)' : 'rgba(0,0,0,0.75)';
-        ctx.lineWidth = light ? 3 : 2.5;
-        ctx.lineJoin = 'round';
-        ctx.strokeText(labelText, p.x, p.y);
-
-        // Main text in NODE COLOR (InfraNodus signature)
-        ctx.fillStyle = active ? (light ? '#000' : '#fff') : node.color;
-        ctx.fillText(labelText, p.x, p.y);
+        // Always white text (canvas bg is always dark)
+        ctx.fillStyle = '#FFFFFF';
+        ctx.fillText(labelText, p.x, labelY);
         ctx.textBaseline = 'alphabetic';
       }
 
@@ -957,111 +1053,181 @@ function renderGraph(graph) {
     const zoomPct = Math.round(cam.zoom * 100);
     if (zoomPct !== 100) {
       ctx.font = '500 11px Inter, sans-serif';
-      ctx.fillStyle = light ? 'rgba(0,0,0,0.3)' : 'rgba(255,255,255,0.25)';
+      ctx.fillStyle = 'rgba(255,255,255,0.25)';
       ctx.textAlign = 'left';
       ctx.textBaseline = 'alphabetic';
       ctx.fillText(`${zoomPct}%`, 12, H - 12);
     }
 
-    if ((selectedNode || hoveredNode) && !animating) requestAnimationFrame(draw);
+    // Continuous loop handles redraw — no manual trigger needed
   }
 
-  // --- Legend ---
-  function buildLegend() {
-    let existing = container.querySelector('.graph-legend');
-    if (existing) existing.remove();
+  // --- Graph Panel (zditor-style tabs: Stats / Legend / Filter / Search) ---
+  const typeCount = {};
+  nodes.forEach(n => { typeCount[n.type] = (typeCount[n.type] || 0) + 1; });
+  Object.keys(typeCounts).forEach(t2 => getTypeColor(t2));
 
-    const legend = document.createElement('div');
-    legend.className = 'graph-legend';
-    legend.style.cssText = `
-      position: absolute; top: 12px; right: 12px; z-index: 10;
-      background: var(--bg-card);
-      backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
-      border: 1px solid var(--border-medium);
-      border-radius: 12px; padding: 12px 14px; min-width: 140px;
-      font-family: 'Inter', sans-serif; font-size: 11px;
-      color: var(--text-secondary);
-      box-shadow: 0 4px 24px rgba(0,0,0,0.12);
-    `;
+  let activeFilterType = null;
 
-    const typeCount = {};
-    nodes.forEach(n => { typeCount[n.type] = (typeCount[n.type] || 0) + 1; });
+  function renderPanelTab(tab) {
+    const content = document.getElementById('gp-content');
+    if (!content) return;
 
-    const title = document.createElement('div');
-    title.style.cssText = 'font-weight: 600; font-size: 10px; margin-bottom: 8px; color: var(--text-muted); letter-spacing: 0.8px; text-transform: uppercase;';
-    title.textContent = t('legend') || 'Legend';
-    legend.appendChild(title);
-
-    Object.entries(typeCount)
-      .sort((a, b) => b[1] - a[1])
-      .forEach(([type, count]) => {
-        const row = document.createElement('div');
-        row.style.cssText = 'display: flex; align-items: center; gap: 8px; padding: 4px 6px; border-radius: 6px; cursor: pointer; transition: background 0.15s;';
-
-        const dot = document.createElement('span');
-        dot.style.cssText = `width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; background: ${typeColors[type] || '#666'}; box-shadow: 0 0 8px ${typeColors[type] || '#666'}40;`;
-
-        const label = document.createElement('span');
-        label.style.cssText = 'flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 11px;';
-        label.textContent = type;
-
-        const badge = document.createElement('span');
-        badge.style.cssText = 'font-size: 10px; opacity: 0.5; font-family: var(--font-mono);';
-        badge.textContent = count;
-
-        row.appendChild(dot);
-        row.appendChild(label);
-        row.appendChild(badge);
-
-        row.addEventListener('mouseenter', () => {
-          row.style.background = 'var(--bg-card-hover)';
-          nodes.forEach(n => { n._dimmed = n.type !== type; });
-          edges.forEach(e => {}); // edges handled via source/target._dimmed
-          draw();
+    if (tab === 'stats') {
+      const maxDeg = Math.max(1, ...nodes.map(n => n.degree));
+      const topNodes = [...nodes].sort((a, b) => b.degree - a.degree).slice(0, 5);
+      content.innerHTML = `
+        <div class="gp-stat-row"><span class="gp-stat-label">Nodes</span><span class="gp-stat-value">${nodes.length}</span></div>
+        <div class="gp-stat-row"><span class="gp-stat-label">Edges</span><span class="gp-stat-value">${edges.length}</span></div>
+        <div class="gp-stat-row"><span class="gp-stat-label">Types</span><span class="gp-stat-value">${Object.keys(typeCount).length}</span></div>
+        <div class="gp-stat-row"><span class="gp-stat-label">Density</span><span class="gp-stat-value">${nodes.length > 1 ? (2 * edges.length / (nodes.length * (nodes.length - 1))).toFixed(3) : '0'}</span></div>
+        <div style="margin-top:12px;padding-top:10px;border-top:1px solid rgba(255,255,255,0.04);">
+          <div style="font-size:10px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:8px;">Top Nodes</div>
+          ${topNodes.map(n => `
+            <div class="gp-legend-item" data-node-id="${escapeHtml(n.id)}">
+              <div class="gp-legend-dot" style="background:${n.color};box-shadow:0 0 6px ${n.color}60;"></div>
+              <span class="gp-legend-name">${escapeHtml(n.id)}</span>
+              <span class="gp-legend-count">${n.degree}</span>
+            </div>
+          `).join('')}
+        </div>
+        <div class="gp-zoom-controls">
+          <button class="gp-zoom-btn" id="gp-zoom-out">\u2212</button>
+          <button class="gp-zoom-btn" id="gp-zoom-reset">\u27F3</button>
+          <button class="gp-zoom-btn" id="gp-zoom-in">+</button>
+        </div>
+      `;
+    } else if (tab === 'legend') {
+      content.innerHTML = Object.entries(typeCount)
+        .sort((a, b) => b[1] - a[1])
+        .map(([type, count]) => `
+          <div class="gp-legend-item" data-legend-type="${escapeHtml(type)}">
+            <div class="gp-legend-dot" style="background:${typeColors[type] || '#666'};box-shadow:0 0 8px ${typeColors[type] || '#666'}40;"></div>
+            <span class="gp-legend-name">${escapeHtml(type)}</span>
+            <span class="gp-legend-count">${count}</span>
+          </div>
+        `).join('') + `
+        <div class="gp-zoom-controls">
+          <button class="gp-zoom-btn" id="gp-zoom-out">\u2212</button>
+          <button class="gp-zoom-btn" id="gp-zoom-reset">\u27F3</button>
+          <button class="gp-zoom-btn" id="gp-zoom-in">+</button>
+        </div>
+      `;
+    } else if (tab === 'filter') {
+      content.innerHTML = `
+        <div class="gp-legend-item${!activeFilterType ? ' active' : ''}" data-filter-type="" style="${!activeFilterType ? 'background:rgba(208,188,255,0.08)' : ''}">
+          <span class="gp-legend-name" style="font-weight:500;">Show All</span>
+          <span class="gp-legend-count">${nodes.length}</span>
+        </div>
+        ${Object.entries(typeCount).sort((a,b) => b[1] - a[1]).map(([type, count]) => `
+          <div class="gp-legend-item${activeFilterType === type ? ' active' : ''}" data-filter-type="${escapeHtml(type)}" style="${activeFilterType === type ? 'background:rgba(208,188,255,0.08)' : ''}">
+            <div class="gp-legend-dot" style="background:${typeColors[type] || '#666'};"></div>
+            <span class="gp-legend-name">${escapeHtml(type)}</span>
+            <span class="gp-legend-count">${count}</span>
+          </div>
+        `).join('')}
+      `;
+    } else if (tab === 'search') {
+      content.innerHTML = `
+        <input type="text" class="gp-search" id="gp-search-input" placeholder="Start typing to search nodes" autocomplete="off" />
+        <div id="gp-search-results" style="margin-top:10px;"></div>
+      `;
+      const input = document.getElementById('gp-search-input');
+      if (input) {
+        input.focus();
+        input.addEventListener('input', () => {
+          const q = input.value.toLowerCase();
+          const results = document.getElementById('gp-search-results');
+          if (!q) { results.innerHTML = ''; return; }
+          const matches = nodes.filter(n => n.id.toLowerCase().includes(q) || n.type.toLowerCase().includes(q)).slice(0, 12);
+          results.innerHTML = matches.length === 0
+            ? '<div style="font-size:12px;color:var(--text-muted);padding:8px 0;">No matches</div>'
+            : matches.map(n => `
+              <div class="gp-legend-item" data-node-id="${escapeHtml(n.id)}">
+                <div class="gp-legend-dot" style="background:${n.color};box-shadow:0 0 6px ${n.color}60;"></div>
+                <span class="gp-legend-name">${escapeHtml(n.id)}</span>
+                <span class="gp-legend-count">${n.type}</span>
+              </div>
+            `).join('');
+          bindNodeClicks();
         });
-        row.addEventListener('mouseleave', () => {
-          row.style.background = '';
-          nodes.forEach(n => { n._dimmed = false; });
-          draw();
-        });
+      }
+    }
 
-        legend.appendChild(row);
+    // Bind event handlers
+    bindNodeClicks();
+    bindLegendHovers();
+    bindFilterClicks();
+    bindZoomControls();
+  }
+
+  function bindNodeClicks() {
+    document.querySelectorAll('[data-node-id]').forEach(el => {
+      el.addEventListener('click', () => {
+        const node = nodes.find(n => n.id === el.dataset.nodeId);
+        if (node) {
+          selectedNode = node;
+          cam.x = node.x;
+          cam.y = node.y;
+          cam.zoom = Math.max(cam.zoom, 1);
+          showDetail(node);
+          draw();
+        }
       });
-
-    const stats = document.createElement('div');
-    stats.style.cssText = 'margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--border-subtle); font-size: 10px; opacity: 0.4; font-family: var(--font-mono);';
-    stats.textContent = `${nodes.length} nodes · ${edges.length} edges`;
-    legend.appendChild(stats);
-
-    // Zoom controls
-    const controls = document.createElement('div');
-    controls.style.cssText = 'display: flex; gap: 4px; margin-top: 8px;';
-    const zoomIn = document.createElement('button');
-    zoomIn.textContent = '+';
-    zoomIn.style.cssText = 'flex:1; padding: 4px; border: 1px solid var(--border-subtle); background: transparent; color: var(--text-secondary); border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600;';
-    zoomIn.onclick = () => { cam.zoom = Math.min(cam.zoom * 1.3, 4); draw(); };
-    const zoomOut = document.createElement('button');
-    zoomOut.textContent = '−';
-    zoomOut.style.cssText = zoomIn.style.cssText;
-    zoomOut.onclick = () => { cam.zoom = Math.max(cam.zoom / 1.3, 0.2); draw(); };
-    const zoomReset = document.createElement('button');
-    zoomReset.textContent = '⟳';
-    zoomReset.style.cssText = zoomIn.style.cssText;
-    zoomReset.onclick = () => { cam = { x: 0, y: 0, zoom: 1 }; draw(); };
-    controls.appendChild(zoomOut);
-    controls.appendChild(zoomReset);
-    controls.appendChild(zoomIn);
-    legend.appendChild(controls);
-
-    container.style.position = 'relative';
-    container.appendChild(legend);
+    });
   }
-  buildLegend();
+
+  function bindLegendHovers() {
+    document.querySelectorAll('[data-legend-type]').forEach(el => {
+      el.addEventListener('mouseenter', () => {
+        const type = el.dataset.legendType;
+        nodes.forEach(n => { n._dimmed = n.type !== type; });
+        draw();
+      });
+      el.addEventListener('mouseleave', () => {
+        nodes.forEach(n => { n._dimmed = false; });
+        draw();
+      });
+    });
+  }
+
+  function bindFilterClicks() {
+    document.querySelectorAll('[data-filter-type]').forEach(el => {
+      el.addEventListener('click', () => {
+        const type = el.dataset.filterType || null;
+        activeFilterType = type;
+        nodes.forEach(n => { n._dimmed = type ? n.type !== type : false; });
+        draw();
+        renderPanelTab('filter');
+      });
+    });
+  }
+
+  function bindZoomControls() {
+    const zi = document.getElementById('gp-zoom-in');
+    const zo = document.getElementById('gp-zoom-out');
+    const zr = document.getElementById('gp-zoom-reset');
+    if (zi) zi.onclick = () => { cam.zoom = Math.min(cam.zoom * 1.3, 4); draw(); };
+    if (zo) zo.onclick = () => { cam.zoom = Math.max(cam.zoom / 1.3, 0.2); draw(); };
+    if (zr) zr.onclick = () => { cam = { x: 0, y: 0, zoom: 1 }; draw(); };
+  }
+
+  // Tab switching
+  document.querySelectorAll('.gp-tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      document.querySelectorAll('.gp-tab').forEach(t2 => t2.classList.remove('active'));
+      tab.classList.add('active');
+      renderPanelTab(tab.dataset.gptab);
+    });
+  });
+
+  renderPanelTab('stats');
 
   function showDetail(node) {
-    const panel = document.getElementById('graph-detail');
+    const drawer = document.getElementById('graph-detail-drawer');
+    if (!drawer) return;
     if (!node) {
-      panel.innerHTML = `<div class="graph-detail-empty">${t('clickNodeToView') || 'Click a node to view details'}</div>`;
+      drawer.classList.remove('open');
       return;
     }
     const related = edges.filter(e => e.source === node || e.target === node);
@@ -1072,50 +1238,45 @@ function renderGraph(graph) {
       ? related.map(e => {
         const dir = e.source === node;
         const other = dir ? e.target : e.source;
-        return `<div class="graph-rel-item"><span class="graph-rel-arrow">${dir ? '→' : '←'}</span> <span class="graph-rel-type">${escapeHtml(e.type)}</span> <strong>${escapeHtml(other.id)}</strong></div>`;
+        return `<div class="graph-rel-item"><span class="graph-rel-arrow">${dir ? '\u2192' : '\u2190'}</span> <span class="graph-rel-type">${escapeHtml(e.type)}</span> <strong>${escapeHtml(other.id)}</strong></div>`;
       }).join('')
       : `<div class="graph-detail-muted">${t('noRelations') || 'No relations'}</div>`;
 
-    panel.innerHTML = `
+    drawer.innerHTML = `
       <div class="graph-detail-header">
-        <div class="graph-detail-dot" style="background:${node.color};box-shadow:0 0 10px ${hexRGBA(node.color, 0.5)}"></div>
-        <div>
+        <div class="graph-detail-dot" style="background:${node.color};box-shadow:0 0 12px ${hexRGBA(node.color, 0.5)}"></div>
+        <div style="flex:1;">
           <div class="graph-detail-name">${escapeHtml(node.id)}</div>
           <div class="graph-detail-type">${escapeHtml(node.type)}</div>
         </div>
+        <button onclick="document.getElementById('graph-detail-drawer').classList.remove('open')" style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:18px;padding:4px 8px;">\u2715</button>
       </div>
-      <div class="graph-detail-section">
-        <h3>${t('observations')} <span class="graph-detail-count">${node.observations.length}</span></h3>
-        ${obsHtml}
-      </div>
-      <div class="graph-detail-section">
-        <h3>${t('relations')} <span class="graph-detail-count">${related.length}</span></h3>
-        ${relHtml}
+      <div style="display:flex;gap:0;">
+        <div class="graph-detail-section" style="flex:1;border-right:1px solid rgba(255,255,255,0.04);">
+          <h3>${t('observations')} <span class="graph-detail-count">${node.observations.length}</span></h3>
+          ${obsHtml}
+        </div>
+        <div class="graph-detail-section" style="flex:1;">
+          <h3>${t('relations')} <span class="graph-detail-count">${related.length}</span></h3>
+          ${relHtml}
+        </div>
       </div>
     `;
+    drawer.classList.add('open');
   }
 
-  // --- Animation loop ---
+  // --- Animation loop (always dynamic — continuous breathing) ---
   function tick() {
-    const movement = simulate();
+    simulate();
     draw();
-    if (movement > 0.1) {
-      requestAnimationFrame(tick);
-    } else {
-      animating = false;
-    }
+    requestAnimationFrame(tick);
   }
 
   function wakeUp() {
-    if (!animating) {
-      animating = true;
-      // Give nodes a tiny nudge so simulation doesn't immediately stop
-      nodes.forEach(n => {
-        n.vx += (Math.random() - 0.5) * 0.5;
-        n.vy += (Math.random() - 0.5) * 0.5;
-      });
-      tick();
-    }
+    nodes.forEach(n => {
+      n.vx += (Math.random() - 0.5) * 0.5;
+      n.vy += (Math.random() - 0.5) * 0.5;
+    });
   }
 
   // --- Mouse interaction ---
@@ -1184,8 +1345,17 @@ function renderGraph(graph) {
     if (panStart) { panStart = null; canvas.style.cursor = hoveredNode ? 'pointer' : 'grab'; }
   });
 
-  canvas.addEventListener('click', () => {
-    if (hoveredNode) { selectedNode = hoveredNode; showDetail(selectedNode); wakeUp(); }
+  canvas.addEventListener('click', (e) => {
+    if (hoveredNode) {
+      selectedNode = hoveredNode;
+      showDetail(selectedNode);
+      wakeUp();
+    } else {
+      // Click on empty space: deselect and close drawer
+      selectedNode = null;
+      showDetail(null);
+      draw();
+    }
   });
 
   canvas.addEventListener('mouseleave', () => {
@@ -1216,7 +1386,7 @@ function renderGraph(graph) {
 
   canvas.style.cursor = 'grab';
   tick();
-  setTimeout(() => { animating = false; }, 6000);
+  // Continuous loop — no timeout needed
 }
 
 // ============================================================

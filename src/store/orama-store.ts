@@ -13,6 +13,7 @@ import type { MemorixDocument, SearchOptions, IndexEntry } from '../types.js';
 import { OBSERVATION_ICONS, type ObservationType } from '../types.js';
 import { getEmbeddingProvider, type EmbeddingProvider } from '../embedding/provider.js';
 import { calculateProjectAffinity, extractProjectKeywords, type AffinityContext, type MemoryContent } from './project-affinity.js';
+import { detectQueryIntent, applyIntentBoost } from '../search/intent-detector.js';
 
 let db: AnyOrama | null = null;
 let embeddingEnabled = false;
@@ -147,25 +148,38 @@ export async function searchObservations(options: SearchOptions): Promise<IndexE
 
   // Determine search mode: hybrid (with vector) or fulltext (default)
   const hasQuery = options.query && options.query.trim().length > 0;
+
+  // ── Intent-Aware Recall ──────────────────────────────────────
+  // Detect query intent (why/when/how/what/problem) and adjust
+  // field weights and type boosting accordingly.
+  const intentResult = hasQuery ? detectQueryIntent(options.query!) : null;
+
   // When post-filtering by multiple project aliases, request extra results to compensate
   const requestLimit = (projectIds && projectIds.length > 1)
     ? (options.limit ?? 20) * 3
     : (options.limit ?? 20);
+
+  // Default field boosts — overridden by intent-specific boosts when detected
+  const defaultBoost: Record<string, number> = {
+    title: 3,
+    entityName: 2,
+    concepts: 1.5,
+    narrative: 1,
+    facts: 1,
+    filesModified: 0.5,
+  };
+  const fieldBoost = (intentResult?.confidence ?? 0) > 0.3 && intentResult?.fieldBoosts
+    ? intentResult.fieldBoosts
+    : defaultBoost;
+
   let searchParams: Record<string, unknown> = {
     term: options.query,
     limit: requestLimit,
     ...(Object.keys(filters).length > 0 ? { where: filters } : {}),
     // Search specific fields (not tokens, accessCount, etc.)
     properties: ['title', 'entityName', 'narrative', 'facts', 'concepts', 'filesModified'],
-    // Field boosting: title and entity matches rank higher
-    boost: {
-      title: 3,
-      entityName: 2,
-      concepts: 1.5,
-      narrative: 1,
-      facts: 1,
-      filesModified: 0.5,
-    },
+    // Field boosting: intent-aware or default
+    boost: fieldBoost,
     // Fuzzy tolerance: allow 1-char typos for short queries, 2 for longer
     ...(hasQuery ? { tolerance: options.query!.length > 6 ? 2 : 1 } : {}),
   };
@@ -261,8 +275,21 @@ export async function searchObservations(options: SearchOptions): Promise<IndexE
       };
     });
 
-  // Re-sort by time-decayed score
-  intermediate.sort((a, b) => b.score - a.score);
+  // ── Intent-Aware Type Boosting ───────────────────────────────
+  // Boost scores for observation types that match the query intent
+  if (intentResult && intentResult.confidence > 0.3) {
+    intermediate = intermediate.map(entry => ({
+      ...entry,
+      score: applyIntentBoost(entry.score, entry.type, intentResult),
+    }));
+  }
+
+  // Re-sort: chronological for WHEN queries, relevance for others
+  if (intentResult?.preferChronological) {
+    intermediate.sort((a, b) => new Date(b.rawTime).getTime() - new Date(a.rawTime).getTime());
+  } else {
+    intermediate.sort((a, b) => b.score - a.score);
+  }
 
   // ─── Project Affinity Scoring (mcp-memory-service style) ───
   // Penalize memories that don't reference the current project to prevent

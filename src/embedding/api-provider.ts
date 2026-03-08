@@ -388,14 +388,27 @@ async function fetchWithRetry(
   body: Record<string, unknown>,
   attempt = 0,
 ): Promise<EmbeddingAPIResponse> {
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify(body),
-  });
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 10_000);
+  let response: Response;
+  try {
+    response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify(body),
+      signal: controller.signal,
+    });
+  } catch (err: unknown) {
+    clearTimeout(timeout);
+    if (err instanceof Error && err.name === 'AbortError') {
+      throw new Error(`Embedding API timeout after 10s: ${url}`);
+    }
+    throw err;
+  }
+  clearTimeout(timeout);
 
   if (response.ok) {
     return response.json() as Promise<EmbeddingAPIResponse>;

@@ -116,11 +116,7 @@ export async function storeObservation(input: {
 
   observations.push(observation);
 
-  // Generate embedding if provider is available (graceful degradation)
-  const searchableText = [input.title, input.narrative, ...(input.facts ?? [])].join(' ');
-  const embedding = await generateEmbedding(searchableText);
-
-  // Insert into Orama search index
+  // Insert into Orama search index WITHOUT embedding first (non-blocking)
   const doc: MemorixDocument = {
     id: `obs-${id}`,
     observationId: id,
@@ -137,7 +133,6 @@ export async function storeObservation(input: {
     accessCount: 0,
     lastAccessedAt: '',
     status: 'active',
-    ...(embedding ? { embedding } : {}),
   };
 
   await insertObservation(doc);
@@ -166,6 +161,22 @@ export async function storeObservation(input: {
       await saveIdCounter(projectDir!, nextId);
     });
   }
+
+  // Generate embedding async (fire-and-forget) — never blocks MCP response
+  const searchableText = [input.title, input.narrative, ...(input.facts ?? [])].join(' ');
+  generateEmbedding(searchableText).then(async (embedding) => {
+    if (embedding) {
+      try {
+        const { removeObservation: removeObs } = await import('../store/orama-store.js');
+        await removeObs(`obs-${id}`);
+        await insertObservation(Object.assign({}, doc, { embedding }));
+      } catch {
+        // Embedding index update failed — observation still persisted without vector
+      }
+    }
+  }).catch((err) => {
+    console.error(`[memorix] Async embedding failed for obs-${id}: ${err instanceof Error ? err.message : err}`);
+  });
 
   return { observation, upserted: false };
 }
@@ -222,10 +233,7 @@ async function upsertObservation(
   if (input.sessionId) existing.sessionId = input.sessionId;
   if (input.progress) existing.progress = input.progress;
 
-  // Re-index in Orama
-  const searchableText = [input.title, input.narrative, ...(input.facts ?? [])].join(' ');
-  const embedding = await generateEmbedding(searchableText);
-
+  // Re-index in Orama WITHOUT embedding first (non-blocking)
   const doc: MemorixDocument = {
     id: `obs-${existing.id}`,
     observationId: existing.id,
@@ -242,7 +250,6 @@ async function upsertObservation(
     accessCount: 0,
     lastAccessedAt: '',
     status: 'active',
-    ...(embedding ? { embedding } : {}),
   };
 
   // Remove old doc and insert updated one
@@ -266,6 +273,23 @@ async function upsertObservation(
       await saveObservationsJson(projectDir!, observations);
     });
   }
+
+  // Generate embedding async (fire-and-forget) — never blocks MCP response
+  const searchableText = [input.title, input.narrative, ...(input.facts ?? [])].join(' ');
+  const obsId = existing.id;
+  generateEmbedding(searchableText).then(async (embedding) => {
+    if (embedding) {
+      try {
+        const { removeObservation: removeObs } = await import('../store/orama-store.js');
+        await removeObs(`obs-${obsId}`);
+        await insertObservation(Object.assign({}, doc, { embedding }));
+      } catch {
+        // Embedding index update failed — observation still persisted without vector
+      }
+    }
+  }).catch((err) => {
+    console.error(`[memorix] Async embedding failed for obs-${obsId}: ${err instanceof Error ? err.message : err}`);
+  });
 
   return existing;
 }
@@ -302,12 +326,10 @@ export async function resolveObservations(
     }
     resolved.push(id);
 
-    // Update Orama index
+    // Update Orama index (without blocking on embedding)
     try {
       const { removeObservation: removeObs } = await import('../store/orama-store.js');
       await removeObs(`obs-${id}`);
-      // Re-insert with updated status
-      const embedding = await generateEmbedding([obs.title, obs.narrative, ...obs.facts].join(' '));
       const doc: MemorixDocument = {
         id: `obs-${obs.id}`,
         observationId: obs.id,
@@ -324,9 +346,18 @@ export async function resolveObservations(
         accessCount: 0,
         lastAccessedAt: '',
         status,
-        ...(embedding ? { embedding } : {}),
       };
       await insertObservation(doc);
+      // Async embedding update (fire-and-forget)
+      const obsId = obs.id;
+      generateEmbedding([obs.title, obs.narrative, ...obs.facts].join(' ')).then(async (embedding) => {
+        if (embedding) {
+          try {
+            await removeObs(`obs-${obsId}`);
+            await insertObservation(Object.assign({}, doc, { embedding }));
+          } catch { /* best effort */ }
+        }
+      }).catch(() => {});
     } catch { /* best effort */ }
   }
 
