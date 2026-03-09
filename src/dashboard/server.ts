@@ -365,6 +365,14 @@ interface DashboardState {
     dataDir: string;
 }
 
+/** Optional team collaboration instances passed from MCP server */
+export interface TeamInstances {
+    registry: { listAgents: (filter?: any) => any[]; getActiveCount: () => number; getAgent: (id: string) => any };
+    fileLocks: { listLocks: (agentId?: string) => any[]; cleanExpired: () => void };
+    taskManager: { list: (filter?: any) => any[]; getAvailable: () => any[] };
+    messageBus: { getUnreadCount: (agentId: string) => number };
+}
+
 /** Read full POST body as string */
 function readBody(req: IncomingMessage): Promise<string> {
     return new Promise((resolve, reject) => {
@@ -382,6 +390,7 @@ export async function startDashboard(
     projectId: string,
     projectName: string,
     autoOpen = true,
+    teamInstances?: TeamInstances,
 ): Promise<void> {
     const resolvedStaticDir = staticDir;
     // Derive baseDir from dataDir (parent directory of project-specific dir)
@@ -409,6 +418,29 @@ export async function startDashboard(
                 }
             } catch {
                 sendError(res, 'Invalid JSON body', 400);
+            }
+            return;
+        }
+
+        if (url.startsWith('/api/team') && teamInstances) {
+            try {
+                teamInstances.fileLocks.cleanExpired();
+                const agents = teamInstances.registry.listAgents();
+                const locks = teamInstances.fileLocks.listLocks();
+                const tasks = teamInstances.taskManager.list();
+                const available = teamInstances.taskManager.getAvailable();
+                sendJson(res, {
+                    agents: agents.map((a: any) => ({
+                        ...a,
+                        unread: teamInstances!.messageBus.getUnreadCount(a.id),
+                    })),
+                    activeCount: teamInstances.registry.getActiveCount(),
+                    locks,
+                    tasks,
+                    availableTasks: available.length,
+                });
+            } catch {
+                sendJson(res, { agents: [], activeCount: 0, locks: [], tasks: [], availableTasks: 0 });
             }
             return;
         }

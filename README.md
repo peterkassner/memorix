@@ -14,11 +14,11 @@
   <a href="https://www.npmjs.com/package/memorix"><img src="https://img.shields.io/npm/dm/memorix.svg?style=flat-square&color=blue" alt="downloads"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache%202.0-green.svg?style=flat-square" alt="license"></a>
   <a href="https://github.com/AVIDS2/memorix"><img src="https://img.shields.io/github/stars/AVIDS2/memorix?style=flat-square&color=yellow" alt="stars"></a>
-  <img src="https://img.shields.io/badge/tests-674%20passed-brightgreen?style=flat-square" alt="tests">
+  <img src="https://img.shields.io/badge/tests-753%20passed-brightgreen?style=flat-square" alt="tests">
 </p>
 
 <p align="center">
-  <strong>27% fewer tokens via LLM compression | 60% search precision improvement via reranking | 10 agents supported</strong>
+  <strong>v1.0 Stable | 22 MCP tools | Auto-cleanup | Multi-agent collaboration | 10 IDEs supported</strong>
 </p>
 
 <p align="center">
@@ -58,6 +58,8 @@ No re-explaining. No copy-pasting. No vendor lock-in.
 ### Core Capabilities
 
 - **Cross-Agent Memory**: All agents share the same memory store. Store in Cursor, retrieve in Claude Code.
+- **Multi-Agent Collaboration**: Team tools for agent coordination — join/leave, file locks, task boards, and cross-IDE messaging via shared `team-state.json`.
+- **Auto-Cleanup on Startup**: Background retention archiving and intelligent deduplication (LLM or heuristic) run automatically — zero manual maintenance.
 - **Dual-Mode Quality**: Free heuristic engine for basic dedup; optional LLM mode for intelligent compression, reranking, and conflict resolution.
 - **3-Layer Progressive Disclosure**: Search returns compact indices (~50 tokens/result), timeline shows chronological context, detail provides full content. ~10x token savings over full-text retrieval.
 - **Mini-Skills**: Promote high-value observations to permanent skills that auto-inject at every session start. Critical knowledge never decays.
@@ -168,17 +170,25 @@ Restart your agent. No API keys required. No cloud. No external dependencies.
 
 ## Features
 
-### 28 MCP Tools
+### 22 MCP Tools (Default)
 
 | Category | Tools |
 |----------|-------|
 | **Memory** | `memorix_store` · `memorix_search` · `memorix_detail` · `memorix_timeline` · `memorix_resolve` · `memorix_deduplicate` · `memorix_suggest_topic_key` |
 | **Sessions** | `memorix_session_start` · `memorix_session_end` · `memorix_session_context` |
-| **Knowledge Graph** | `create_entities` · `create_relations` · `add_observations` · `delete_entities` · `delete_observations` · `delete_relations` · `search_nodes` · `open_nodes` · `read_graph` |
 | **Skills** | `memorix_skills` · `memorix_promote` |
 | **Workspace** | `memorix_workspace_sync` · `memorix_rules_sync` |
-| **Maintenance** | `memorix_retention` · `memorix_consolidate` · `memorix_export` · `memorix_import` |
+| **Maintenance** | `memorix_retention` · `memorix_consolidate` · `memorix_transfer` |
+| **Team** | `team_manage` · `team_file_lock` · `team_task` · `team_message` |
 | **Dashboard** | `memorix_dashboard` |
+
+<details>
+<summary><strong>+9 Optional: Knowledge Graph tools</strong> (enable in <code>~/.memorix/settings.json</code>)</summary>
+
+`create_entities` · `create_relations` · `add_observations` · `delete_entities` · `delete_observations` · `delete_relations` · `search_nodes` · `open_nodes` · `read_graph`
+
+Enable with: `{ "knowledgeGraph": true }` in `~/.memorix/settings.json`
+</details>
 
 ### Observation Types
 
@@ -255,6 +265,19 @@ Promote high-value observations to permanent skills using `memorix_promote`. Min
 
 Use this for critical knowledge that must survive indefinitely: deployment procedures, architectural constraints, recurring gotchas.
 
+### Team Collaboration
+
+Multiple agents working in the same workspace can coordinate via 4 team tools:
+
+| Tool | Actions | Purpose |
+|------|---------|---------|
+| `team_manage` | join, leave, status | Agent registry — see who's active |
+| `team_file_lock` | lock, unlock, status | Advisory file locks to prevent conflicts |
+| `team_task` | create, claim, complete, list | Shared task board with dependencies |
+| `team_message` | send, broadcast, inbox | Direct and broadcast messaging |
+
+State is persisted to `team-state.json` and shared across all IDE processes. See [TEAM.md](TEAM.md) for the full protocol.
+
 ### Auto-Memory Hooks
 
 ```bash
@@ -290,19 +313,21 @@ memorix hooks install # Install auto-capture for IDEs
                    │  MCP Server │
                    └──────┬──────┘
                           │
-     ┌────────────────────┼────────────────────┐
-     │                    │                    │
-┌────┴─────┐       ┌──────┴──────┐      ┌──────┴──────┐
-│  Search  │       │  Knowledge  │      │  Rules &    │
-│ Pipeline │       │  Graph      │      │  Workspace  │
-│          │       │  (Entities) │      │  Sync       │
-│ BM25     │       └─────────────┘      └─────────────┘
-│ +Vector  │
-│ +Rerank  │
-└──────────┘
-      │
-~/.memorix/data/
-(100% local, per-project isolation)
+     ┌──────────┬─────────┼─────────┬──────────┐
+     │          │         │         │          │
+┌────┴─────┐ ┌─┴───────┐ │  ┌──────┴──────┐ ┌─┴────────┐
+│  Search  │ │  Team   │ │  │  Rules &    │ │  Auto-   │
+│ Pipeline │ │  Collab │ │  │  Workspace  │ │  Cleanup │
+│          │ │         │ │  │  Sync       │ │          │
+│ BM25     │ │ Agents  │ │  └─────────────┘ │ Retention│
+│ +Vector  │ │ Tasks   │ │                  │ +LLM     │
+│ +Rerank  │ │ Locks   │ │                  │  Dedup   │
+└──────────┘ │ Msgs    │ │                  └──────────┘
+      │      └─────────┘ │
+      │           │      │
+~/.memorix/data/  │  Knowledge
+(local, per-project)  │  Graph
+             team-state.json
 ```
 
 ### Search Pipeline
@@ -337,7 +362,7 @@ git clone https://github.com/AVIDS2/memorix.git
 cd memorix && npm install
 
 npm run dev       # watch mode
-npm test          # 674 tests
+npm test          # 753 tests
 npm run build     # production build
 ```
 

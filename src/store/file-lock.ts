@@ -32,7 +32,7 @@ export async function acquireLock(lockPath: string): Promise<void> {
       return;
     } catch (err: unknown) {
       const code = err instanceof Error && 'code' in err ? (err as NodeJS.ErrnoException).code : undefined;
-      if (code === 'EEXIST') {
+      if (code === 'EEXIST' || code === 'EPERM') {
         // Lock exists — check if stale
         try {
           const stat = await fs.stat(lockPath);

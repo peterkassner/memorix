@@ -463,6 +463,7 @@ const main = defineCommand({
   },
   subCommands: {
     serve: () => import('./commands/serve.js').then(m => m.default),
+    'serve-http': () => import('./commands/serve-http.js').then(m => m.default),
     status: () => import('./commands/status.js').then(m => m.default),
     sync: () => import('./commands/sync.js').then(m => m.default),
     hook: () => import('./commands/hook.js').then(m => m.default),

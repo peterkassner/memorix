@@ -121,7 +121,15 @@ function coerceObjectArray<T>(val: unknown): T[] {
 /**
  * Create and configure the Memorix MCP Server.
  */
-export async function createMemorixServer(cwd?: string, existingServer?: McpServer): Promise<{
+/** Optional shared team instances — passed by serve-http so all sessions share state */
+export interface SharedTeamInstances {
+  registry: InstanceType<typeof import('./team/registry.js').AgentRegistry>;
+  messageBus: InstanceType<typeof import('./team/messages.js').MessageBus>;
+  fileLocks: InstanceType<typeof import('./team/file-locks.js').FileLockRegistry>;
+  taskManager: InstanceType<typeof import('./team/tasks.js').TaskManager>;
+}
+
+export async function createMemorixServer(cwd?: string, existingServer?: McpServer, sharedTeam?: SharedTeamInstances): Promise<{
   server: McpServer;
   graphManager: KnowledgeGraphManager;
   projectId: string;
@@ -881,8 +889,21 @@ export async function createMemorixServer(cwd?: string, existingServer?: McpServ
   );
 
   // ================================================================
-  // MCP Official Memory Server Compatible Tools
+  // MCP Official Memory Server Compatible Tools (optional — 9 tools)
+  // Enable via ~/.memorix/settings.json { "knowledgeGraph": true }
   // ================================================================
+
+  let enableKG = false;
+  try {
+    const { homedir } = await import('node:os');
+    const { join } = await import('node:path');
+    const { readFile } = await import('node:fs/promises');
+    const raw = await readFile(join(homedir(), '.memorix', 'settings.json'), 'utf-8');
+    const s = JSON.parse(raw);
+    if (s.knowledgeGraph === true) enableKG = true;
+  } catch { /* no settings or parse error — default off */ }
+
+  if (enableKG) {
 
   /** create_entities — MCP Official compatible */
   server.registerTool(
@@ -1071,6 +1092,8 @@ export async function createMemorixServer(cwd?: string, existingServer?: McpServ
       };
     },
   );
+
+  } // end if (enableKG)
 
   // ============================================================
   // Rules Sync Tool (P2 — Memorix differentiator)
@@ -1632,6 +1655,30 @@ export async function createMemorixServer(cwd?: string, existingServer?: McpServ
         lines.push('No previous session context found. This appears to be a fresh project.');
       }
 
+      // Inject team context if any agents are active
+      try {
+        const activeAgents = teamRegistry.listAgents({ status: 'active' });
+        if (activeAgents.length > 0) {
+          lines.push('', '---', '👥 **Team Status:**');
+          for (const a of activeAgents) {
+            lines.push(`- 🟢 ${a.name}${a.role ? ` (${a.role})` : ''}`);
+          }
+
+          // Show locked files
+          fileLocks.cleanExpired();
+          const locks = fileLocks.listLocks();
+          if (locks.length > 0) {
+            lines.push('', '🔒 **Locked files:**');
+            for (const l of locks) {
+              const owner = teamRegistry.getAgent(l.lockedBy);
+              lines.push(`- ${l.file} — ${owner?.name ?? l.lockedBy.slice(0, 8)}`);
+            }
+          }
+
+          lines.push('', '💡 Use `team_join` to register, `team_inbox` to check messages, `team_task_list available=true` for available work.');
+        }
+      } catch { /* team context injection is optional */ }
+
       return {
         content: [{ type: 'text' as const, text: lines.filter(Boolean).join('\n') }],
       };
@@ -1730,72 +1777,50 @@ export async function createMemorixServer(cwd?: string, existingServer?: McpServ
   // ============================================================
 
   /**
-   * memorix_export — Export project memories for sharing
+   * memorix_transfer — Export or import project memories
    */
   server.registerTool(
-    'memorix_export',
+    'memorix_transfer',
     {
-      title: 'Export Memories',
+      title: 'Transfer Memories',
       description:
-        'Export project observations and sessions for sharing with teammates or backup. ' +
-        'Supports JSON (full fidelity, importable) and Markdown (human-readable, for docs/PRs).',
+        'Export or import project memories. ' +
+        'Action "export": export observations and sessions (JSON or Markdown). ' +
+        'Action "import": import from a JSON export (re-assigns IDs, skips duplicate topicKeys).',
       inputSchema: {
-        format: z.enum(['json', 'markdown']).describe('Export format: json (importable) or markdown (human-readable)'),
+        action: z.enum(['export', 'import']).describe('Operation: export or import'),
+        format: z.enum(['json', 'markdown']).optional().describe('Export format (for export, default: json)'),
+        data: z.string().optional().describe('JSON string from a previous export (for import)'),
       },
     },
-    async ({ format }) => {
-      const { exportAsJson, exportAsMarkdown } = await import('./memory/export-import.js');
-
-      if (format === 'markdown') {
-        const md = await exportAsMarkdown(projectDir, project.id);
-        return { content: [{ type: 'text' as const, text: md }] };
-      }
-
-      const data = await exportAsJson(projectDir, project.id);
-      const json = JSON.stringify(data, null, 2);
-
-      return {
-        content: [{
-          type: 'text' as const,
-          text: `## Export Complete\n- Observations: ${data.stats.observationCount}\n- Sessions: ${data.stats.sessionCount}\n\n\`\`\`json\n${json}\n\`\`\`\n\n> Save this JSON and use \`memorix_import\` on another machine to restore.`,
-        }],
-      };
-    },
-  );
-
-  /**
-   * memorix_import — Import memories from a JSON export
-   */
-  server.registerTool(
-    'memorix_import',
-    {
-      title: 'Import Memories',
-      description:
-        'Import observations and sessions from a JSON export (produced by memorix_export). ' +
-        'Re-assigns IDs to avoid conflicts. Skips observations with duplicate topicKeys.',
-      inputSchema: {
-        data: z.string().describe('JSON string from memorix_export output'),
-      },
-    },
-    async ({ data: jsonStr }) => {
-      const { importFromJson } = await import('./memory/export-import.js');
-
-      let parsed;
-      try {
-        parsed = JSON.parse(jsonStr);
-      } catch {
+    async ({ action, format, data: jsonStr }) => {
+      if (action === 'export') {
+        const { exportAsJson, exportAsMarkdown } = await import('./memory/export-import.js');
+        if (format === 'markdown') {
+          const md = await exportAsMarkdown(projectDir, project.id);
+          return { content: [{ type: 'text' as const, text: md }] };
+        }
+        const data = await exportAsJson(projectDir, project.id);
+        const json = JSON.stringify(data, null, 2);
         return {
-          content: [{ type: 'text' as const, text: 'Invalid JSON. Please provide the exact output from memorix_export.' }],
-          isError: true,
+          content: [{
+            type: 'text' as const,
+            text: `Export complete — ${data.stats.observationCount} observations, ${data.stats.sessionCount} sessions\n\n\`\`\`json\n${json}\n\`\`\`\n\n> Use action "import" on another machine to restore.`,
+          }],
         };
       }
-
+      // import
+      if (!jsonStr) return { content: [{ type: 'text' as const, text: '❌ data is required for import' }], isError: true };
+      const { importFromJson } = await import('./memory/export-import.js');
+      let parsed;
+      try { parsed = JSON.parse(jsonStr); } catch {
+        return { content: [{ type: 'text' as const, text: 'Invalid JSON. Provide the exact output from export.' }], isError: true };
+      }
       const result = await importFromJson(projectDir, parsed);
-
       return {
         content: [{
           type: 'text' as const,
-          text: `## Import Complete\n- Observations imported: **${result.observationsImported}**\n- Sessions imported: **${result.sessionsImported}**\n- Skipped (duplicate topicKey): **${result.skipped}**`,
+          text: `Import complete — ${result.observationsImported} observations, ${result.sessionsImported} sessions imported, ${result.skipped} skipped`,
         }],
       };
     },
@@ -1896,7 +1921,12 @@ export async function createMemorixServer(cwd?: string, existingServer?: McpServ
         console.error(`[memorix] Dashboard staticDir: ${staticDir}`);
 
         // Start in background (non-blocking), disable auto-open (we'll open it ourselves)
-        startDashboard(projectDir, portNum, staticDir, project.id, project.name, false)
+        startDashboard(projectDir, portNum, staticDir, project.id, project.name, false, {
+            registry: teamRegistry,
+            fileLocks,
+            taskManager,
+            messageBus,
+          })
           .then(() => { dashboardRunning = true; })
           .catch((err) => { console.error('[memorix] Dashboard error:', err); dashboardRunning = false; });
 
@@ -1945,6 +1975,271 @@ export async function createMemorixServer(cwd?: string, existingServer?: McpServ
           content: [{ type: 'text' as const, text: `Failed to start dashboard: ${err instanceof Error ? err.message : String(err)}` }],
         };
       }
+    },
+  );
+
+  // ================================================================
+  // Team Collaboration Tools (Multi-Agent)
+  // ================================================================
+
+  const { AgentRegistry } = await import('./team/registry.js');
+  const { MessageBus } = await import('./team/messages.js');
+  const { FileLockRegistry } = await import('./team/file-locks.js');
+  const { TaskManager } = await import('./team/tasks.js');
+
+  // Use shared instances (from HTTP server) or create new ones (stdio mode)
+  const teamRegistry = sharedTeam?.registry ?? new AgentRegistry();
+  const messageBus = sharedTeam?.messageBus ?? new MessageBus(teamRegistry);
+  const fileLocks = sharedTeam?.fileLocks ?? new FileLockRegistry();
+  const taskManager = sharedTeam?.taskManager ?? new TaskManager();
+
+  // File-based persistence for cross-IDE team state sharing (stdio mode only).
+  // In HTTP mode, all sessions share in-memory state — no persistence needed.
+  let teamPersist: import('./team/persistence.js').TeamPersistence | null = null;
+  if (!sharedTeam) {
+    const { TeamPersistence } = await import('./team/persistence.js');
+    const { join } = await import('node:path');
+    teamPersist = new TeamPersistence(
+      join(projectDir, 'team-state.json'),
+      teamRegistry, messageBus, taskManager, fileLocks,
+    );
+    await teamPersist.sync();
+  }
+  const teamSync = () => teamPersist ? teamPersist.sync() : Promise.resolve();
+  const teamFlush = () => teamPersist ? teamPersist.flush() : Promise.resolve();
+
+  // ── team_manage (join / leave / status) ─────────────────────────
+  server.registerTool(
+    'team_manage',
+    {
+      title: 'Team Management',
+      description:
+        'Register, unregister, or list agents in the team. ' +
+        'Action "join": register this agent (returns agent ID). ' +
+        'Action "leave": mark agent inactive, release locks. ' +
+        'Action "status": list all agents with roles and capabilities.',
+      inputSchema: {
+        action: z.enum(['join', 'leave', 'status']).describe('Operation to perform'),
+        name: z.string().optional().describe('Agent name for join (e.g., "cursor-frontend")'),
+        role: z.string().optional().describe('Agent role for join'),
+        capabilities: z.array(z.string()).optional().describe('Agent capabilities for join'),
+        agentId: z.string().optional().describe('Agent ID for leave'),
+      },
+    },
+    async ({ action, name, role, capabilities, agentId }) => {
+      await teamSync();
+      if (action === 'join') {
+        const trimmed = (name || '').trim();
+        if (!trimmed) return { content: [{ type: 'text' as const, text: '❌ Agent name is required' }], isError: true };
+        if (trimmed.length > 100) return { content: [{ type: 'text' as const, text: '❌ Agent name too long (max 100 chars)' }], isError: true };
+        const agent = teamRegistry.join({ name: trimmed, role, capabilities: capabilities ? coerceStringArray(capabilities) : undefined });
+        await teamFlush();
+        return {
+          content: [{
+            type: 'text' as const,
+            text: `✅ Joined team as "${agent.name}" (ID: ${agent.id})\nRole: ${agent.role ?? 'unspecified'}\nActive agents: ${teamRegistry.getActiveCount()}`,
+          }],
+        };
+      }
+      if (action === 'leave') {
+        if (!agentId) return { content: [{ type: 'text' as const, text: '❌ agentId is required for leave' }], isError: true };
+        const left = teamRegistry.leave(agentId);
+        if (!left) return { content: [{ type: 'text' as const, text: '⚠️ Agent not found' }] };
+        const releasedLocks = fileLocks.releaseAll(agentId);
+        messageBus.clearInbox(agentId);
+        await teamFlush();
+        const parts: string[] = [];
+        if (releasedLocks > 0) parts.push(`released ${releasedLocks} lock(s)`);
+        return {
+          content: [{
+            type: 'text' as const,
+            text: `Left team.${parts.length > 0 ? ' ' + parts.join(', ') + '.' : ''}\nActive agents: ${teamRegistry.getActiveCount()}`,
+          }],
+        };
+      }
+      // status
+      const agents = teamRegistry.listAgents();
+      if (agents.length === 0) {
+        return { content: [{ type: 'text' as const, text: 'No agents registered. Use action "join" to register.' }] };
+      }
+      const lines = agents.map(a =>
+        `${a.status === 'active' ? '●' : '○'} ${a.name} (${a.id}) — ${a.role ?? 'no role'} [${a.capabilities.join(', ') || '-'}]`,
+      );
+      return {
+        content: [{
+          type: 'text' as const,
+          text: `Team: ${teamRegistry.getActiveCount()} active / ${agents.length} total\n\n${lines.join('\n')}`,
+        }],
+      };
+    },
+  );
+
+  // ── team_file_lock (lock / unlock / status) ───────────────────
+  server.registerTool(
+    'team_file_lock',
+    {
+      title: 'File Lock Management',
+      description:
+        'Advisory file locks to prevent conflicting edits. Auto-releases after 10 min TTL. ' +
+        'Action "lock": acquire lock. Action "unlock": release lock. Action "status": check lock status.',
+      inputSchema: {
+        action: z.enum(['lock', 'unlock', 'status']).describe('Operation to perform'),
+        file: z.string().optional().describe('File path (required for lock/unlock, optional for status — omit to list all)'),
+        agentId: z.string().optional().describe('Agent ID (required for lock/unlock)'),
+      },
+    },
+    async ({ action, file, agentId }) => {
+      await teamSync();
+      fileLocks.cleanExpired();
+      if (action === 'lock') {
+        if (!file || !agentId) return { content: [{ type: 'text' as const, text: '❌ file and agentId are required for lock' }], isError: true };
+        const agent = teamRegistry.getAgent(agentId);
+        if (!agent || agent.status !== 'active') {
+          return { content: [{ type: 'text' as const, text: `❌ Unknown or inactive agent: ${agentId.slice(0, 8)}…` }], isError: true };
+        }
+        const result = fileLocks.lock(file, agentId);
+        await teamFlush();
+        if (result.success) return { content: [{ type: 'text' as const, text: `Locked: ${file}` }] };
+        const owner = teamRegistry.getAgent(result.lockedBy);
+        return { content: [{ type: 'text' as const, text: `Denied — locked by ${owner?.name ?? result.lockedBy.slice(0, 8)}` }], isError: true };
+      }
+      if (action === 'unlock') {
+        if (!file || !agentId) return { content: [{ type: 'text' as const, text: '❌ file and agentId are required for unlock' }], isError: true };
+        const released = fileLocks.unlock(file, agentId);
+        await teamFlush();
+        return { content: [{ type: 'text' as const, text: released ? `Unlocked: ${file}` : `Cannot unlock: not owner or not locked` }] };
+      }
+      // status
+      if (file) {
+        const status = fileLocks.getStatus(file);
+        if (!status) return { content: [{ type: 'text' as const, text: `${file} — unlocked` }] };
+        const owner = teamRegistry.getAgent(status.lockedBy);
+        return { content: [{ type: 'text' as const, text: `${file} — locked by ${owner?.name ?? status.lockedBy.slice(0, 8)} (expires ${status.expiresAt.toISOString()})` }] };
+      }
+      const all = fileLocks.listLocks();
+      if (all.length === 0) return { content: [{ type: 'text' as const, text: 'No files locked' }] };
+      const lines = all.map(l => {
+        const owner = teamRegistry.getAgent(l.lockedBy);
+        return `${l.file} — ${owner?.name ?? l.lockedBy.slice(0, 8)}`;
+      });
+      return { content: [{ type: 'text' as const, text: `Locked files (${all.length}):\n${lines.join('\n')}` }] };
+    },
+  );
+
+  // ── team_task (create / claim / complete / list) ──────────────
+  server.registerTool(
+    'team_task',
+    {
+      title: 'Task Board',
+      description:
+        'Create, claim, complete, or list tasks in the team task board. Supports dependencies. ' +
+        'Action "create": create a task. Action "claim": assign to yourself. ' +
+        'Action "complete": mark done with result. Action "list": show tasks.',
+      inputSchema: {
+        action: z.enum(['create', 'claim', 'complete', 'list']).describe('Operation to perform'),
+        description: z.string().optional().describe('Task description (for create)'),
+        deps: z.array(z.string()).optional().describe('Dependency task IDs (for create)'),
+        taskId: z.string().optional().describe('Task ID (for claim/complete)'),
+        agentId: z.string().optional().describe('Agent ID (for claim/complete)'),
+        result: z.string().optional().describe('Result summary (for complete)'),
+        status: z.enum(['pending', 'in_progress', 'completed', 'failed']).optional().describe('Filter by status (for list)'),
+        available: z.boolean().optional().describe('Show only claimable tasks (for list)'),
+      },
+    },
+    async ({ action, description: desc, deps, taskId, agentId, result, status, available }) => {
+      await teamSync();
+      try {
+        if (action === 'create') {
+          if (!desc) return { content: [{ type: 'text' as const, text: '❌ description is required for create' }], isError: true };
+          const task = taskManager.create({ description: desc, deps: deps ? coerceStringArray(deps) : undefined });
+          await teamFlush();
+          return { content: [{ type: 'text' as const, text: `Task created: ${task.id} "${desc}"${task.deps.length > 0 ? ` (depends on ${task.deps.length})` : ''}` }] };
+        }
+        if (action === 'claim') {
+          if (!taskId || !agentId) return { content: [{ type: 'text' as const, text: '❌ taskId and agentId required for claim' }], isError: true };
+          const agent = teamRegistry.getAgent(agentId);
+          if (!agent || agent.status !== 'active') return { content: [{ type: 'text' as const, text: `❌ Unknown or inactive agent` }], isError: true };
+          const task = taskManager.claim(taskId, agentId);
+          await teamFlush();
+          return { content: [{ type: 'text' as const, text: `Task claimed by ${agent.name}: "${task.description}"` }] };
+        }
+        if (action === 'complete') {
+          if (!taskId || !agentId || !result) return { content: [{ type: 'text' as const, text: '❌ taskId, agentId, and result required for complete' }], isError: true };
+          const existingTask = taskManager.getTask(taskId);
+          const allowRescue = existingTask?.assignee ? teamRegistry.getAgent(existingTask.assignee)?.status !== 'active' : false;
+          const task = taskManager.complete(taskId, agentId, result, allowRescue);
+          await teamFlush();
+          return { content: [{ type: 'text' as const, text: `Task completed${allowRescue ? ' (rescued)' : ''}: "${task.description}"\nResult: ${result}` }] };
+        }
+        // list
+        const list = available ? taskManager.getAvailable() : taskManager.list(status ? { status } : undefined);
+        if (list.length === 0) return { content: [{ type: 'text' as const, text: available ? 'No tasks available to claim' : 'No tasks found' }] };
+        const statusIcon: Record<string, string> = { pending: '[ ]', in_progress: '[~]', completed: '[x]', failed: '[!]' };
+        const lines = list.map(t => {
+          const assignee = t.assignee ? teamRegistry.getAgent(t.assignee)?.name ?? t.assignee.slice(0, 8) : 'unassigned';
+          return `${statusIcon[t.status] ?? '[ ]'} ${t.id} "${t.description}" — ${assignee}${t.deps.length > 0 ? ` [deps: ${t.deps.length}]` : ''}`;
+        });
+        return { content: [{ type: 'text' as const, text: `Tasks (${list.length}):\n${lines.join('\n')}` }] };
+      } catch (err) {
+        return { content: [{ type: 'text' as const, text: `❌ ${(err as Error).message}` }], isError: true };
+      }
+    },
+  );
+
+  // ── team_message (send / broadcast / inbox) ───────────────────
+  server.registerTool(
+    'team_message',
+    {
+      title: 'Team Messaging',
+      description:
+        'Send, broadcast, or read messages between agents. ' +
+        'Action "send": direct message to one agent. Action "broadcast": message all active agents. ' +
+        'Action "inbox": read this agent\'s inbox.',
+      inputSchema: {
+        action: z.enum(['send', 'broadcast', 'inbox']).describe('Operation to perform'),
+        from: z.string().optional().describe('Sender agent ID (for send/broadcast)'),
+        to: z.string().optional().describe('Receiver agent ID (for send)'),
+        type: z.enum(['request', 'response', 'info', 'announcement', 'contract', 'error']).optional().describe('Message type (for send/broadcast)'),
+        content: z.string().optional().describe('Message content (for send/broadcast)'),
+        agentId: z.string().optional().describe('Agent ID (for inbox)'),
+        markRead: z.boolean().optional().default(false).describe('Mark messages as read (for inbox)'),
+      },
+    },
+    async ({ action, from, to, type: msgType, content, agentId, markRead }) => {
+      await teamSync();
+      if (action === 'send') {
+        if (!from || !to || !msgType || !content) return { content: [{ type: 'text' as const, text: '❌ from, to, type, and content required for send' }], isError: true };
+        if (content.length > 10_000) return { content: [{ type: 'text' as const, text: '❌ Message too large (max 10KB)' }], isError: true };
+        try {
+          const msg = messageBus.send({ from, to, type: msgType, content });
+          await teamFlush();
+          return { content: [{ type: 'text' as const, text: `Message sent (${msgType}) to ${to.slice(0, 8)}… | ID: ${msg.id.slice(0, 8)}…` }] };
+        } catch (err) {
+          return { content: [{ type: 'text' as const, text: `❌ ${(err as Error).message}` }], isError: true };
+        }
+      }
+      if (action === 'broadcast') {
+        if (!from || !msgType || !content) return { content: [{ type: 'text' as const, text: '❌ from, type, and content required for broadcast' }], isError: true };
+        if (content.length > 10_000) return { content: [{ type: 'text' as const, text: '❌ Message too large (max 10KB)' }], isError: true };
+        const msgs = messageBus.broadcast({ from, type: msgType, content });
+        await teamFlush();
+        return { content: [{ type: 'text' as const, text: `Broadcast (${msgType}) to ${msgs.length} agent(s)` }] };
+      }
+      // inbox
+      const inboxId = agentId || from || '';
+      if (!inboxId) return { content: [{ type: 'text' as const, text: '❌ agentId required for inbox' }], isError: true };
+      const inbox = messageBus.getInbox(inboxId);
+      const unread = messageBus.getUnreadCount(inboxId);
+      if (inbox.length === 0) return { content: [{ type: 'text' as const, text: 'Inbox empty' }] };
+      if (markRead) {
+        messageBus.markRead(inboxId, inbox.map(m => m.id));
+        await teamFlush();
+      }
+      const lines = inbox.slice(-10).map(m => {
+        const sender = teamRegistry.getAgent(m.from);
+        return `${m.read ? ' ' : '*'} [${m.type}] from ${sender?.name ?? m.from.slice(0, 8)}: ${m.content.slice(0, 100)}`;
+      });
+      return { content: [{ type: 'text' as const, text: `Inbox: ${unread} unread / ${inbox.length} total\n\n${lines.join('\n')}` }] };
     },
   );
 
@@ -2030,6 +2325,64 @@ export async function createMemorixServer(cwd?: string, existingServer?: McpServ
       }
       console.error(`[memorix] Sync advisory: ${syncAdvisory ? 'available' : 'nothing to sync'}`);
     } catch { /* sync scan is optional */ }
+
+    // ── Background retention cleanup ────────────────────────────────
+    // Archive expired memories automatically so users never need to run it manually.
+    try {
+      const { archiveExpired } = await import('./memory/retention.js');
+      const archiveResult = await archiveExpired(projectDir);
+      if (archiveResult.archived > 0) {
+        console.error(`[memorix] Auto-archived ${archiveResult.archived} expired observation(s)`);
+      }
+    } catch { /* retention cleanup is optional */ }
+
+    // ── Background consolidation ─────────────────────────────────────
+    // With LLM: semantic dedup (higher quality). Without: Jaccard similarity.
+    // Users who configure an API key want quality — each call is only ~500 tokens.
+    try {
+      if (isLLMEnabled()) {
+        const { getAllObservations, resolveObservations } = await import('./memory/observations.js');
+        const { deduplicateMemory } = await import('./llm/memory-manager.js');
+        const allObs = getAllObservations().filter(o => (o.status ?? 'active') === 'active' && o.projectId === project.id);
+        if (allObs.length > 10) {
+          const grouped = new Map<string, typeof allObs>();
+          for (const obs of allObs) {
+            const key = `${obs.entityName}::${obs.type}`;
+            if (!grouped.has(key)) grouped.set(key, []);
+            grouped.get(key)!.push(obs);
+          }
+          const toResolve: number[] = [];
+          for (const [, group] of grouped) {
+            if (group.length < 2) continue;
+            group.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+            for (let i = 0; i < group.length - 1 && i < 5; i++) {
+              try {
+                const older = group[i], newer = group[i + 1];
+                const decision = await deduplicateMemory(
+                  { id: newer.id, title: newer.title, narrative: newer.narrative, facts: newer.facts.join('\n') },
+                  [{ id: older.id, title: older.title, narrative: older.narrative, facts: older.facts.join('\n') }],
+                );
+                if (decision && (decision.action === 'UPDATE' || decision.action === 'NONE')) {
+                  toResolve.push(decision.action === 'UPDATE' ? older.id : newer.id);
+                } else if (decision?.action === 'DELETE' && decision.targetId) {
+                  toResolve.push(decision.targetId);
+                }
+              } catch { /* skip individual comparison errors */ }
+            }
+          }
+          if (toResolve.length > 0) {
+            await resolveObservations([...new Set(toResolve)], 'resolved');
+            console.error(`[memorix] Auto-dedup (LLM): resolved ${toResolve.length} redundant observation(s)`);
+          }
+        }
+      } else {
+        const { executeConsolidation } = await import('./memory/consolidation.js');
+        const result = await executeConsolidation(projectDir, project.id, { threshold: 0.55 });
+        if (result.observationsMerged > 0) {
+          console.error(`[memorix] Auto-consolidated: merged ${result.observationsMerged} duplicate(s) across ${result.clustersFound} cluster(s)`);
+        }
+      }
+    } catch { /* consolidation is optional */ }
 
     // Watch for external writes (e.g., from hook processes) and hot-reload.
     // Uses watchFile (polling) instead of watch because atomicWriteFile uses

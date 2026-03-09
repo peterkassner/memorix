@@ -93,12 +93,25 @@ const i18n = {
     noRetentionData: 'No Retention Data',
     noRetentionDesc: 'Store observations to see memory retention scores',
 
+    // Team
+    teamTitle: 'Team',
+    teamSubtitle: 'Multi-agent collaboration overview',
+    teamNoData: 'Team features available when using HTTP transport (memorix serve-http)',
+    teamActiveAgents: 'Active Agents',
+    teamLockedFiles: 'Locked Files',
+    teamTasks: 'Tasks',
+    teamAvailable: 'Available',
+    teamAgents: 'Agents',
+    teamLocks: 'File Locks',
+    teamTaskBoard: 'Task Board',
+
     // Nav tooltips
     navDashboard: 'Dashboard',
     navGraph: 'Knowledge Graph',
     navObservations: 'Observations',
     navRetention: 'Retention',
     navSessions: 'Sessions',
+    navTeam: 'Team',
   },
   zh: {
     // Dashboard
@@ -185,12 +198,25 @@ const i18n = {
     noRetentionData: '暂无衰减数据',
     noRetentionDesc: '存储观察记录以查看记忆衰减分数',
 
+    // Team
+    teamTitle: '团队',
+    teamSubtitle: '多 Agent 协作概览',
+    teamNoData: '使用 HTTP 传输时可用团队功能 (memorix serve-http)',
+    teamActiveAgents: '活跃 Agent',
+    teamLockedFiles: '锁定文件',
+    teamTasks: '任务',
+    teamAvailable: '可领取',
+    teamAgents: 'Agent 列表',
+    teamLocks: '文件锁',
+    teamTaskBoard: '任务看板',
+
     // Nav tooltips
     navDashboard: '仪表盘',
     navGraph: '知识图谱',
     navObservations: '观察记录',
     navRetention: '记忆衰减',
     navSessions: '会话',
+    navTeam: '团队',
   },
 };
 
@@ -209,7 +235,7 @@ function setLang(lang) {
   if (label) label.textContent = lang === 'en' ? '中文' : 'EN';
 
   // Update nav tooltips
-  const tooltipMap = { dashboard: 'navDashboard', graph: 'navGraph', observations: 'navObservations', retention: 'navRetention', sessions: 'navSessions' };
+  const tooltipMap = { dashboard: 'navDashboard', graph: 'navGraph', observations: 'navObservations', retention: 'navRetention', sessions: 'navSessions', team: 'navTeam' };
   document.querySelectorAll('.nav-btn').forEach(b => {
     const page = b.dataset.page;
     if (page && tooltipMap[page]) b.title = t(tooltipMap[page]);
@@ -277,7 +303,7 @@ document.addEventListener('DOMContentLoaded', () => {
 // Router & Navigation
 // ============================================================
 
-const pages = ['dashboard', 'graph', 'observations', 'retention', 'sessions'];
+const pages = ['dashboard', 'graph', 'observations', 'retention', 'sessions', 'team'];
 let currentPage = 'dashboard';
 
 function navigate(page) {
@@ -463,6 +489,7 @@ async function loadPage(page) {
     case 'observations': await loadObservations(); break;
     case 'retention': await loadRetention(); break;
     case 'sessions': await loadSessions(); break;
+    case 'team': await loadTeam(); break;
   }
   loaded[page] = true;
 }
@@ -1910,6 +1937,199 @@ async function loadSessions() {
 
   html += '</tbody></table></div></div>';
   container.innerHTML = html;
+}
+
+// ============================================================
+// Team Page
+// ============================================================
+
+let teamRefreshTimer = null;
+
+function teamTimeAgo(dateStr) {
+  if (!dateStr) return '';
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const sec = Math.floor(diff / 1000);
+  if (sec < 60) return sec + 's ago';
+  const min = Math.floor(sec / 60);
+  if (min < 60) return min + 'm ago';
+  const hr = Math.floor(min / 60);
+  if (hr < 24) return hr + 'h ago';
+  return Math.floor(hr / 24) + 'd ago';
+}
+
+function teamLockTTL(expiresAt) {
+  if (!expiresAt) return '';
+  const remaining = new Date(expiresAt).getTime() - Date.now();
+  if (remaining <= 0) return 'expired';
+  const min = Math.floor(remaining / 60000);
+  return min + 'm left';
+}
+
+async function loadTeam() {
+  const container = document.getElementById('page-team');
+  if (!container.innerHTML || container.innerHTML.includes('spinner')) {
+    container.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+  }
+
+  const data = await api('team');
+  if (!data) {
+    container.innerHTML = emptyState('', t('teamTitle'), t('teamNoData'));
+    return;
+  }
+
+  const statusIcons = {
+    pending: 'lucide:circle-dashed',
+    in_progress: 'lucide:loader',
+    completed: 'lucide:circle-check',
+    failed: 'lucide:circle-x',
+  };
+  const statusLabels = { pending: 'Pending', in_progress: 'In Progress', completed: 'Done', failed: 'Failed' };
+
+  const totalAgents = data.agents.length;
+  const inactiveAgents = data.agents.filter(a => a.status !== 'active').length;
+  const totalUnread = data.agents.reduce((sum, a) => sum + (a.unread || 0), 0);
+  const tasksByStatus = { pending: 0, in_progress: 0, completed: 0, failed: 0 };
+  data.tasks.forEach(tk => { tasksByStatus[tk.status] = (tasksByStatus[tk.status] || 0) + 1; });
+
+  let html = `
+    <div class="team-header">
+      <div class="team-header-left">
+        <div class="team-header-icon">
+          <span class="iconify" data-icon="lucide:users"></span>
+        </div>
+        <div>
+          <h1 class="page-title">${t('teamTitle')}</h1>
+          <p class="page-subtitle">${t('teamSubtitle')}${data.sessions != null ? ' &middot; ' + data.sessions + ' session(s)' : ''}</p>
+        </div>
+      </div>
+      <div class="team-header-right">
+        <span class="team-refresh-time" id="team-refresh-indicator"></span>
+        <button class="team-refresh-btn" onclick="loadTeam()">
+          <span class="iconify" data-icon="lucide:refresh-cw" style="font-size:14px;"></span>
+          Refresh
+        </button>
+      </div>
+    </div>
+
+    <div class="stats-grid">
+      <div class="stat-card" data-accent="cyan">
+        <div class="team-stat-icon"><span class="iconify" data-icon="lucide:bot"></span></div>
+        <div class="stat-label">${t('teamActiveAgents')}</div>
+        <div class="stat-value">${data.activeCount}<span style="font-size:14px;color:var(--text-muted);font-weight:400;"> / ${totalAgents}</span></div>
+      </div>
+      <div class="stat-card" data-accent="amber">
+        <div class="team-stat-icon"><span class="iconify" data-icon="lucide:lock"></span></div>
+        <div class="stat-label">${t('teamLockedFiles')}</div>
+        <div class="stat-value">${data.locks.length}</div>
+      </div>
+      <div class="stat-card" data-accent="purple">
+        <div class="team-stat-icon"><span class="iconify" data-icon="lucide:list-checks"></span></div>
+        <div class="stat-label">${t('teamTasks')}</div>
+        <div class="stat-value">${data.tasks.length}</div>
+        <div class="team-stat-sub">${tasksByStatus.pending} pending · ${tasksByStatus.in_progress} active · ${tasksByStatus.completed} done</div>
+      </div>
+      <div class="stat-card" data-accent="green">
+        <div class="team-stat-icon"><span class="iconify" data-icon="lucide:mail"></span></div>
+        <div class="stat-label">Messages</div>
+        <div class="stat-value">${totalUnread}</div>
+        <div class="team-stat-sub">${totalUnread > 0 ? totalUnread + ' unread' : 'All read'}</div>
+      </div>
+    </div>
+
+    <div class="team-grid">
+      <div class="panel">
+        <div class="panel-header">
+          <span class="panel-title">${t('teamAgents')}</span>
+          <span class="team-panel-count">${data.activeCount} active${inactiveAgents > 0 ? ', ' + inactiveAgents + ' offline' : ''}</span>
+        </div>
+        <div class="panel-body team-scrollable">
+          ${data.agents.length === 0
+            ? '<div class="team-empty"><span class="team-empty-icon"><span class="iconify" data-icon="lucide:user-x"></span></span><span class="team-empty-text">No agents registered</span></div>'
+            : data.agents.map(a => `
+              <div class="team-agent-row${a.status !== 'active' ? ' inactive' : ''}">
+                <div class="team-agent-status ${a.status === 'active' ? 'active' : 'offline'}"></div>
+                <div class="team-agent-info">
+                  <div class="team-agent-name">${escapeHtml(a.name)}</div>
+                  <div class="team-agent-meta">
+                    <span>${a.role ? escapeHtml(a.role) : 'no role'}</span>
+                    ${a.capabilities && a.capabilities.length ? a.capabilities.map(c => '<span class="team-cap-tag">' + escapeHtml(c) + '</span>').join('') : ''}
+                  </div>
+                  <div class="team-agent-time">joined ${teamTimeAgo(a.joinedAt)} · seen ${teamTimeAgo(a.lastSeenAt)}${a.leftAt ? ' · left ' + teamTimeAgo(a.leftAt) : ''}</div>
+                </div>
+                ${a.unread > 0 ? '<span class="team-unread-badge">' + a.unread + '</span>' : ''}
+                <span class="team-agent-id">${a.id.slice(0, 8)}</span>
+              </div>
+            `).join('')
+          }
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-header">
+          <span class="panel-title">${t('teamLocks')}</span>
+          <span class="team-panel-count">${data.locks.length} active</span>
+        </div>
+        <div class="panel-body team-scrollable">
+          ${data.locks.length === 0
+            ? '<div class="team-empty"><span class="team-empty-icon"><span class="iconify" data-icon="lucide:lock-open"></span></span><span class="team-empty-text">No files locked</span></div>'
+            : data.locks.map(l => {
+                const owner = data.agents.find(a => a.id === l.lockedBy);
+                const ttl = teamLockTTL(l.expiresAt);
+                return '<div class="team-lock-row">' +
+                  '<div class="team-lock-icon"><span class="iconify" data-icon="lucide:file-lock-2"></span></div>' +
+                  '<div class="team-lock-info">' +
+                    '<div class="team-lock-file">' + escapeHtml(l.file) + '</div>' +
+                    '<div class="team-lock-meta">' +
+                      '<span>' + (owner ? escapeHtml(owner.name) : l.lockedBy.slice(0, 8)) + '</span>' +
+                      '<span>' + teamTimeAgo(l.lockedAt) + '</span>' +
+                      (ttl ? '<span class="team-lock-ttl">' + ttl + '</span>' : '') +
+                    '</div>' +
+                  '</div>' +
+                '</div>';
+              }).join('')
+          }
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-header">
+        <span class="panel-title">${t('teamTaskBoard')}</span>
+        <span class="team-panel-count">${data.availableTasks} available to claim</span>
+      </div>
+      <div class="panel-body">
+        ${data.tasks.length === 0
+          ? '<div class="team-empty"><span class="team-empty-icon"><span class="iconify" data-icon="lucide:clipboard-list"></span></span><span class="team-empty-text">No tasks created</span></div>'
+          : '<table class="team-task-table"><thead><tr><th>Status</th><th>ID</th><th>Description</th><th>Assignee</th><th>Deps</th><th>Updated</th></tr></thead><tbody>' +
+            data.tasks.map(tk => {
+              const assignee = tk.assignee ? (data.agents.find(a => a.id === tk.assignee)?.name || tk.assignee.slice(0, 8)) : '<span style="color:var(--text-muted);">—</span>';
+              return '<tr>' +
+                '<td><span class="team-task-status" data-status="' + tk.status + '"><span class="iconify" data-icon="' + (statusIcons[tk.status] || 'lucide:circle') + '" style="font-size:13px;"></span> ' + (statusLabels[tk.status] || tk.status) + '</span></td>' +
+                '<td><span class="team-task-id">' + tk.id.slice(0, 8) + '</span></td>' +
+                '<td>' + escapeHtml(tk.description) + (tk.result ? '<div class="team-task-result"><span class="iconify" data-icon="lucide:corner-down-right" style="font-size:11px;"></span> ' + escapeHtml(tk.result.slice(0, 80)) + '</div>' : '') + '</td>' +
+                '<td style="font-size:12px;">' + assignee + '</td>' +
+                '<td style="text-align:center;color:var(--text-muted);">' + (tk.deps.length > 0 ? tk.deps.length : '—') + '</td>' +
+                '<td style="font-size:11px;color:var(--text-muted);">' + teamTimeAgo(tk.updatedAt) + '</td>' +
+              '</tr>';
+            }).join('') +
+            '</tbody></table>'
+        }
+      </div>
+    </div>
+  `;
+
+  container.innerHTML = html;
+
+  // Show last refresh time
+  const indicator = document.getElementById('team-refresh-indicator');
+  if (indicator) indicator.textContent = new Date().toLocaleTimeString();
+
+  // Auto-refresh every 5 seconds while Team page is active
+  if (teamRefreshTimer) clearInterval(teamRefreshTimer);
+  teamRefreshTimer = setInterval(() => {
+    if (currentPage === 'team') loadTeam();
+    else { clearInterval(teamRefreshTimer); teamRefreshTimer = null; }
+  }, 5000);
 }
 
 // ============================================================
