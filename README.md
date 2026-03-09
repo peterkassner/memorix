@@ -329,7 +329,7 @@ graph TB
         ts["team-state.json"]
         sess["sessions.json"]
         skills["mini-skills.json"]
-        graph["entities.jsonl · relations.jsonl"]
+        kg["entities.jsonl · relations.jsonl"]
     end
 ```
 
