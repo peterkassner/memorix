@@ -2359,7 +2359,7 @@ export async function createMemorixServer(cwd?: string, existingServer?: McpServ
               try {
                 const older = group[i], newer = group[i + 1];
                 const decision = await deduplicateMemory(
-                  { id: newer.id, title: newer.title, narrative: newer.narrative, facts: newer.facts.join('\n') },
+                  { title: newer.title, narrative: newer.narrative, facts: newer.facts },
                   [{ id: older.id, title: older.title, narrative: older.narrative, facts: older.facts.join('\n') }],
                 );
                 if (decision && (decision.action === 'UPDATE' || decision.action === 'NONE')) {

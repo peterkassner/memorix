@@ -72,6 +72,17 @@ describe('mini-skills e2e (real data)', () => {
   });
 
   it('should list mini-skills from real data', async () => {
+    let hasData = false;
+    try {
+      await fs.access(path.join(REAL_DATA_DIR, 'mini-skills.json'));
+      hasData = true;
+    } catch { /* no data */ }
+
+    if (!hasData) {
+      console.log('⚠️  No mini-skills.json found — skipping');
+      return;
+    }
+
     const skills = await loadAllMiniSkills(REAL_DATA_DIR);
     console.log(`📋 Total mini-skills: ${skills.length}`);
 
