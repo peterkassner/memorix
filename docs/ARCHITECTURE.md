@@ -24,46 +24,27 @@ Memorix 是一个 **跨 AI Agent 的持久化记忆层**，以 MCP (Model Contex
 
 ```mermaid
 graph TB
-    subgraph Agents["AI Agents"]
-        A1["Cursor"] 
-        A2["Windsurf"]
-        A3["Claude Code"]
-        A4["Antigravity"]
-        A5["...+6 more"]
-    end
+    A["Cursor · Windsurf · Claude Code · Antigravity · +6 more"]
+    A -->|MCP Protocol stdio| Entry
 
-    Agents ==>|"MCP Protocol (stdio)"| Entry
+    Entry["server.ts\n22 默认工具 + 热重载 + 自动Hook + 自动清理"]
+    Entry --> Compact["Compact Engine"]
+    Entry --> Memory["Memory Layer"]
+    Entry --> WS["Workspace Sync"]
+    Entry --> Hooks["Hooks System\nNormalizer → Detect → Handler → Store"]
+    Entry --> TeamC["Team Collaboration\nRegistry / Locks / Tasks / Messages"]
 
-    subgraph MCP["Memorix MCP Server"]
-        Entry["server.ts<br/>22 默认工具 + 热重载 + 自动Hook + 自动清理"]
+    Compact --> Store["Store Layer\nOrama + Persist"]
+    Memory --> Store
+    WS --> Rules["Rules Syncer\n10 Adapters"]
+    Store --> Embed["Embedding Layer\nAPI / FastEmbed / Transformers.js"]
+    Store --> LLM["LLM Layer 可选\nCompact-on-Write · Reranking · Dedup"]
 
-        Entry --> Compact["Compact Engine"]
-        Entry --> Memory["Memory Layer"]
-        Entry --> WS["Workspace Sync Engine"]
+    Store --> Disk
+    TeamC --> Disk
+    LLM --> Disk
 
-        Compact --> Store["Store Layer<br/>Orama + Persist"]
-        Memory --> Store
-        WS --> Rules["Rules Syncer<br/>10 Adapters"]
-
-        Store --> Embed["Embedding Layer<br/>API / FastEmbed / Transformers.js"]
-
-        Entry --> Hooks["Hooks System<br/>Normalizer → Detect → Handler → Store"]
-        Entry --> TeamC["Team Collaboration<br/>Registry / Locks / Tasks / Messages"]
-
-        Store --> LLM["LLM Layer (可选)<br/>Compact-on-Write · Reranking · Dedup · Compression"]
-    end
-
-    MCP ==> Disk
-
-    subgraph Disk["Persistence Layer (~/.memorix/data/)"]
-        F1["observations.json — 观察记录"]
-        F2["id-counter.txt — ID 计数器"]
-        F3["entities.jsonl — 知识图谱节点 (MCP 兼容)"]
-        F4["relations.jsonl — 知识图谱边 (MCP 兼容)"]
-        F5["sessions.json — 会话历史"]
-        F6["mini-skills.json — 永久技能"]
-        F7["team-state.json — 团队协作状态"]
-    end
+    Disk["~/.memorix/data/\nobservations.json · id-counter.txt\nentities.jsonl · relations.jsonl\nsessions.json · mini-skills.json · team-state.json"]
 ```
 
 ---

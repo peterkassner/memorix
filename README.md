@@ -302,35 +302,17 @@ memorix hooks install # Install auto-capture for IDEs
 
 ```mermaid
 graph TB
-    subgraph Agents["AI Agents (10 IDEs)"]
-        Cursor
-        Claude["Claude Code"]
-        Windsurf
-        Codex
-        More["+6 more"]
-    end
-
-    Agents -->|"MCP (stdio)"| Server
-
-    subgraph Server["Memorix MCP Server"]
-        direction TB
-        Core["server.ts — 22 Default Tools + Auto-Hooks + Auto-Cleanup"]
-        Core --> Search["Search Pipeline<br/>BM25 + Vector + Rerank"]
-        Core --> Team["Team Collab<br/>Agents · Tasks · Locks · Msgs"]
-        Core --> Sync["Rules & Workspace Sync<br/>10 Adapters"]
-        Core --> Cleanup["Auto-Cleanup<br/>Retention + LLM Dedup"]
-        Core --> KG["Knowledge Graph<br/>Entities · Relations"]
-    end
-
-    Server --> Storage
-
-    subgraph Storage["Persistence (~/.memorix/data/)"]
-        obs["observations.json"]
-        ts["team-state.json"]
-        sess["sessions.json"]
-        skills["mini-skills.json"]
-        kg["entities.jsonl · relations.jsonl"]
-    end
+    A["Cursor · Claude Code · Windsurf · Codex · +6 more"]
+    A -->|MCP stdio| Core
+    Core["Memorix MCP Server\n22 Default Tools · Auto-Hooks · Auto-Cleanup"]
+    Core --> Search["Search Pipeline\nBM25 + Vector + Rerank"]
+    Core --> Team["Team Collab\nAgents · Tasks · Locks · Msgs"]
+    Core --> Sync["Rules & Workspace Sync\n10 Adapters"]
+    Core --> Cleanup["Auto-Cleanup\nRetention + LLM Dedup"]
+    Core --> KG["Knowledge Graph\nEntities · Relations"]
+    Search --> Disk["~/.memorix/data/\nobservations · sessions · mini-skills · team-state · entities · relations"]
+    Team --> Disk
+    KG --> Disk
 ```
 
 ### Search Pipeline
