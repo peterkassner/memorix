@@ -22,61 +22,48 @@ Memorix 是一个 **跨 AI Agent 的持久化记忆层**，以 MCP (Model Contex
 
 ## 系统架构总览
 
-```
-┌──────────────────────────────────────────────────────────────────┐
-│                         AI Agents                                │
-│  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐            │
-│  │  Cursor   │ │ Windsurf │ │  Claude  │ │Antigravity│ ...       │
-│  └────┬─────┘ └────┬─────┘ └────┬─────┘ └────┬─────┘            │
-│       │             │            │             │                  │
-│       └─────────────┴────────┬───┴─────────────┘                 │
-│                              │ MCP Protocol (stdio)              │
-│  ┌───────────────────────────▼───────────────────────────────┐   │
-│  │                    Memorix MCP Server                      │   │
-│  │  ┌──────────────────────────────────────────────────────┐ │   │
-│  │  │              server.ts                                │ │   │
-│  │  │  22个默认 MCP Tools + 热重载 + 自动Hook + 自动清理    │ │   │
-│  │  └──────┬──────┬──────────┬──────────┬──────────────────┘ │   │
-│  │         │      │          │          │                     │   │
-│  │  ┌──────▼──┐ ┌─▼────────┐│  ┌───────▼──────┐             │   │
-│  │  │ Compact ││ │  Memory  ││  │  Workspace   │             │   │
-│  │  │ Engine  ││ │  Layer   ││  │  Sync Engine │             │   │
-│  │  └──────┬──┘ └─┬────────┘│  └───────┬──────┘             │   │
-│  │         │      │         │          │                     │   │
-│  │  ┌──────▼──────▼─────┐   │  ┌───────▼──────┐             │   │
-│  │  │   Store Layer     │   │  │ Rules Syncer │             │   │
-│  │  │  Orama + Persist  │   │  │ 10 Adapters  │             │   │
-│  │  └──────────┬────────┘   │  └──────────────┘             │   │
-│  │             │            │                                │   │
-│  │  ┌──────────▼────────┐   │                                │   │
-│  │  │  Embedding Layer  │   │                                │   │
-│  │  │ API/FastEmbed/TF │   │                                │   │
-│  │  └───────────────────┘   │                                │   │
-│  │                          │                                │   │
-│  │  ┌───────────────────────┤  ┌──────────────────────────┐  │   │
-│  │  │  Hooks System         │  │  Team Collaboration      │  │   │
-│  │  │  Normalizer→Detect→   │  │  Registry/Locks/Tasks/   │  │   │
-│  │  │  Handler→Store        │  │  Messages (team-state)   │  │   │
-│  │  └───────────────────────┘  └──────────────────────────┘  │   │
-│  │                          │                                │   │
-│  │  ┌───────────────────────▼─────────────────────────────┐  │   │
-│  │  │  LLM Layer (optional)                                │  │   │
-│  │  │  Compact-on-Write · Reranking · Dedup · Compression  │  │   │
-│  │  └─────────────────────────────────────────────────────┘  │   │
-│  └───────────────────────────────────────────────────────────┘   │
-│                              │                                    │
-│  ┌───────────────────────────▼───────────────────────────────┐   │
-│  │              Persistence Layer (Disk)                      │   │
-│  │  ~/.memorix/data/                                         │   │
-│  │    ├── observations.json     观察记录                      │   │
-│  │    ├── id-counter.txt        ID 计数器                     │   │
-│  │    ├── entities.jsonl        知识图谱节点 (MCP 兼容)       │   │
-│  │    ├── relations.jsonl       知识图谱边 (MCP 兼容)         │   │
-│  │    ├── sessions.json         会话历史                      │   │
-│  │    ├── mini-skills.json      永久技能                      │   │
-│  │    └── team-state.json       团队协作状态                  │   │
-│  └───────────────────────────────────────────────────────────┘   │
-└──────────────────────────────────────────────────────────────────┘
+```mermaid
+graph TB
+    subgraph Agents["AI Agents"]
+        A1["Cursor"] 
+        A2["Windsurf"]
+        A3["Claude Code"]
+        A4["Antigravity"]
+        A5["...+6 more"]
+    end
+
+    Agents ==>|"MCP Protocol (stdio)"| Entry
+
+    subgraph MCP["Memorix MCP Server"]
+        Entry["server.ts<br/>22 默认工具 + 热重载 + 自动Hook + 自动清理"]
+
+        Entry --> Compact["Compact Engine"]
+        Entry --> Memory["Memory Layer"]
+        Entry --> WS["Workspace Sync Engine"]
+
+        Compact --> Store["Store Layer<br/>Orama + Persist"]
+        Memory --> Store
+        WS --> Rules["Rules Syncer<br/>10 Adapters"]
+
+        Store --> Embed["Embedding Layer<br/>API / FastEmbed / Transformers.js"]
+
+        Entry --> Hooks["Hooks System<br/>Normalizer → Detect → Handler → Store"]
+        Entry --> TeamC["Team Collaboration<br/>Registry / Locks / Tasks / Messages"]
+
+        Store --> LLM["LLM Layer (可选)<br/>Compact-on-Write · Reranking · Dedup · Compression"]
+    end
+
+    MCP ==> Disk
+
+    subgraph Disk["Persistence Layer (~/.memorix/data/)"]
+        F1["observations.json — 观察记录"]
+        F2["id-counter.txt — ID 计数器"]
+        F3["entities.jsonl — 知识图谱节点 (MCP 兼容)"]
+        F4["relations.jsonl — 知识图谱边 (MCP 兼容)"]
+        F5["sessions.json — 会话历史"]
+        F6["mini-skills.json — 永久技能"]
+        F7["team-state.json — 团队协作状态"]
+    end
 ```
 
 ---

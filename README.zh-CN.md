@@ -302,34 +302,37 @@ memorix hooks install # 为 IDE 安装自动记忆
 
 ## 架构
 
-```
-┌─────────┐  ┌───────────┐  ┌────────────┐  ┌───────┐  ┌──────────┐
-│ Cursor  │  │ Claude    │  │ Windsurf   │  │ Codex │  │ +6 more  │
-│         │  │ Code      │  │            │  │       │  │          │
-└────┬────┘  └─────┬─────┘  └─────┬──────┘  └───┬───┘  └────┬─────┘
-     │             │              │              │           │
-     └─────────────┴──────┬───────┴──────────────┴───────────┘
-                          │ MCP (stdio)
-                   ┌──────┴──────┐
-                   │   Memorix   │
-                   │  MCP Server │
-                   └──────┬──────┘
-                          │
-     ┌──────────┬─────────┼─────────┬──────────┐
-     │          │         │         │          │
-┌────┴─────┐ ┌─┴───────┐ │  ┌──────┴──────┐ ┌─┴────────┐
-│  Search  │ │  Team   │ │  │  Rules &    │ │  Auto-   │
-│ Pipeline │ │  Collab │ │  │  Workspace  │ │  Cleanup │
-│          │ │         │ │  │  Sync       │ │          │
-│ BM25     │ │ Agents  │ │  └─────────────┘ │ Retention│
-│ +Vector  │ │ Tasks   │ │                  │ +LLM     │
-│ +Rerank  │ │ Locks   │ │                  │  Dedup   │
-└──────────┘ │ Msgs    │ │                  └──────────┘
-      │      └─────────┘ │
-      │           │      │
-~/.memorix/data/  │  Knowledge
-(本地, 按项目隔离)    │  Graph
-             team-state.json
+```mermaid
+graph TB
+    subgraph Agents["AI Agents（10 个 IDE）"]
+        Cursor
+        Claude["Claude Code"]
+        Windsurf
+        Codex
+        More["+6 更多"]
+    end
+
+    Agents -->|"MCP (stdio)"| Server
+
+    subgraph Server["Memorix MCP Server"]
+        direction TB
+        Core["server.ts — 22 个默认工具 + 自动Hook + 自动清理"]
+        Core --> Search["检索管线<br/>BM25 + 向量 + 重排序"]
+        Core --> Team["团队协作<br/>注册 · 任务 · 锁 · 消息"]
+        Core --> Sync["规则 & 工作区同步<br/>10 个适配器"]
+        Core --> Cleanup["自动清理<br/>保留衰减 + LLM 去重"]
+        Core --> KG["知识图谱<br/>实体 · 关系"]
+    end
+
+    Server --> Storage
+
+    subgraph Storage["持久化（~/.memorix/data/）"]
+        obs["observations.json"]
+        ts["team-state.json"]
+        sess["sessions.json"]
+        skills["mini-skills.json"]
+        graph["entities.jsonl · relations.jsonl"]
+    end
 ```
 
 ### 检索管线
