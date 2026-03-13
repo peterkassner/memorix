@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.1] — 2026-03-14
+
+### Fixed
+- **OpenCode stdout pollution** — Removed all `console.log` / `console.error` from the generated OpenCode plugin template. Hooks now run fully silent. (fixes #15)
+- **OpenCode session_id missing** — `normalizeOpenCode()` now reads `session_id` from the payload instead of hardcoding empty string. Plugin template generates and injects a stable session ID per plugin lifetime. (fixes #14)
+- **Auto-install hooks scope** — Hooks are now only auto-installed for IDEs whose project-level config directory already exists (e.g., `.cursor/`, `.windsurf/`), preventing unwanted IDE directories from appearing in projects opened with a different IDE.
+
+### Added
+- **`MEMORIX_DATA_DIR` environment variable** — Override the default data directory (`~/.memorix/data/`) by setting `MEMORIX_DATA_DIR`. Applied consistently across persistence, alias registry, and embedding cache.
+
+---
+
 ## [1.0.0] — 2026-03-09
 
 ### 🎉 First Stable Release
