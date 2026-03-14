@@ -130,6 +130,43 @@ export interface FormedMemory {
     /** Whether this was run in shadow mode (no side effects) */
     shadow: boolean;
   };
+
+  // ── Governance fields (enterprise-grade metadata) ──
+  governance?: {
+    /** Provenance: source tracking */
+    provenance: {
+      /** Who created this memory (agent ID, user ID, or system) */
+      creator: string;
+      /** When this memory was created (ISO 8601 timestamp) */
+      createdAt: string;
+      /** Source of the memory (explicit, hook, auto, etc.) */
+      source: 'explicit' | 'hook' | 'auto' | 'import';
+      /** Raw input reference (if applicable) */
+      rawInputRef?: string;
+    };
+    /** Confidence: decision reliability score (0-1) */
+    confidence: {
+      /** Overall confidence score */
+      score: number;
+      /** Breakdown by stage */
+      breakdown: {
+        extractionConfidence: number;
+        resolutionConfidence: number;
+        evaluationConfidence: number;
+      };
+      /** Reason for confidence score */
+      reason: string;
+    };
+    /** Supersession: memory replacement relationships */
+    supersession?: {
+      /** IDs of memories this one replaces */
+      replacedIds: number[];
+      /** Reason for replacement */
+      reason: string;
+      /** Whether this is a soft replacement (archived) or hard replacement (deleted) */
+      replacementType: 'soft' | 'hard';
+    };
+  };
 }
 
 // ============================================================

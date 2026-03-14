@@ -320,6 +320,29 @@ export async function runFormation(
       stagesCompleted,
       shadow: config.mode === 'shadow',
     },
+
+    // Governance fields
+    governance: {
+      provenance: {
+        creator: input.source === 'explicit' ? 'user' : 'system',
+        createdAt: new Date().toISOString(),
+        source: input.source,
+      },
+      confidence: {
+        score: evaluation.score,
+        breakdown: {
+          extractionConfidence: extraction.extractedFacts.length > 0 ? 0.8 : 0.5,
+          resolutionConfidence: resolution.action === 'new' ? 0.7 : 0.9,
+          evaluationConfidence: evaluation.score,
+        },
+        reason: `Value score ${evaluation.score.toFixed(2)} in ${evaluation.category} category`,
+      },
+      supersession: (resolution.action === 'merge' || resolution.action === 'evolve') && resolution.targetId ? {
+        replacedIds: [resolution.targetId],
+        reason: resolution.reason,
+        replacementType: resolution.action === 'evolve' ? 'hard' : 'soft',
+      } : undefined,
+    },
   };
 
   // ── Collect metrics ──
