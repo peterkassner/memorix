@@ -17,6 +17,7 @@ import type {
   FormedMemory,
   FormationConfig,
   FormationMetrics,
+  BeforeAfterMetrics,
 } from './types.js';
 import { runExtract } from './extract.js';
 import { runResolve } from './resolve.js';
@@ -27,6 +28,19 @@ import { runEvaluate } from './evaluate.js';
 /** In-memory metrics buffer for shadow mode analysis */
 const metricsBuffer: FormationMetrics[] = [];
 const MAX_METRICS_BUFFER = 500;
+
+/** In-memory before/after comparison metrics buffer */
+const beforeAfterBuffer: Array<{
+  formationAction: string;
+  formationTargetId?: number;
+  oldCompactAction: 'ADD' | 'UPDATE' | 'NONE' | 'DELETE';
+  oldCompactTargetId?: number;
+  oldCompactReason?: string;
+  formationValueScore: number;
+  formationValueCategory: string;
+  formationDurationMs: number;
+}> = [];
+const MAX_BEFORE_AFTER_BUFFER = 500;
 
 /**
  * Get collected shadow mode metrics (for analysis/dashboard).
@@ -40,6 +54,139 @@ export function getFormationMetrics(): readonly FormationMetrics[] {
  */
 export function clearFormationMetrics(): void {
   metricsBuffer.length = 0;
+}
+
+/**
+ * Record before/after comparison metrics.
+ */
+export function recordBeforeAfterMetrics(data: {
+  formationAction: string;
+  formationTargetId?: number;
+  oldCompactAction: 'ADD' | 'UPDATE' | 'NONE' | 'DELETE';
+  oldCompactTargetId?: number;
+  oldCompactReason?: string;
+  formationValueScore: number;
+  formationValueCategory: string;
+  formationDurationMs: number;
+}): void {
+  if (beforeAfterBuffer.length >= MAX_BEFORE_AFTER_BUFFER) {
+    beforeAfterBuffer.shift();
+  }
+  beforeAfterBuffer.push(data);
+}
+
+/**
+ * Get before/after comparison metrics.
+ */
+export function getBeforeAfterMetrics(): BeforeAfterMetrics {
+  const totalProcessed = beforeAfterBuffer.length;
+  if (totalProcessed === 0) {
+    return {
+      totalProcessed: 0,
+      agreements: 0,
+      disagreements: 0,
+      disagreementBreakdown: {
+        formationDiscardedCompactAdded: 0,
+        formationMergedCompactAdded: 0,
+        formationAddedCompactDiscarded: 0,
+        formationAddedCompactMerged: 0,
+        formationEvolvedCompactAdded: 0,
+        other: 0,
+      },
+      quality: {
+        formationDiscardedLowValue: 0,
+        formationMergedDuplicates: 0,
+        formationEvolvedOutdated: 0,
+        compactMissedDuplicates: 0,
+        compactKeptLowValue: 0,
+      },
+      duration: {
+        formationAvgMs: 0,
+        compactAvgMs: 0,
+        diffMs: 0,
+      },
+    };
+  }
+
+  let agreements = 0;
+  let disagreements = 0;
+  const disagreementBreakdown = {
+    formationDiscardedCompactAdded: 0,
+    formationMergedCompactAdded: 0,
+    formationAddedCompactDiscarded: 0,
+    formationAddedCompactMerged: 0,
+    formationEvolvedCompactAdded: 0,
+    other: 0,
+  };
+  const quality = {
+    formationDiscardedLowValue: 0,
+    formationMergedDuplicates: 0,
+    formationEvolvedOutdated: 0,
+    compactMissedDuplicates: 0,
+    compactKeptLowValue: 0,
+  };
+  let formationTotalDuration = 0;
+  
+  for (const data of beforeAfterBuffer) {
+    formationTotalDuration += data.formationDurationMs;
+
+    // Determine if decisions agree
+    const formationAction = data.formationAction;
+    const oldCompactAction = data.oldCompactAction;
+
+    // Map Formation actions to old compact actions for comparison
+    let formationMapped: 'ADD' | 'UPDATE' | 'NONE' | 'DELETE' = 'ADD';
+    if (formationAction === 'merge' || formationAction === 'evolve') {
+      formationMapped = 'UPDATE';
+    } else if (formationAction === 'discard') {
+      formationMapped = 'NONE';
+    }
+
+    if (formationMapped === oldCompactAction) {
+      agreements++;
+    } else {
+      disagreements++;
+      // Track disagreement breakdown
+      if (formationAction === 'discard' && oldCompactAction === 'ADD') {
+        disagreementBreakdown.formationDiscardedCompactAdded++;
+        if (data.formationValueCategory === 'ephemeral') {
+          quality.formationDiscardedLowValue++;
+        }
+      } else if (formationAction === 'merge' && oldCompactAction === 'ADD') {
+        disagreementBreakdown.formationMergedCompactAdded++;
+        quality.formationMergedDuplicates++;
+      } else if (formationAction === 'new' && oldCompactAction === 'NONE') {
+        disagreementBreakdown.formationAddedCompactDiscarded++;
+        quality.compactMissedDuplicates++;
+      } else if (formationAction === 'new' && oldCompactAction === 'UPDATE') {
+        disagreementBreakdown.formationAddedCompactMerged++;
+      } else if (formationAction === 'evolve' && oldCompactAction === 'ADD') {
+        disagreementBreakdown.formationEvolvedCompactAdded++;
+        quality.formationEvolvedOutdated++;
+      } else if (formationAction === 'new' && oldCompactAction === 'ADD') {
+        // Formation decided to add, but compact also decided to add (should be rare)
+        // This might indicate compact missed a duplicate or Formation was too conservative
+        if (data.formationValueCategory === 'ephemeral') {
+          quality.compactKeptLowValue++;
+        }
+      } else {
+        disagreementBreakdown.other++;
+      }
+    }
+  }
+
+  return {
+    totalProcessed,
+    agreements,
+    disagreements,
+    disagreementBreakdown,
+    quality,
+    duration: {
+      formationAvgMs: formationTotalDuration / totalProcessed,
+      compactAvgMs: 0, // Old compact duration not tracked yet
+      diffMs: 0,
+    },
+  };
 }
 
 /**

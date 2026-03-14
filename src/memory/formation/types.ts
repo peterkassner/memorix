@@ -206,4 +206,54 @@ export interface FormationMetrics {
   durationMs: number;
   /** Pipeline mode */
   mode: 'rules' | 'llm';
+  
+  // ── Before/After Comparison Metrics ─────────────────────────────
+  /** What old compact-on-write would have done (for comparison) */
+  oldCompactAction?: 'ADD' | 'UPDATE' | 'NONE' | 'DELETE';
+  /** ID of target observation old compact would have merged into */
+  oldCompactTargetId?: number;
+  /** Reason old compact would have given */
+  oldCompactReason?: string;
+  /** Whether Formation decision differs from old compact */
+  decisionDiffers?: boolean;
+  /** Which decision is better (formation | compact | equal | unknown) */
+  betterDecision?: 'formation' | 'compact' | 'equal' | 'unknown';
+}
+
+/** Aggregated before/after comparison metrics */
+export interface BeforeAfterMetrics {
+  /** Total observations processed */
+  totalProcessed: number;
+  /** Number where Formation and old compact agreed */
+  agreements: number;
+  /** Number where Formation and old compact disagreed */
+  disagreements: number;
+  /** Disagreement breakdown */
+  disagreementBreakdown: {
+    formationDiscardedCompactAdded: number;
+    formationMergedCompactAdded: number;
+    formationAddedCompactDiscarded: number;
+    formationAddedCompactMerged: number;
+    formationEvolvedCompactAdded: number;
+    other: number;
+  };
+  /** Quality metrics */
+  quality: {
+    /** Formation discarded low-value memories */
+    formationDiscardedLowValue: number;
+    /** Formation merged duplicates */
+    formationMergedDuplicates: number;
+    /** Formation evolved outdated memories */
+    formationEvolvedOutdated: number;
+    /** Old compact missed duplicates */
+    compactMissedDuplicates: number;
+    /** Old compact kept low-value */
+    compactKeptLowValue: number;
+  };
+  /** Average duration comparison */
+  duration: {
+    formationAvgMs: number;
+    compactAvgMs: number;
+    diffMs: number;
+  };
 }

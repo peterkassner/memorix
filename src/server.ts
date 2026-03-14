@@ -34,7 +34,7 @@ import { WorkspaceSyncEngine } from './workspace/engine.js';
 import { initLLM, isLLMEnabled, getLLMConfig } from './llm/provider.js';
 import { compactOnWrite, deduplicateMemory } from './llm/memory-manager.js';
 import type { ExistingMemory } from './llm/memory-manager.js';
-import { runFormation, getMetricsSummary } from './memory/formation/index.js';
+import { runFormation, getMetricsSummary, getBeforeAfterMetrics } from './memory/formation/index.js';
 import type { FormationConfig, SearchHit, FormedMemory } from './memory/formation/types.js';
 
 /** Timestamp of last MCP-initiated write — hot-reload skips changes within 10s */
@@ -560,8 +560,45 @@ export async function createMemorixServer(cwd?: string, existingServer?: McpServ
       // ── Formation Pipeline (shadow/fallback mode: observe only) ─────
       // In shadow mode, Formation runs after storage to collect metrics.
       // In fallback mode, Formation runs after old compact to collect metrics.
+      // Collects old compact decision for before/after comparison.
       if (!useFormation) {
         try {
+          // First, run old compact to get its decision (for comparison)
+          let oldCompactDecision: { action: string, targetId?: number, reason?: string } | null = null;
+          if (!topicKey && !progress) {
+            try {
+              const searchResult = await compactSearch({
+                query: `${title} ${narrative.substring(0, 200)}`,
+                limit: 5,
+                projectId: project.id,
+                status: 'active',
+              });
+              const similarEntries = searchResult.entries.map(e => e);
+              if (similarEntries.length > 0) {
+                const similarIds = similarEntries.map(e => e.id);
+                const details = await compactDetail(similarIds);
+                const existingMemories: ExistingMemory[] = details.documents.map((d, i) => ({
+                  id: d.observationId,
+                  title: d.title,
+                  narrative: d.narrative,
+                  facts: d.facts,
+                  score: similarEntries[i]?.score ?? 0,
+                }));
+
+                const decision = await compactOnWrite(
+                  { title, narrative, facts: safeFacts ?? [] },
+                  existingMemories,
+                );
+                oldCompactDecision = {
+                  action: decision.action,
+                  targetId: decision.targetId,
+                  reason: decision.reason,
+                };
+              }
+            } catch { /* old compact decision collection is best-effort */ }
+          }
+
+          // Then run Formation to get its decision
           const formationConfig: FormationConfig = {
             mode: formationMode,
             useLLM: false,
@@ -608,8 +645,26 @@ export async function createMemorixServer(cwd?: string, existingServer?: McpServ
             topicKey,
           }, formationConfig);
 
+          // Store before/after comparison metrics
+          const { recordBeforeAfterMetrics } = await import('./memory/formation/index.js');
+          if (oldCompactDecision) {
+            recordBeforeAfterMetrics({
+              formationAction: formed.resolution.action,
+              formationTargetId: formed.resolution.targetId,
+              oldCompactAction: oldCompactDecision.action as 'ADD' | 'UPDATE' | 'NONE' | 'DELETE',
+              oldCompactTargetId: oldCompactDecision.targetId,
+              oldCompactReason: oldCompactDecision.reason,
+              formationValueScore: formed.evaluation.score,
+              formationValueCategory: formed.evaluation.category,
+              formationDurationMs: formed.pipeline.durationMs,
+            });
+          }
+
           const modeIcon = formationMode === 'shadow' ? '🔬' : '🛡️';
           formationNote = `\n${modeIcon} Formation[${formationMode}]: ${formed.evaluation.category} (${formed.evaluation.score.toFixed(2)}) | ${formed.resolution.action} | ${formed.pipeline.durationMs}ms`;
+          if (oldCompactDecision) {
+            formationNote += ` | Compact: ${oldCompactDecision.action}${oldCompactDecision.targetId ? ` #${oldCompactDecision.targetId}` : ''}`;
+          }
           if (formed.extraction.extractedFacts.length > 0) {
             formationNote += ` | +${formed.extraction.extractedFacts.length} facts`;
           }
@@ -1102,6 +1157,7 @@ export async function createMemorixServer(cwd?: string, existingServer?: McpServ
     },
     async () => {
       const summary = getMetricsSummary();
+      const beforeAfter = getBeforeAfterMetrics();
 
       if (summary.total === 0) {
         return {
@@ -1138,6 +1194,37 @@ export async function createMemorixServer(cwd?: string, existingServer?: McpServ
       for (const [action, count] of Object.entries(summary.resolutionBreakdown)) {
         const pct = ((count / summary.total) * 100).toFixed(1);
         lines.push(`- **${action}:** ${count} (${pct}%)`);
+      }
+
+      // ── Before/After Comparison Metrics ─────────────────────────
+      if (beforeAfter.totalProcessed > 0) {
+        lines.push(
+          '',
+          '### Before/After Comparison (Formation vs Old Compact)',
+          `**Total comparisons:** ${beforeAfter.totalProcessed}`,
+          `**Agreements:** ${beforeAfter.agreements} (${((beforeAfter.agreements / beforeAfter.totalProcessed) * 100).toFixed(1)}%)`,
+          `**Disagreements:** ${beforeAfter.disagreements} (${((beforeAfter.disagreements / beforeAfter.totalProcessed) * 100).toFixed(1)}%)`,
+          '',
+          '### Disagreement Breakdown',
+          `- Formation discarded, Compact added: ${beforeAfter.disagreementBreakdown.formationDiscardedCompactAdded}`,
+          `- Formation merged, Compact added: ${beforeAfter.disagreementBreakdown.formationMergedCompactAdded}`,
+          `- Formation added, Compact discarded: ${beforeAfter.disagreementBreakdown.formationAddedCompactDiscarded}`,
+          '- Formation added, Compact merged: ' + beforeAfter.disagreementBreakdown.formationAddedCompactMerged,
+          '- Formation evolved, Compact added: ' + beforeAfter.disagreementBreakdown.formationEvolvedCompactAdded,
+          '- Other: ' + beforeAfter.disagreementBreakdown.other,
+          '',
+          '### Quality Improvements',
+          `- Formation discarded low-value: ${beforeAfter.quality.formationDiscardedLowValue}`,
+          `- Formation merged duplicates: ${beforeAfter.quality.formationMergedDuplicates}`,
+          `- Formation evolved outdated: ${beforeAfter.quality.formationEvolvedOutdated}`,
+          `- Compact missed duplicates: ${beforeAfter.quality.compactMissedDuplicates}`,
+          `- Compact kept low-value: ${beforeAfter.quality.compactKeptLowValue}`,
+          '',
+          `### Duration Comparison`,
+          `- Formation avg: ${beforeAfter.duration.formationAvgMs.toFixed(1)}ms`,
+          `- Compact avg: ${beforeAfter.duration.compactAvgMs.toFixed(1)}ms`,
+          `- Diff: ${beforeAfter.duration.diffMs.toFixed(1)}ms`,
+        );
       }
 
       return {
