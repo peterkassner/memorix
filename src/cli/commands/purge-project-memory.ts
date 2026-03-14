@@ -6,8 +6,6 @@
 
 import { defineCommand } from 'citty';
 import * as p from '@clack/prompts';
-import { join } from 'node:path';
-import { homedir } from 'node:os';
 
 export default defineCommand({
   meta: {
@@ -16,10 +14,11 @@ export default defineCommand({
   },
   args: {},
   run: async ({}) => {
-    p.intro('Purge Project Memory');
+    const os = await import('node:os');
+    let cwd: string;
+    try { cwd = process.cwd(); } catch { cwd = os.homedir(); }
 
-    const cwd = process.cwd();
-    const dataDir = join(homedir(), '.memorix', 'data');
+    p.intro('Purge Project Memory');
 
     // Show what will be deleted
     console.log('');

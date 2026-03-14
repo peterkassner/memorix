@@ -68,7 +68,7 @@ export function getProjectId(projectRoot: string): string {
 export async function recordFile(
   projectRoot: string,
   type: AuditEntry['type'],
-  path: string,
+  filePath: string,
   agent?: string,
 ): Promise<void> {
   const data = await loadAudit();
@@ -84,14 +84,14 @@ export async function recordFile(
 
   // Check if entry already exists
   const existingIndex = data.projects[projectId].entries.findIndex(
-    (e) => e.path === path
+    (e) => e.path === filePath
   );
 
   if (existingIndex === -1) {
     data.projects[projectId].entries.push({
       type,
       agent,
-      path,
+      path: filePath,
       createdAt: new Date().toISOString(),
     });
   }
@@ -111,14 +111,14 @@ export async function getProjectFiles(projectRoot: string): Promise<AuditEntry[]
 /**
  * Remove a file from audit (when uninstalled).
  */
-export async function removeFile(projectRoot: string, path: string): Promise<void> {
+export async function removeFile(projectRoot: string, filePath: string): Promise<void> {
   const data = await loadAudit();
   const projectId = getProjectId(projectRoot);
 
   if (!data.projects[projectId]) return;
 
   data.projects[projectId].entries = data.projects[projectId].entries.filter(
-    (e) => e.path !== path
+    (e) => e.path !== filePath
   );
 
   // If no entries left, remove the project

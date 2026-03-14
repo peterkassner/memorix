@@ -494,9 +494,11 @@ export async function installHooks(
       await fs.mkdir(path.dirname(pluginPath), { recursive: true });
       await fs.writeFile(pluginPath, pluginContent, 'utf-8');
       
-      // Record audit entry
-      const { recordFile } = await import('../../audit/index.js');
-      await recordFile(projectRoot, 'hook', pluginPath, agent);
+      // Record audit entry (non-critical, don't break install)
+      try {
+        const { recordFile } = await import('../../audit/index.js');
+        await recordFile(projectRoot, 'hook', pluginPath, agent);
+      } catch { /* audit is optional */ }
       
       await installAgentRules(agent, projectRoot);
       return {
@@ -522,9 +524,11 @@ export async function installHooks(
       const hookPath = path.join(hooksDir, hf.filename);
       await fs.writeFile(hookPath, hf.content, 'utf-8');
       
-      // Record audit entry
-      const { recordFile } = await import('../../audit/index.js');
-      await recordFile(projectRoot, 'hook', hookPath, agent);
+      // Record audit entry (non-critical, don't break install)
+      try {
+        const { recordFile } = await import('../../audit/index.js');
+        await recordFile(projectRoot, 'hook', hookPath, agent);
+      } catch { /* audit is optional */ }
     }
   } else {
     // JSON-based configs: merge with existing if present
@@ -582,9 +586,11 @@ export async function installHooks(
 
     await fs.writeFile(configPath, JSON.stringify(merged, null, 2), 'utf-8');
     
-    // Record audit entry
-    const { recordFile } = await import('../../audit/index.js');
-    await recordFile(projectRoot, 'hook', configPath, agent);
+    // Record audit entry (non-critical, don't break install)
+    try {
+      const { recordFile } = await import('../../audit/index.js');
+      await recordFile(projectRoot, 'hook', configPath, agent);
+    } catch { /* audit is optional */ }
   }
 
   const events: Array<import('../types.js').HookEvent> = [];
@@ -675,9 +681,11 @@ async function installAgentRules(agent: AgentName, projectRoot: string): Promise
         // Append to existing file
         await fs.writeFile(rulesPath, existing + '\n\n' + rulesContent, 'utf-8');
         
-        // Record audit entry
-        const { recordFile } = await import('../../audit/index.js');
-        await recordFile(projectRoot, 'rule', rulesPath, agent);
+        // Record audit entry (non-critical)
+        try {
+          const { recordFile } = await import('../../audit/index.js');
+          await recordFile(projectRoot, 'rule', rulesPath, agent);
+        } catch { /* audit is optional */ }
       } catch {
         // File doesn't exist, create it
         await fs.writeFile(rulesPath, rulesContent, 'utf-8');
@@ -690,9 +698,11 @@ async function installAgentRules(agent: AgentName, projectRoot: string): Promise
       } catch {
         await fs.writeFile(rulesPath, rulesContent, 'utf-8');
         
-        // Record audit entry for new file
-        const { recordFile } = await import('../../audit/index.js');
-        await recordFile(projectRoot, 'rule', rulesPath, agent);
+        // Record audit entry for new file (non-critical)
+        try {
+          const { recordFile } = await import('../../audit/index.js');
+          await recordFile(projectRoot, 'rule', rulesPath, agent);
+        } catch { /* audit is optional */ }
       }
     }
   } catch { /* silent */ }

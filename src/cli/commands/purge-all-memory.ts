@@ -6,8 +6,6 @@
 
 import { defineCommand } from 'citty';
 import * as p from '@clack/prompts';
-import { join } from 'node:path';
-import { homedir } from 'node:os';
 
 export default defineCommand({
   meta: {
@@ -17,8 +15,6 @@ export default defineCommand({
   args: {},
   run: async ({}) => {
     p.intro('⚠️  Purge All Memory');
-
-    const dataDir = join(homedir(), '.memorix', 'data');
 
     // Show warning
     console.log('');

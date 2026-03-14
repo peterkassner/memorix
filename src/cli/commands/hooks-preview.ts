@@ -157,7 +157,7 @@ function estimateFileSize(agent: string, configPath: string): string {
 }
 
 function getRulesPath(agent: string, cwd: string, global: boolean): string {
-  const home = require('node:os').homedir();
+  const home = process.env.HOME || process.env.USERPROFILE || '';
 
   if (global) {
     switch (agent) {
