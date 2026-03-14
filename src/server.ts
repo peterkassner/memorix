@@ -273,11 +273,19 @@ export async function createMemorixServer(cwd?: string, existingServer?: McpServ
       const safeConcepts = concepts ? coerceStringArray(concepts) : undefined;
 
       // ── Determine decision maker based on Formation mode ─────────────
-      // Reads MEMORIX_FORMATION_MODE env var: shadow|active|fallback
-      // - shadow: Formation observes only, old compact decides (default, safe)
-      // - active: Formation decides storage behavior (new/merge/evolve/discard)
+      // Priority: env var override > config.json > default (active)
+      // - shadow: Formation observes only, old compact decides
+      // - active: Formation decides storage behavior (new/merge/evolve/discard) [default]
       // - fallback: old compact decides (safe rollback)
-      const formationMode = (process.env.MEMORIX_FORMATION_MODE as 'shadow' | 'active' | 'fallback') || 'shadow';
+      let formationMode: 'shadow' | 'active' | 'fallback' = 'active';
+      if (process.env.MEMORIX_FORMATION_MODE) {
+        formationMode = process.env.MEMORIX_FORMATION_MODE as typeof formationMode;
+      } else {
+        try {
+          const { getBehaviorConfig } = await import('./config/behavior.js');
+          formationMode = getBehaviorConfig().formationMode;
+        } catch { /* default to active */ }
+      }
       const useFormation = formationMode === 'active';
 
       // ── Formation Pipeline (active mode: decides storage) ─────────────

@@ -448,10 +448,21 @@ async function runConfigure(): Promise<void> {
       });
       if (p.isCancel(autoCleanup)) continue;
 
+      const formationMode = await p.select({
+        message: `Formation Pipeline mode (current: ${current.formationMode ?? 'active'})`,
+        options: [
+          { value: 'active', label: 'Active (default)', hint: 'Formation decides storage (new/merge/evolve/discard)' },
+          { value: 'shadow', label: 'Shadow', hint: 'Formation observes only, old compact decides' },
+          { value: 'fallback', label: 'Fallback', hint: 'Old compact decides (safe rollback)' },
+        ],
+      });
+      if (p.isCancel(formationMode)) continue;
+
       config.behavior = {
         sessionInject,
         syncAdvisory,
         autoCleanup,
+        formationMode,
       };
 
       await saveConfig(config);

@@ -13,12 +13,14 @@ export interface BehaviorConfig {
   sessionInject: 'full' | 'minimal' | 'silent';
   syncAdvisory: boolean;
   autoCleanup: boolean;
+  formationMode: 'shadow' | 'active' | 'fallback';
 }
 
 const DEFAULTS: BehaviorConfig = {
   sessionInject: 'minimal',
   syncAdvisory: true,
   autoCleanup: true,
+  formationMode: 'active',
 };
 
 let cached: BehaviorConfig | null = null;
@@ -40,6 +42,7 @@ export function getBehaviorConfig(): BehaviorConfig {
       sessionInject: behavior.sessionInject ?? DEFAULTS.sessionInject,
       syncAdvisory: behavior.syncAdvisory ?? DEFAULTS.syncAdvisory,
       autoCleanup: behavior.autoCleanup ?? DEFAULTS.autoCleanup,
+      formationMode: behavior.formationMode ?? DEFAULTS.formationMode,
     };
   } catch {
     cached = { ...DEFAULTS };
