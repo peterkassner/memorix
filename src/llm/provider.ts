@@ -72,6 +72,13 @@ export function getLLMConfig(): LLMConfig | null {
 }
 
 /**
+ * Set LLM config directly (for testing or programmatic use).
+ */
+export function setLLMConfig(config: LLMConfig | null): void {
+  currentConfig = config;
+}
+
+/**
  * Call the LLM with a prompt.
  * Uses OpenAI-compatible chat completions API (works with OpenRouter, Ollama, etc.)
  *
