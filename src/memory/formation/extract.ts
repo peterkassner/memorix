@@ -243,6 +243,66 @@ function verifyType(
   return { type: declaredType, corrected: false };
 }
 
+// ── LLM Fact Extraction ─────────────────────────────────────────
+
+/** Prompt for LLM-based fact extraction (inspired by Mem0's approach) */
+const LLM_EXTRACT_PROMPT = `You are a Software Engineering Knowledge Extractor.
+Extract structured facts from the given development context.
+
+Focus on:
+1. Technical decisions and their reasoning
+2. Bug root causes and fixes
+3. Configuration values (ports, versions, env vars)
+4. Architecture patterns and constraints
+5. Gotchas, pitfalls, and workarounds
+6. File paths and their roles
+
+Rules:
+- Return ONLY a JSON object with a "facts" key containing an array of strings
+- Each fact should be a concise, self-contained statement
+- Include specific values (versions, ports, paths) when present
+- Detect the language of the input and record facts in the same language
+- If no meaningful facts exist, return {"facts": []}
+- Do NOT include trivial information (file read, directory listing)
+- Maximum 10 facts
+
+Example:
+Input: "Fixed Redis connection leak. The pool wasn't being closed on shutdown. Added defer pool.Close() in main.go. Port 6379."
+Output: {"facts": ["Redis connection leak caused by pool not closed on shutdown", "Fix: added defer pool.Close() in main.go", "Redis port: 6379"]}`;
+
+/**
+ * Extract facts using LLM (Mem0-style structured extraction).
+ * Returns extracted facts or empty array on failure.
+ */
+async function extractFactsWithLLM(
+  narrative: string,
+  title: string,
+  existingFacts: string[],
+): Promise<string[]> {
+  try {
+    const { callLLM } = await import('../../llm/provider.js');
+    const input = `Title: ${title}\nContent: ${narrative}${existingFacts.length > 0 ? `\nAlready known facts (don't repeat): ${existingFacts.join('; ')}` : ''}`;
+    const response = await callLLM(LLM_EXTRACT_PROMPT, input);
+    const text = response.content.trim();
+
+    // Parse JSON response
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) return [];
+    const parsed = JSON.parse(jsonMatch[0]);
+    const facts = parsed.facts;
+    if (!Array.isArray(facts)) return [];
+
+    // Filter: remove duplicates with existing facts
+    const existingLower = new Set(existingFacts.map(f => f.toLowerCase().trim()));
+    return facts
+      .filter((f: unknown): f is string => typeof f === 'string' && f.length >= 5)
+      .filter((f: string) => !existingLower.has(f.toLowerCase().trim()))
+      .slice(0, 10);
+  } catch {
+    return []; // LLM failure → fall back to rules
+  }
+}
+
 // ── Public API ───────────────────────────────────────────────────
 
 /**
@@ -250,15 +310,30 @@ function verifyType(
  *
  * Enriches raw input with system-extracted facts, normalized titles,
  * resolved entities, and verified types.
+ *
+ * When useLLM=true, uses LLM for fact extraction (Mem0-style).
+ * Falls back to rules-based extraction on LLM failure.
  */
-export function runExtract(
+export async function runExtract(
   input: FormationInput,
   existingEntities: string[],
-): ExtractResult {
+  useLLM = false,
+): Promise<ExtractResult> {
   const callerFacts = input.facts ?? [];
 
   // 1. Extract facts from narrative
-  const extractedFacts = extractFacts(input.narrative, callerFacts);
+  let extractedFacts: string[];
+  if (useLLM) {
+    // LLM extraction (quality-first, Mem0-style)
+    extractedFacts = await extractFactsWithLLM(input.narrative, input.title, callerFacts);
+    // If LLM returned nothing, fall back to rules
+    if (extractedFacts.length === 0) {
+      extractedFacts = extractFacts(input.narrative, callerFacts);
+    }
+  } else {
+    // Rules-based extraction (free mode)
+    extractedFacts = extractFacts(input.narrative, callerFacts);
+  }
   const allFacts = [...callerFacts, ...extractedFacts];
 
   // 2. Improve title if generic

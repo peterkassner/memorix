@@ -273,7 +273,7 @@ export async function runFormation(
 
   // ── Stage 1: Extract ──
   const existingEntities = config.getEntityNames();
-  const extraction = runExtract(input, existingEntities);
+  const extraction = await runExtract(input, existingEntities, config.useLLM);
   stagesCompleted = 1;
 
   // ── Stage 2: Resolve ──

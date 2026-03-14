@@ -287,7 +287,7 @@ export async function createMemorixServer(cwd?: string, existingServer?: McpServ
         try {
           const formationConfig: FormationConfig = {
             mode: 'active',
-            useLLM: false,
+            useLLM: isLLMEnabled(),
             minValueScore: 0.3,
             searchMemories: async (q: string, limit: number, pid: string): Promise<SearchHit[]> => {
               const result = await compactSearch({ query: q, limit, projectId: pid, status: 'active' });
@@ -604,7 +604,7 @@ export async function createMemorixServer(cwd?: string, existingServer?: McpServ
           // Then run Formation to get its decision
           const formationConfig: FormationConfig = {
             mode: formationMode,
-            useLLM: false,
+            useLLM: isLLMEnabled(),
             minValueScore: 0.3,
             searchMemories: async (q: string, limit: number, pid: string): Promise<SearchHit[]> => {
               const result = await compactSearch({ query: q, limit, projectId: pid, status: 'active' });
