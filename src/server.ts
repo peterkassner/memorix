@@ -174,6 +174,13 @@ export async function createMemorixServer(cwd?: string, existingServer?: McpServ
     console.error(`[memorix] Alias resolved: ${rawProject.id} → ${canonicalId}`);
   }
 
+  // Initialize project root for YAML config resolution — ensures all config getters
+  // (getLLMApiKey, getGitConfig, etc.) pick up project-level memorix.yml, not just user-level.
+  try {
+    const { initProjectRoot } = await import('./config/yaml-loader.js');
+    initProjectRoot(project.rootPath);
+  } catch { /* config init is best-effort */ }
+
   // Initialize components
   let graphManager = new KnowledgeGraphManager(projectDir);
   await graphManager.init();
@@ -2815,28 +2822,29 @@ export async function createMemorixServer(cwd?: string, existingServer?: McpServ
     } catch { /* skip */ }
 
     // Git auto-hook: install post-commit hook if memorix.yml has git.autoHook: true
+    // Uses worktree-safe hook path resolution (.git may be a file in worktree setups)
     try {
       const { getGitConfig } = await import('./config.js');
       const gitCfg = getGitConfig();
       if (gitCfg.autoHook && project.rootPath) {
-        const { existsSync, readFileSync } = await import('node:fs');
-        const path = await import('node:path');
-        const hookPath = path.join(project.rootPath, '.git', 'hooks', 'post-commit');
-        const HOOK_MARKER = '# [memorix-git-hook]';
-        const needsInstall = !existsSync(hookPath) || !readFileSync(hookPath, 'utf-8').includes(HOOK_MARKER);
-        if (needsInstall) {
-          const { writeFileSync, mkdirSync, chmodSync } = await import('node:fs');
-          const hooksDir = path.join(project.rootPath, '.git', 'hooks');
-          mkdirSync(hooksDir, { recursive: true });
-          const hookScript = `#!/bin/sh\n${HOOK_MARKER}\n# Memorix: Auto-ingest git commits as memories\nif command -v memorix >/dev/null 2>&1; then\n  memorix ingest commit --auto >/dev/null 2>&1 &\nfi\n`;
-          if (existsSync(hookPath)) {
-            const existing = readFileSync(hookPath, 'utf-8');
-            writeFileSync(hookPath, existing.trimEnd() + '\n\n' + `${HOOK_MARKER}\nif command -v memorix >/dev/null 2>&1; then\n  memorix ingest commit --auto >/dev/null 2>&1 &\nfi\n`, 'utf-8');
-          } else {
-            writeFileSync(hookPath, hookScript, 'utf-8');
+        const { resolveHooksDir } = await import('./git/hooks-path.js');
+        const resolved = resolveHooksDir(project.rootPath);
+        if (resolved) {
+          const { existsSync, readFileSync, writeFileSync, chmodSync } = await import('node:fs');
+          const { hookPath } = resolved;
+          const HOOK_MARKER = '# [memorix-git-hook]';
+          const needsInstall = !existsSync(hookPath) || !readFileSync(hookPath, 'utf-8').includes(HOOK_MARKER);
+          if (needsInstall) {
+            const hookScript = `#!/bin/sh\n${HOOK_MARKER}\n# Memorix: Auto-ingest git commits as memories\nif command -v memorix >/dev/null 2>&1; then\n  memorix ingest commit --auto >/dev/null 2>&1 &\nfi\n`;
+            if (existsSync(hookPath)) {
+              const existing = readFileSync(hookPath, 'utf-8');
+              writeFileSync(hookPath, existing.trimEnd() + '\n\n' + `${HOOK_MARKER}\nif command -v memorix >/dev/null 2>&1; then\n  memorix ingest commit --auto >/dev/null 2>&1 &\nfi\n`, 'utf-8');
+            } else {
+              writeFileSync(hookPath, hookScript, 'utf-8');
+            }
+            try { chmodSync(hookPath, 0o755); } catch { /* Windows */ }
+            console.error('[memorix] Auto-installed git post-commit hook (git.autoHook: true)');
           }
-          try { chmodSync(hookPath, 0o755); } catch { /* Windows */ }
-          console.error('[memorix] Auto-installed git post-commit hook (git.autoHook: true)');
         }
       }
     } catch { /* git auto-hook is best-effort */ }
@@ -3007,6 +3015,12 @@ export async function createMemorixServer(cwd?: string, existingServer?: McpServ
     const newProjectDir = await getProjectDataDir(newCanonicalId);
     project = { ...newDetected, id: newCanonicalId };
     projectDir = newProjectDir;
+
+    // Update YAML config root for the new project
+    try {
+      const { initProjectRoot } = await import('./config/yaml-loader.js');
+      initProjectRoot(project.rootPath);
+    } catch { /* best-effort */ }
 
     // Re-initialize stores
     graphManager = new KnowledgeGraphManager(projectDir);

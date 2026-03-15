@@ -8,7 +8,7 @@
 import { defineCommand } from 'citty';
 import * as p from '@clack/prompts';
 import { existsSync, readFileSync, writeFileSync, unlinkSync } from 'node:fs';
-import path from 'node:path';
+import { resolveHooksDir } from '../../git/hooks-path.js';
 
 const HOOK_MARKER = '# [memorix-git-hook]';
 
@@ -29,7 +29,13 @@ export default defineCommand({
 
     p.intro('Uninstall Git post-commit hook');
 
-    const hookPath = path.join(projectDir, '.git', 'hooks', 'post-commit');
+    const resolved = resolveHooksDir(projectDir);
+    if (!resolved) {
+      p.log.warn('No .git found (checked both directory and worktree file).');
+      p.outro('Nothing to uninstall.');
+      return;
+    }
+    const { hookPath } = resolved;
 
     if (!existsSync(hookPath)) {
       p.log.warn('No post-commit hook found.');

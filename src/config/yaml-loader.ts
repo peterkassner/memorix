@@ -100,18 +100,36 @@ export interface MemorixYamlConfig {
 let cachedYamlConfig: MemorixYamlConfig | null = null;
 let cachedProjectRoot: string | null = null;
 
+/** Stored project root — set once by server init, used by all no-arg loadYamlConfig() calls */
+let globalProjectRoot: string | null = null;
+
+/**
+ * Set the project root for YAML config resolution.
+ * Call this once during server init so all config getters
+ * (which call loadYamlConfig() without args) pick up project-level memorix.yml.
+ */
+export function initProjectRoot(root: string): void {
+  globalProjectRoot = root;
+  // Invalidate cache so next loadYamlConfig() reloads with the new root
+  cachedYamlConfig = null;
+  cachedProjectRoot = null;
+}
+
 /**
  * Load memorix.yml from project root and/or user home.
  * Project-level overrides user-level (shallow merge per top-level key).
  */
 export function loadYamlConfig(projectRoot?: string): MemorixYamlConfig {
+  // Fall back to globally-initialized project root when no explicit root is given
+  const resolvedRoot = projectRoot ?? globalProjectRoot ?? null;
+
   // Cache invalidation: if project root changed, reload
-  if (cachedYamlConfig !== null && cachedProjectRoot === (projectRoot ?? null)) {
+  if (cachedYamlConfig !== null && cachedProjectRoot === resolvedRoot) {
     return cachedYamlConfig;
   }
 
   const userYaml = join(homedir(), '.memorix', 'memorix.yml');
-  const projectYaml = projectRoot ? join(projectRoot, 'memorix.yml') : null;
+  const projectYaml = resolvedRoot ? join(resolvedRoot, 'memorix.yml') : null;
 
   let userConfig: MemorixYamlConfig = {};
   let projectConfig: MemorixYamlConfig = {};
@@ -146,7 +164,7 @@ export function loadYamlConfig(projectRoot?: string): MemorixYamlConfig {
     server: { ...userConfig.server, ...projectConfig.server },
     team: { ...userConfig.team, ...projectConfig.team },
   };
-  cachedProjectRoot = projectRoot ?? null;
+  cachedProjectRoot = resolvedRoot;
 
   return cachedYamlConfig;
 }

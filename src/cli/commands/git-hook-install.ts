@@ -9,8 +9,8 @@
 
 import { defineCommand } from 'citty';
 import * as p from '@clack/prompts';
-import { existsSync, readFileSync, writeFileSync, mkdirSync, chmodSync } from 'node:fs';
-import path from 'node:path';
+import { existsSync, readFileSync, writeFileSync, chmodSync } from 'node:fs';
+import { resolveHooksDir } from '../../git/hooks-path.js';
 
 const HOOK_MARKER = '# [memorix-git-hook]';
 
@@ -36,19 +36,15 @@ export default defineCommand({
 
     p.intro('Install Git post-commit hook');
 
-    // 1. Verify .git exists
-    const gitDir = path.join(projectDir, '.git');
-    if (!existsSync(gitDir)) {
-      p.log.error(`No .git directory found in ${projectDir}`);
+    // 1. Resolve git hooks directory (handles normal repos and worktrees)
+    const resolved = resolveHooksDir(projectDir);
+    if (!resolved) {
+      p.log.error(`No .git found in ${projectDir} (checked both directory and worktree file)`);
       p.outro('Run this command from a git repository root.');
       return;
     }
 
-    // 2. Ensure hooks directory exists
-    const hooksDir = path.join(gitDir, 'hooks');
-    mkdirSync(hooksDir, { recursive: true });
-
-    const hookPath = path.join(hooksDir, 'post-commit');
+    const { hookPath } = resolved;
 
     // 3. Check for existing hook
     if (existsSync(hookPath)) {

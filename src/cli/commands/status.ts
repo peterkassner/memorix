@@ -96,16 +96,19 @@ export default defineCommand({
       if (yml.git?.autoHook) ymlParts.push(`Git hook:  auto-install enabled`);
       if (yml.behavior?.formationMode) ymlParts.push(`Formation: ${yml.behavior.formationMode}`);
 
-      // Git hook status
-      const hookPath = join(project.rootPath, '.git', 'hooks', 'post-commit');
-      if (existsSync(hookPath)) {
-        const hookContent = readFileSync(hookPath, 'utf-8');
-        if (hookContent.includes('# [memorix-git-hook]')) {
-          ymlParts.push(`Git hook:  installed ✅`);
+      // Git hook status (worktree-safe)
+      try {
+        const { resolveHooksDir } = await import('../../git/hooks-path.js');
+        const resolved = resolveHooksDir(project.rootPath);
+        if (resolved && existsSync(resolved.hookPath)) {
+          const hookContent = readFileSync(resolved.hookPath, 'utf-8');
+          if (hookContent.includes('# [memorix-git-hook]')) {
+            ymlParts.push(`Git hook:  installed ✅`);
+          }
+        } else if (!yml.git?.autoHook) {
+          ymlParts.push(`Git hook:  not installed (run "memorix git-hook")`);
         }
-      } else if (!yml.git?.autoHook) {
-        ymlParts.push(`Git hook:  not installed (run "memorix git-hook")`);
-      }
+      } catch { /* best effort */ }
 
       p.note(ymlParts.join('\n'), 'Configuration');
     } catch { /* best effort */ }
