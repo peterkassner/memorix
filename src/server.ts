@@ -2827,8 +2827,8 @@ export async function createMemorixServer(cwd?: string, existingServer?: McpServ
       const { getGitConfig } = await import('./config.js');
       const gitCfg = getGitConfig();
       if (gitCfg.autoHook && project.rootPath) {
-        const { resolveHooksDir } = await import('./git/hooks-path.js');
-        const resolved = resolveHooksDir(project.rootPath);
+        const { ensureHooksDir } = await import('./git/hooks-path.js');
+        const resolved = ensureHooksDir(project.rootPath);
         if (resolved) {
           const { existsSync, readFileSync, writeFileSync, chmodSync } = await import('node:fs');
           const { hookPath } = resolved;

@@ -10,7 +10,7 @@
 import { defineCommand } from 'citty';
 import * as p from '@clack/prompts';
 import { existsSync, readFileSync, writeFileSync, chmodSync } from 'node:fs';
-import { resolveHooksDir } from '../../git/hooks-path.js';
+import { ensureHooksDir } from '../../git/hooks-path.js';
 
 const HOOK_MARKER = '# [memorix-git-hook]';
 
@@ -37,7 +37,7 @@ export default defineCommand({
     p.intro('Install Git post-commit hook');
 
     // 1. Resolve git hooks directory (handles normal repos and worktrees)
-    const resolved = resolveHooksDir(projectDir);
+    const resolved = ensureHooksDir(projectDir);
     if (!resolved) {
       p.log.error(`No .git found in ${projectDir} (checked both directory and worktree file)`);
       p.outro('Run this command from a git repository root.');

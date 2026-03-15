@@ -11,7 +11,7 @@ import { describe, it, expect, afterEach } from 'vitest';
 import { writeFileSync, mkdirSync, rmSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { resolveGitDir, resolveHooksDir } from '../../src/git/hooks-path.js';
+import { resolveGitDir, resolveHooksDir, ensureHooksDir } from '../../src/git/hooks-path.js';
 
 describe('resolveGitDir', () => {
   const base = join(tmpdir(), 'memorix-git-test-' + Date.now());
@@ -78,7 +78,7 @@ describe('resolveHooksDir', () => {
     try { rmSync(base, { recursive: true, force: true }); } catch { /* ignore */ }
   });
 
-  it('should create hooks dir and return paths for normal repo', () => {
+  it('should return paths WITHOUT creating hooks dir (read-only)', () => {
     const projDir = join(base, 'normal');
     mkdirSync(join(projDir, '.git'), { recursive: true });
 
@@ -86,10 +86,11 @@ describe('resolveHooksDir', () => {
     expect(result).toBeTruthy();
     expect(result!.hooksDir).toContain('hooks');
     expect(result!.hookPath).toContain('post-commit');
-    expect(existsSync(result!.hooksDir)).toBe(true);
+    // P2 fix: resolveHooksDir must NOT create directories
+    expect(existsSync(result!.hooksDir)).toBe(false);
   });
 
-  it('should resolve hooks dir through worktree .git file', () => {
+  it('should resolve hooks path through worktree .git file (read-only)', () => {
     const projDir = join(base, 'wt-proj');
     mkdirSync(projDir, { recursive: true });
 
@@ -102,7 +103,8 @@ describe('resolveHooksDir', () => {
     expect(result).toBeTruthy();
     expect(result!.hooksDir).toBe(join(actualGitDir, 'hooks'));
     expect(result!.hookPath).toBe(join(actualGitDir, 'hooks', 'post-commit'));
-    expect(existsSync(result!.hooksDir)).toBe(true);
+    // P2 fix: should NOT create hooks/ dir
+    expect(existsSync(result!.hooksDir)).toBe(false);
   });
 
   it('should return null when no .git exists', () => {
@@ -110,6 +112,46 @@ describe('resolveHooksDir', () => {
     mkdirSync(projDir, { recursive: true });
 
     const result = resolveHooksDir(projDir);
+    expect(result).toBeNull();
+  });
+});
+
+describe('ensureHooksDir', () => {
+  const base = join(tmpdir(), 'memorix-ensure-hooks-test-' + Date.now());
+
+  afterEach(() => {
+    try { rmSync(base, { recursive: true, force: true }); } catch { /* ignore */ }
+  });
+
+  it('should create hooks dir on disk (write path)', () => {
+    const projDir = join(base, 'normal');
+    mkdirSync(join(projDir, '.git'), { recursive: true });
+
+    const result = ensureHooksDir(projDir);
+    expect(result).toBeTruthy();
+    expect(existsSync(result!.hooksDir)).toBe(true);
+  });
+
+  it('should create hooks dir through worktree .git file', () => {
+    const projDir = join(base, 'wt');
+    mkdirSync(projDir, { recursive: true });
+
+    const actualGitDir = join(base, 'wt-git');
+    mkdirSync(actualGitDir, { recursive: true });
+
+    writeFileSync(join(projDir, '.git'), `gitdir: ${actualGitDir}\n`, 'utf-8');
+
+    const result = ensureHooksDir(projDir);
+    expect(result).toBeTruthy();
+    expect(existsSync(result!.hooksDir)).toBe(true);
+    expect(result!.hooksDir).toBe(join(actualGitDir, 'hooks'));
+  });
+
+  it('should return null when no .git exists', () => {
+    const projDir = join(base, 'empty');
+    mkdirSync(projDir, { recursive: true });
+
+    const result = ensureHooksDir(projDir);
     expect(result).toBeNull();
   });
 });

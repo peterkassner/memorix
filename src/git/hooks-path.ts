@@ -54,7 +54,7 @@ export function resolveGitDir(projectRoot: string): string | null {
 }
 
 /**
- * Resolve the hooks directory for a project, creating it if needed.
+ * Resolve the hooks directory for a project (read-only — does NOT create directories).
  * Handles both normal repos and git worktrees.
  *
  * @param projectRoot - The root of the working tree
@@ -65,10 +65,21 @@ export function resolveHooksDir(projectRoot: string): { hooksDir: string; hookPa
   if (!gitDir) return null;
 
   const hooksDir = path.join(gitDir, 'hooks');
-  mkdirSync(hooksDir, { recursive: true });
 
   return {
     hooksDir,
     hookPath: path.join(hooksDir, 'post-commit'),
   };
+}
+
+/**
+ * Resolve hooks directory AND ensure it exists on disk.
+ * Use this only in write paths (hook install / autoHook).
+ */
+export function ensureHooksDir(projectRoot: string): { hooksDir: string; hookPath: string } | null {
+  const resolved = resolveHooksDir(projectRoot);
+  if (!resolved) return null;
+
+  mkdirSync(resolved.hooksDir, { recursive: true });
+  return resolved;
 }
