@@ -2,6 +2,36 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.4] — 2026-03-17
+
+### Added
+- **Git Memory pipeline** — `git commit` can now flow directly into Memorix via `memorix git-hook`, `memorix git-hook-uninstall`, and `memorix ingest commit --auto`. Stored observations now carry `source` and `commitHash`, and Git memories can be filtered explicitly with `source: "git"`.
+- **Reasoning Memory tools** — Added `memorix_store_reasoning` and `memorix_search_reasoning` so design rationale, alternatives, constraints, and risks can be stored and searched as a first-class memory layer.
+- **Source-aware retrieval and cross-linking** — Search now boosts Git, reasoning, and problem-solution memories differently based on query intent. Git memories and reasoning memories can cross-reference each other via related commits and shared entities.
+- **Structured config model** — Added project/user `memorix.yml`, project/user `.env` loading, `memorix init`, and configuration provenance diagnostics in `memorix status`.
+- **Dashboard control plane upgrades** — Added Git Memory, Config Provenance, and Identity Health views, plus richer stats and a stabilized graph layout for the HTTP dashboard.
+
+### Changed
+- **Documentation consolidation** — Reworked README, README.zh-CN, setup, architecture, API reference, configuration, Git Memory, and development guides so they match the current product model: local-first platform, `memorix.yml + .env`, Git Memory, HTTP dashboard, and the four-layer architecture.
+- **Project detection model** — Project identity now centers on real Git roots, MCP roots support, system-directory fallback handling, and runtime project switching instead of older placeholder-style fallback identities.
+- **Dashboard usage model** — `memorix serve-http --port 3211` is now the primary “control plane” entrypoint when you want HTTP transport, collaboration features, and dashboard access in one place.
+
+### Fixed
+- **Project identity drift** — Fixed Codex/Windsurf startup issues that produced `local/System32`, IDE-installation-directory identities, or other incorrect local project bindings.
+- **Worktree-safe Git hooks** — Hook installation, uninstall, auto-install checks, and status reporting now resolve hooks directories correctly for both normal repos and Git worktrees.
+- **Runtime config correctness** — Fixed project-level `memorix.yml` not reaching runtime getters, `.env` values leaking across project switches, and legacy `config.json` not showing up correctly in provenance diagnostics.
+- **Git Memory quality** — Added noise filtering, preserved release/version milestone commits, and implemented `memorix ingest commit --force` as an escape hatch for manual ingestion.
+- **Cross-project detail retrieval** — Global search results can now be opened reliably with project-aware refs instead of colliding on observation IDs from different projects.
+- **Skill generation noise** — `memorix_skills generate` now filters low-signal command-history observations like `git`, `gh`, `npm`, and `npx` so generated skills stay project-relevant.
+- **OpenCode static plugin noise** — Merged the first external PR to silence `console.log` spam in the static OpenCode plugin without reintroducing session lifecycle side effects.
+- **CI/publish flow** — Restored CI green after type/test regressions and changed npm publishing workflow to manual trigger instead of automatic release publishing.
+
+### Stats
+- **Tests:** 879/879 passing across 68 files
+- **Runtime modes:** stdio MCP (`memorix serve`), HTTP MCP + dashboard (`memorix serve-http --port 3211`), and standalone dashboard remain supported
+
+---
+
 ## [1.0.3] — 2026-03-14
 
 ### Added
