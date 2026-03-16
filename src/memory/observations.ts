@@ -10,7 +10,15 @@
 
 import type { Observation, ObservationType, ObservationStatus, MemorixDocument, ProgressInfo } from '../types.js';
 import { TOPIC_KEY_FAMILIES } from '../types.js';
-import { insertObservation, removeObservation, resetDb, generateEmbedding, batchGenerateEmbeddings, isEmbeddingEnabled } from '../store/orama-store.js';
+import {
+  insertObservation,
+  removeObservation,
+  resetDb,
+  generateEmbedding,
+  batchGenerateEmbeddings,
+  isEmbeddingEnabled,
+  makeOramaObservationId,
+} from '../store/orama-store.js';
 import { saveObservationsJson, loadObservationsJson, saveIdCounter, loadIdCounter } from '../store/persistence.js';
 import { withFileLock } from '../store/file-lock.js';
 import { countTextTokens } from '../compact/token-budget.js';
@@ -126,7 +134,7 @@ export async function storeObservation(input: {
 
   // Insert into Orama search index WITHOUT embedding first (non-blocking)
   const doc: MemorixDocument = {
-    id: `obs-${id}`,
+    id: makeOramaObservationId(input.projectId, id),
     observationId: id,
     entityName: input.entityName,
     type: input.type,
@@ -177,7 +185,7 @@ export async function storeObservation(input: {
     if (embedding) {
       try {
         const { removeObservation: removeObs } = await import('../store/orama-store.js');
-        await removeObs(`obs-${id}`);
+        await removeObs(makeOramaObservationId(input.projectId, id));
         await insertObservation(Object.assign({}, doc, { embedding }));
       } catch {
         // Embedding index update failed — observation still persisted without vector
@@ -244,7 +252,7 @@ async function upsertObservation(
 
   // Re-index in Orama WITHOUT embedding first (non-blocking)
   const doc: MemorixDocument = {
-    id: `obs-${existing.id}`,
+    id: makeOramaObservationId(existing.projectId, existing.id),
     observationId: existing.id,
     entityName: existing.entityName,
     type: existing.type,
@@ -265,7 +273,7 @@ async function upsertObservation(
   // Remove old doc and insert updated one
   try {
     const { removeObservation } = await import('../store/orama-store.js');
-    await removeObservation(`obs-${existing.id}`);
+    await removeObservation(makeOramaObservationId(existing.projectId, existing.id));
   } catch { /* may not exist in index */ }
   await insertObservation(doc);
 
@@ -291,7 +299,7 @@ async function upsertObservation(
     if (embedding) {
       try {
         const { removeObservation: removeObs } = await import('../store/orama-store.js');
-        await removeObs(`obs-${obsId}`);
+        await removeObs(makeOramaObservationId(existing.projectId, obsId));
         await insertObservation(Object.assign({}, doc, { embedding }));
       } catch {
         // Embedding index update failed — observation still persisted without vector
@@ -339,9 +347,9 @@ export async function resolveObservations(
     // Update Orama index (without blocking on embedding)
     try {
       const { removeObservation: removeObs } = await import('../store/orama-store.js');
-      await removeObs(`obs-${id}`);
+      await removeObs(makeOramaObservationId(obs.projectId, id));
       const doc: MemorixDocument = {
-        id: `obs-${obs.id}`,
+        id: makeOramaObservationId(obs.projectId, obs.id),
         observationId: obs.id,
         entityName: obs.entityName,
         type: obs.type,
@@ -503,7 +511,7 @@ export async function reindexObservations(): Promise<number> {
     const obs = observations[i];
     try {
       const embedding = embeddings[i] ?? null;
-      const docId = `obs-${obs.id}`;
+      const docId = makeOramaObservationId(obs.projectId, obs.id);
       const doc: MemorixDocument = {
         id: docId,
         observationId: obs.id,

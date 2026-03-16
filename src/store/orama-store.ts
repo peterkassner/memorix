@@ -19,6 +19,18 @@ let db: AnyOrama | null = null;
 let embeddingEnabled = false;
 
 /**
+ * Build a globally unique Orama document ID for an observation.
+ * observationId is only unique within a project, so projectId must be included.
+ */
+export function makeOramaObservationId(projectId: string, observationId: number): string {
+  return `obs-${encodeURIComponent(projectId)}-${observationId}`;
+}
+
+function makeEntryKey(projectId: string | undefined, observationId: number): string {
+  return `${projectId ?? ''}::${observationId}`;
+}
+
+/**
  * Initialize or return the Orama database instance.
  * Schema conditionally includes vector field based on embedding provider.
  * Graceful degradation: no provider → fulltext only, provider → hybrid.
@@ -283,6 +295,7 @@ export async function searchObservations(options: SearchOptions): Promise<IndexE
         title: doc.title,
         tokens: doc.tokens,
         score: (hit.score ?? 1) * recencyBoost,
+        projectId: doc.projectId,
         source: (doc.source || 'agent') as 'agent' | 'git' | 'manual',
       };
     });
@@ -380,17 +393,17 @@ export async function searchObservations(options: SearchOptions): Promise<IndexE
     try {
       const { rerankResults } = await import('../llm/quality.js');
       // Build narrative snippets from original search hits for richer reranking
-      const narrativeMap = new Map<number, string>();
+      const narrativeMap = new Map<string, string>();
       for (const hit of results.hits) {
         const doc = hit.document as unknown as MemorixDocument;
-        narrativeMap.set(doc.observationId, doc.narrative);
+        narrativeMap.set(makeEntryKey(doc.projectId, doc.observationId), doc.narrative);
       }
-      const candidates = intermediate.map(e => ({
-        id: e.id,
+      const candidates = intermediate.map((e, index) => ({
+        id: `r${index + 1}`,
         title: e.title,
         type: e.type,
         score: e.score,
-        narrative: narrativeMap.get(e.id),
+        narrative: narrativeMap.get(makeEntryKey(e.projectId, e.id)),
       }));
       
       // LLM rerank timeout: 10 seconds
@@ -403,9 +416,9 @@ export async function searchObservations(options: SearchOptions): Promise<IndexE
       
       if (usedLLM) {
         // Rebuild intermediate with reranked order, preserving all original fields
-        const intermediateMap = new Map(intermediate.map(e => [e.id, e]));
+        const candidateMap = new Map(candidates.map((candidate, index) => [candidate.id, intermediate[index]]));
         const rerankedIntermediate = reranked
-          .map(r => intermediateMap.get(r.id))
+          .map(r => candidateMap.get(r.id))
           .filter((e): e is NonNullable<typeof e> => e != null);
         if (rerankedIntermediate.length > 0) {
           intermediate = rerankedIntermediate;
@@ -424,10 +437,10 @@ export async function searchObservations(options: SearchOptions): Promise<IndexE
   if (hasQuery && options.query) {
     const queryLower = options.query.toLowerCase();
     const queryTokens = queryLower.split(/\s+/).filter(t => t.length > 1);
-    const entryMap = new Map(entries.map(e => [e.id, e]));
+    const entryMap = new Map(entries.map(e => [makeEntryKey(e.projectId, e.id), e]));
     for (const hit of results.hits) {
       const doc = hit.document as unknown as MemorixDocument;
-      const entry = entryMap.get(doc.observationId);
+      const entry = entryMap.get(makeEntryKey(doc.projectId, doc.observationId));
       if (!entry) continue;
 
       const reasons: string[] = [];
@@ -440,7 +453,7 @@ export async function searchObservations(options: SearchOptions): Promise<IndexE
         if (queryTokens.some(t => valueLower.includes(t))) reasons.push(name);
       }
       if (reasons.length === 0) reasons.push('fuzzy');
-      (entry as unknown as Record<string, unknown>)['matchedFields'] = reasons;
+      entry.matchedFields = reasons;
     }
   }
 

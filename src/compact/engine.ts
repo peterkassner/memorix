@@ -9,8 +9,8 @@
  * Layer 3 (detail)   → Full observation content (~500-1000 tokens/result)
  */
 
-import type { SearchOptions, IndexEntry, TimelineContext, MemorixDocument } from '../types.js';
-import { searchObservations, getTimeline } from '../store/orama-store.js';
+import type { SearchOptions, IndexEntry, TimelineContext, MemorixDocument, ObservationRef } from '../types.js';
+import { searchObservations, getTimeline, getObservationsByIds, makeOramaObservationId } from '../store/orama-store.js';
 import { getObservation, getAllObservations } from '../memory/observations.js';
 import { formatIndexTable, formatTimeline, formatObservationDetail } from './index-format.js';
 import { countTextTokens } from './token-budget.js';
@@ -25,7 +25,7 @@ export async function compactSearch(options: SearchOptions): Promise<{
   totalTokens: number;
 }> {
   const entries = await searchObservations(options);
-  const formatted = formatIndexTable(entries, options.query);
+  const formatted = formatIndexTable(entries, options.query, !options.projectId);
   const totalTokens = countTextTokens(formatted);
 
   return { entries, formatted, totalTokens };
@@ -65,20 +65,26 @@ export async function compactTimeline(
  * Only called after the agent has filtered via L1/L2.
  */
 export async function compactDetail(
-  ids: number[],
+  idsOrRefs: number[] | ObservationRef[],
 ): Promise<{
   documents: MemorixDocument[];
   formatted: string;
   totalTokens: number;
 }> {
-  // Use in-memory observations for reliable ID lookup (Orama where-clause
-  // can be unreliable with empty term + number filter)
-  const documents: MemorixDocument[] = [];
-  for (const id of ids) {
-    const obs = getObservation(id);
-    if (obs) {
-      documents.push({
-        id: `obs-${obs.id}`,
+  const refs: ObservationRef[] = idsOrRefs.map((item) =>
+    typeof item === 'number' ? { id: item } : item,
+  );
+
+  // Prefer in-memory observations for current-project reliability, but fall back
+  // to the global Orama index so cross-project search results can still open.
+  const toRefKey = (ref: ObservationRef) => `${ref.projectId ?? ''}::${ref.id}`;
+  const documentMap = new Map<string, MemorixDocument>();
+  const missingRefs: ObservationRef[] = [];
+  for (const ref of refs) {
+    const obs = getObservation(ref.id);
+    if (obs && (!ref.projectId || obs.projectId === ref.projectId)) {
+      documentMap.set(toRefKey(ref), {
+        id: makeOramaObservationId(obs.projectId, obs.id),
         observationId: obs.id,
         entityName: obs.entityName,
         type: obs.type,
@@ -95,22 +101,46 @@ export async function compactDetail(
         status: obs.status ?? 'active',
         source: obs.source ?? 'agent',
       });
+    } else {
+      missingRefs.push(ref);
     }
   }
 
+  if (missingRefs.length > 0) {
+    for (const ref of missingRefs) {
+      const fallbackDocs = await getObservationsByIds([ref.id], ref.projectId);
+      const doc = fallbackDocs[0];
+      if (doc) {
+        documentMap.set(toRefKey(ref), doc);
+      }
+    }
+  }
+
+  const documents = refs
+    .map((ref) => documentMap.get(toRefKey(ref)))
+    .filter((doc): doc is MemorixDocument => Boolean(doc));
+
   // Build cross-reference map for all requested observations
   const allObs = getAllObservations();
-  const crossRefMap = new Map<number, string[]>();
-  for (const id of ids) {
-    const obs = getObservation(id);
-    if (!obs) continue;
+  const crossRefMap = new Map<string, string[]>();
+  for (const ref of refs) {
+    const obs = getObservation(ref.id);
+    const doc = documentMap.get(toRefKey(ref));
+    if (!obs && !doc) continue;
     const refs: string[] = [];
 
     // Source badge
-    if (obs.source === 'git' && obs.commitHash) {
+    if (obs?.source === 'git' && obs.commitHash) {
       refs.push(`Source: git commit ${obs.commitHash.substring(0, 7)}`);
-    } else if (obs.source) {
+    } else if (obs?.source) {
       refs.push(`Source: ${obs.source}`);
+    } else if (doc?.source) {
+      refs.push(`Source: ${doc.source}`);
+    }
+
+    if (!obs) {
+      if (refs.length > 0 && doc) crossRefMap.set(doc.id, refs);
+      continue;
     }
 
     // Explicit relatedCommits
@@ -154,12 +184,12 @@ export async function compactDetail(
       }
     }
 
-    if (refs.length > 0) crossRefMap.set(obs.id, refs);
+    if (refs.length > 0) crossRefMap.set(makeOramaObservationId(obs.projectId, obs.id), refs);
   }
 
   const formattedParts = documents.map((doc: MemorixDocument) => {
     let detail = formatObservationDetail(doc);
-    const refs = crossRefMap.get(doc.observationId);
+    const refs = crossRefMap.get(doc.id);
     if (refs && refs.length > 0) {
       detail += '\n\nCross-references:\n' + refs.join('\n');
     }

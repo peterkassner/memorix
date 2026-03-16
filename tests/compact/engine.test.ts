@@ -92,5 +92,64 @@ describe('Compact Engine', () => {
       const result = await compactDetail([99999]);
       expect(result.documents).toHaveLength(0);
     });
+
+    it('should fall back to the global index for cross-project detail lookups', async () => {
+      const projectADir = await fs.mkdtemp(path.join(os.tmpdir(), 'memorix-compact-a-'));
+      const projectBDir = await fs.mkdtemp(path.join(os.tmpdir(), 'memorix-compact-b-'));
+
+      try {
+        await initObservations(projectADir);
+        await storeObservation({
+          entityName: 'project-a',
+          type: 'what-changed',
+          title: 'Project A baseline',
+          narrative: 'First observation in project A',
+          projectId: 'test/project-a',
+        });
+
+        await storeObservation({
+          entityName: 'project-a',
+          type: 'decision',
+          title: 'Cross-project detail target',
+          narrative: 'This observation should still open after switching projects',
+          facts: ['Project: A'],
+          projectId: 'test/project-a',
+        });
+
+        await storeObservation({
+          entityName: 'project-a',
+          type: 'gotcha',
+          title: 'Project A extra signal',
+          narrative: 'Third observation to ensure the target id is absent in project B memory',
+          projectId: 'test/project-a',
+        });
+
+        await initObservations(projectBDir);
+        await storeObservation({
+          entityName: 'project-b',
+          type: 'what-changed',
+          title: 'Project B baseline',
+          narrative: 'Current in-memory project is now B',
+          projectId: 'test/project-b',
+        });
+
+        const searchResult = await compactSearch({ query: 'Cross-project detail target' });
+        const target = searchResult.entries.find((entry) => entry.title === 'Cross-project detail target');
+
+        expect(target).toBeDefined();
+        expect(target!.id).toBe(2);
+        expect(target!.projectId).toBe('test/project-a');
+        expect(searchResult.formatted).toContain('| Project |');
+
+        const detailResult = await compactDetail([{ id: target!.id, projectId: target!.projectId }]);
+        expect(detailResult.documents).toHaveLength(1);
+        expect(detailResult.documents[0].title).toBe('Cross-project detail target');
+        expect(detailResult.documents[0].projectId).toBe('test/project-a');
+        expect(detailResult.formatted).toContain('Cross-project detail target');
+      } finally {
+        await fs.rm(projectADir, { recursive: true, force: true });
+        await fs.rm(projectBDir, { recursive: true, force: true });
+      }
+    });
   });
 });

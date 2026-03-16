@@ -1,22 +1,15 @@
 /**
  * Index Formatter
  *
- * Formats observation search results into the compact index table format.
- * Source: claude-mem's Progressive Disclosure index format.
- *
- * Output is a markdown table that agents can scan efficiently:
- *   | ID    | Time     | T  | Title                    | Tokens |
- *   |-------|----------|----|--------------------------|--------|
- *   | #42   | 2:14 PM  | 🔴 | port 3001 conflict fix   | ~155   |
+ * Formats search, timeline, and detail outputs for the compact engine.
  */
 
 import type { IndexEntry, TimelineContext } from '../types.js';
 
 /**
  * Format a list of IndexEntries as a compact markdown table.
- * Grouped by date for readability (claude-mem pattern).
  */
-export function formatIndexTable(entries: IndexEntry[], query?: string): string {
+export function formatIndexTable(entries: IndexEntry[], query?: string, forceProjectColumn = false): string {
   if (entries.length === 0) {
     return query
       ? `No observations found matching "${query}".`
@@ -26,37 +19,37 @@ export function formatIndexTable(entries: IndexEntry[], query?: string): string 
   const lines: string[] = [];
 
   if (query) {
-    lines.push(`Found ${entries.length} observation(s) matching "${query}":\n`);
+    lines.push(`Found ${entries.length} observation(s) matching "${query}":`);
+    lines.push('');
   }
 
-  lines.push('| ID | Time | T | Title | Tokens |');
-  lines.push('|----|------|---|-------|--------|');
+  const distinctProjects = [...new Set(entries.map((entry) => entry.projectId).filter(Boolean))];
+  const hasProject = forceProjectColumn || distinctProjects.length > 1;
+  const hasExplanation = entries.some((entry) => (entry.matchedFields?.length ?? 0) > 0);
 
-  // Check if any entry has matchedFields (explainable recall)
-  const hasExplanation = entries.some(e => (e as unknown as Record<string, unknown>)['matchedFields']);
-
+  const header = ['ID', 'Time', 'T', 'Title', 'Tokens'];
+  const divider = ['----', '------', '---', '-------', '--------'];
+  if (hasProject) {
+    header.push('Project');
+    divider.push('---------');
+  }
   if (hasExplanation) {
-    lines.pop(); // remove previous header
-    lines.pop();
-    lines.push('| ID | Time | T | Title | Tokens | Matched |');
-    lines.push('|----|------|---|-------|--------|---------|');
+    header.push('Matched');
+    divider.push('---------');
   }
+
+  lines.push(`| ${header.join(' | ')} |`);
+  lines.push(`|${divider.map((part) => ` ${part} `).join('|')}|`);
 
   for (const entry of entries) {
-    const matched = (entry as unknown as Record<string, unknown>)['matchedFields'] as string[] | undefined;
-    if (hasExplanation && matched) {
-      lines.push(
-        `| #${entry.id} | ${entry.time} | ${entry.icon} | ${entry.title} | ~${entry.tokens} | ${matched.join(', ')} |`,
-      );
-    } else {
-      lines.push(
-        `| #${entry.id} | ${entry.time} | ${entry.icon} | ${entry.title} | ~${entry.tokens} |`,
-      );
-    }
+    const row = [`#${entry.id}`, entry.time, entry.icon, entry.title, `~${entry.tokens}`];
+    if (hasProject) row.push(entry.projectId ?? '-');
+    if (hasExplanation) row.push(entry.matchedFields?.join(', ') ?? '-');
+    lines.push(`| ${row.join(' | ')} |`);
   }
 
   lines.push('');
-  lines.push(PROGRESSIVE_DISCLOSURE_HINT);
+  lines.push(getProgressiveDisclosureHint(hasProject));
 
   return lines.join('\n');
 }
@@ -70,7 +63,8 @@ export function formatTimeline(timeline: TimelineContext): string {
   }
 
   const lines: string[] = [];
-  lines.push(`Timeline around #${timeline.anchorId}:\n`);
+  lines.push(`Timeline around #${timeline.anchorId}:`);
+  lines.push('');
 
   if (timeline.before.length > 0) {
     lines.push('**Before:**');
@@ -82,11 +76,11 @@ export function formatTimeline(timeline: TimelineContext): string {
     lines.push('');
   }
 
-  lines.push('**► Anchor:**');
+  lines.push('**Anchor:**');
   lines.push('| ID | Time | T | Title | Tokens |');
   lines.push('|----|------|---|-------|--------|');
-  const a = timeline.anchorEntry;
-  lines.push(`| #${a.id} | ${a.time} | ${a.icon} | ${a.title} | ~${a.tokens} |`);
+  const anchor = timeline.anchorEntry;
+  lines.push(`| #${anchor.id} | ${anchor.time} | ${anchor.icon} | ${anchor.title} | ~${anchor.tokens} |`);
   lines.push('');
 
   if (timeline.after.length > 0) {
@@ -99,13 +93,12 @@ export function formatTimeline(timeline: TimelineContext): string {
     lines.push('');
   }
 
-  lines.push(PROGRESSIVE_DISCLOSURE_HINT);
+  lines.push(getProgressiveDisclosureHint(false));
   return lines.join('\n');
 }
 
 /**
  * Format full observation details (Layer 3).
- * Adopted from claude-mem's observation detail format.
  */
 export function formatObservationDetail(doc: {
   observationId: number;
@@ -123,7 +116,7 @@ export function formatObservationDetail(doc: {
   const lines: string[] = [];
 
   lines.push(`#${doc.observationId} ${icon} ${doc.title}`);
-  lines.push('─'.repeat(50));
+  lines.push('='.repeat(50));
   lines.push(`Date: ${new Date(doc.createdAt).toLocaleString()}`);
   lines.push(`Type: ${doc.type}`);
   lines.push(`Entity: ${doc.entityName}`);
@@ -157,7 +150,6 @@ export function formatObservationDetail(doc: {
   return lines.join('\n');
 }
 
-/** Icon lookup by observation type string */
 function getTypeIcon(type: string): string {
   const icons: Record<string, string> = {
     'session-request': '🎯',
@@ -169,15 +161,22 @@ function getTypeIcon(type: string): string {
     'why-it-exists': '🟠',
     'decision': '🟤',
     'trade-off': '⚖️',
+    'reasoning': '🧠',
   };
   return icons[type] ?? '❓';
 }
 
-/**
- * Progressive Disclosure instruction hint.
- * Appended to L1/L2 results to teach the agent the workflow.
- */
-const PROGRESSIVE_DISCLOSURE_HINT = `💡 **Progressive Disclosure:** This index shows WHAT exists and retrieval COST.
-- Use \`memorix_detail\` to fetch full observation details by ID
-- Use \`memorix_timeline\` to see chronological context around an observation
-- Critical types (🔴 gotcha, 🟤 decision, ⚖️ trade-off) are often worth fetching immediately`;
+function getProgressiveDisclosureHint(hasProject: boolean): string {
+  const lines = [
+    '💡 **Progressive Disclosure:** This index shows WHAT exists and retrieval COST.',
+    '- Use `memorix_detail` to fetch full observation details by ID',
+    '- Use `memorix_timeline` to see chronological context around an observation',
+    '- Critical types (🔴 gotcha, 🟤 decision, ⚖️ trade-off) are often worth fetching immediately',
+  ];
+
+  if (hasProject) {
+    lines.push('- For global results, prefer `memorix_detail refs=[{ id, projectId }]` to avoid cross-project ID ambiguity');
+  }
+
+  return lines.join('\n');
+}

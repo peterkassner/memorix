@@ -157,6 +157,18 @@ export interface IndexEntry {
   tokens: number;
   /** Relevance score from search (time-decayed). Used by compact engine. */
   score?: number;
+  /** Project that owns this observation. Needed to disambiguate global results. */
+  projectId?: string;
+  /** Origin of the memory for source-aware retrieval and display. */
+  source?: 'agent' | 'git' | 'manual';
+  /** Explainable recall: why this result matched. */
+  matchedFields?: string[];
+}
+
+/** Explicit reference to an observation, optionally scoped to a project. */
+export interface ObservationRef {
+  id: number;
+  projectId?: string;
 }
 
 /** L2 timeline context — observations around an anchor */

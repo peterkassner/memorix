@@ -72,6 +72,31 @@ function coerceNumberArray(val: unknown): number[] {
   return [];
 }
 
+function coerceObservationRefs(val: unknown): Array<{ id: number; projectId?: string }> {
+  if (Array.isArray(val)) {
+    const refs: Array<{ id: number; projectId?: string }> = [];
+    for (const item of val) {
+      if (!item || typeof item !== 'object') continue;
+      const record = item as Record<string, unknown>;
+      const id = Number(record['id']);
+      if (!Number.isFinite(id) || id <= 0) continue;
+
+      const projectId = typeof record['projectId'] === 'string' ? record['projectId'] : undefined;
+      refs.push(projectId ? { id, projectId } : { id });
+    }
+    return refs;
+  }
+  if (typeof val === 'string') {
+    try {
+      const parsed = JSON.parse(val);
+      return coerceObservationRefs(parsed);
+    } catch {
+      return [];
+    }
+  }
+  return [];
+}
+
 function coerceNumber(val: unknown, fallback: number): number {
   if (typeof val === 'number') return val;
   if (typeof val === 'string') {
@@ -1223,15 +1248,24 @@ export async function createMemorixServer(cwd?: string, existingServer?: McpServ
       title: 'Memory Details',
       description:
         'Fetch full observation details by IDs (~500-1000 tokens each). ' +
-        'Always use memorix_search first to find relevant IDs, then fetch only what you need.',
+        'Always use memorix_search first to find relevant IDs, then fetch only what you need. ' +
+        'For global search results, prefer refs with projectId to avoid cross-project ID ambiguity.',
       inputSchema: {
-        ids: z.array(z.number()).describe('Observation IDs to fetch (from memorix_search results)'),
+        ids: z.array(z.number()).optional().describe('Observation IDs to fetch (from memorix_search results)'),
+        refs: z.array(
+          z.object({
+            id: z.number().describe('Observation ID'),
+            projectId: z.string().optional().describe('Project ID for global-search disambiguation'),
+          }),
+        ).optional().describe('Explicit observation refs. Prefer this for global search results.'),
       },
     },
-    async ({ ids }) => {
+    async ({ ids, refs }) => {
       // Defensive coercion: Claude Code CLI + GLM may send "[16]" instead of [16]
       const safeIds = coerceNumberArray(ids);
-      const result = await compactDetail(safeIds);
+      const safeRefs = coerceObservationRefs(refs);
+      const detailInput = safeRefs.length > 0 ? safeRefs : safeIds;
+      const result = await compactDetail(detailInput);
 
       return {
         content: [
@@ -1239,7 +1273,9 @@ export async function createMemorixServer(cwd?: string, existingServer?: McpServ
             type: 'text' as const,
             text: result.documents.length > 0
               ? result.formatted
-              : `No observations found for IDs: ${safeIds.join(', ')}`,
+              : safeRefs.length > 0
+                ? `No observations found for refs: ${safeRefs.map((ref) => `${ref.projectId ?? 'current'}#${ref.id}`).join(', ')}`
+                : `No observations found for IDs: ${safeIds.join(', ')}`,
           },
         ],
       };
@@ -1378,7 +1414,7 @@ export async function createMemorixServer(cwd?: string, existingServer?: McpServ
     {
       title: 'Formation Pipeline Metrics',
       description:
-        'Show aggregated metrics from the Memory Formation Pipeline running in shadow mode. ' +
+        'Show aggregated metrics from recent Memory Formation Pipeline runs. ' +
         'Reports value scores, resolution actions, fact extraction rates, and processing times.',
       inputSchema: {},
     },
@@ -1390,13 +1426,13 @@ export async function createMemorixServer(cwd?: string, existingServer?: McpServ
         return {
           content: [{
             type: 'text' as const,
-            text: '📊 Formation Pipeline: No metrics collected yet.\nStore some observations to start collecting shadow mode data.',
+            text: '📊 Formation Pipeline: No metrics collected yet.\nStore some observations to start collecting runtime data.',
           }],
         };
       }
 
       const lines: string[] = [
-        '📊 **Formation Pipeline Metrics** (shadow mode)',
+        '📊 **Formation Pipeline Metrics**',
         '',
         `**Total observations processed:** ${summary.total}`,
         `**Average value score:** ${summary.avgValueScore.toFixed(3)}`,
@@ -1944,6 +1980,7 @@ export async function createMemorixServer(cwd?: string, existingServer?: McpServ
         id?: number; entityName?: string; type?: string; title?: string;
         narrative?: string; facts?: string[]; concepts?: string[];
         filesModified?: string[]; createdAt?: string;
+        status?: string; source?: 'agent' | 'git' | 'manual';
       }>;
 
       const obsData = allObs.map(o => ({
@@ -1956,6 +1993,8 @@ export async function createMemorixServer(cwd?: string, existingServer?: McpServ
         concepts: o.concepts,
         filesModified: o.filesModified,
         createdAt: o.createdAt,
+        status: o.status,
+        source: o.source,
       }));
 
       const generated = engine.generateFromObservations(obsData);
