@@ -41,6 +41,7 @@ const TYPE_IMPORTANCE: Record<string, ImportanceLevel> = {
   gotcha: 'high',
   decision: 'high',
   'trade-off': 'high',
+  reasoning: 'high',
   'problem-solution': 'medium',
   'how-it-works': 'medium',
   'what-changed': 'low',
@@ -251,6 +252,7 @@ export async function archiveExpired(
         accessCount: access?.accessCount ?? 0,
         lastAccessedAt: access?.lastAccessedAt ?? '',
         status: obs.status ?? 'active',
+        source: obs.source ?? 'agent',
       };
     };
 
