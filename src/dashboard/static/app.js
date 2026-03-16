@@ -96,7 +96,8 @@ const i18n = {
     // Team
     teamTitle: 'Team',
     teamSubtitle: 'Multi-agent collaboration overview',
-    teamNoData: 'Team features available when using HTTP transport (memorix serve-http)',
+    teamNoData: 'Team features require HTTP transport',
+    teamNoDataHint: 'Team collaboration (agents, file locks, tasks) requires the HTTP transport. Start it with:',
     teamActiveAgents: 'Active Agents',
     teamLockedFiles: 'Locked Files',
     teamTasks: 'Tasks',
@@ -105,11 +106,81 @@ const i18n = {
     teamLocks: 'File Locks',
     teamTaskBoard: 'Task Board',
 
+    // Overview (new)
+    memoryControlPlane: 'Memory Control Plane',
+    memoriesAcross: 'memories across',
+    entitiesUnit: 'entities',
+    gitMemories: 'Git Memories',
+    agentMemories: 'Agent Memories',
+    thisWeek: 'this week',
+    hooksAndMcp: 'hooks + MCP',
+    memorySources: 'Memory Sources',
+    retentionHealth: 'Retention Health',
+    sourceGit: 'Git',
+    sourceAgent: 'Agent',
+    sourceManual: 'Manual',
+
+    // Git Memory
+    gitMemoryTitle: 'Git Memory',
+    gitMemorySubtitle: 'memories from git commits — ground truth, immutable',
+    totalGitMemories: 'Total Git Memories',
+    uniqueCommits: 'Unique Commits',
+    typeCoverage: 'Type Coverage',
+    noGitMemory: 'No Git Memory',
+    noGitMemoryDesc: 'Install the post-commit hook with: memorix git-hook-install',
+    noGitMemoriesYet: 'No Git Memories Yet',
+    noGitMemoriesHint: 'Install the post-commit hook to automatically capture git memories:',
+    recentGitMemories: 'Recent Git Memories',
+    commit: 'Commit',
+    created: 'Created',
+
+    // Config
+    configTitle: 'Config Provenance',
+    configSubtitle: 'Where every configuration value comes from — two files, two roles',
+    configSourceMatrix: 'Config Source Matrix',
+    configHint: '= behavior config',
+    configHintEnv: '= secrets only',
+    valueProvenance: 'Value Provenance',
+    trackedValues: 'tracked values',
+    configKey: 'Key',
+    configValue: 'Value',
+    configSource: 'Source',
+    configStatus: 'Status',
+    moveToEnv: 'Move to .env',
+    configUnavailable: 'Config Unavailable',
+    configUnavailableDesc: 'Could not load configuration data',
+
+    // Identity
+    identityTitle: 'Project Identity Health',
+    identitySubtitle: 'Project ID stability, aliases, and cross-agent consistency',
+    healthStatus: 'Health Status',
+    healthy: '✓ Healthy',
+    unhealthy: '⚠ Issues',
+    knownProjectIds: 'Known Project IDs',
+    aliasGroups: 'Alias Groups',
+    dirtyIds: 'Dirty IDs',
+    currentIdentity: 'Current Identity',
+    currentProjectId: 'Current Project ID',
+    canonicalId: 'Canonical ID',
+    aliases: 'Aliases',
+    healthIssues: 'Health Issues',
+    noIssues: 'No issues detected. Project identity is clean.',
+    dirtyProjectIds: 'Dirty Project IDs',
+    allKnownProjectIds: 'All Known Project IDs',
+    tagCurrent: 'current',
+    tagCanonical: 'canonical',
+    tagDirty: 'dirty',
+    identityUnavailable: 'Identity Unavailable',
+    identityUnavailableDesc: 'Could not load project identity data',
+
     // Nav tooltips
     navDashboard: 'Dashboard',
+    navGitMemory: 'Git Memory',
     navGraph: 'Knowledge Graph',
     navObservations: 'Observations',
     navRetention: 'Retention',
+    navConfig: 'Config',
+    navIdentity: 'Identity',
     navSessions: 'Sessions',
     navTeam: 'Team',
   },
@@ -201,7 +272,8 @@ const i18n = {
     // Team
     teamTitle: '团队',
     teamSubtitle: '多 Agent 协作概览',
-    teamNoData: '使用 HTTP 传输时可用团队功能 (memorix serve-http)',
+    teamNoData: '团队功能需要 HTTP 传输',
+    teamNoDataHint: '团队协作（Agent 注册、文件锁、任务看板）需要 HTTP 传输模式。使用以下命令启动：',
     teamActiveAgents: '活跃 Agent',
     teamLockedFiles: '锁定文件',
     teamTasks: '任务',
@@ -210,11 +282,81 @@ const i18n = {
     teamLocks: '文件锁',
     teamTaskBoard: '任务看板',
 
+    // Overview (new)
+    memoryControlPlane: '记忆控制台',
+    memoriesAcross: '条记忆，分布于',
+    entitiesUnit: '个实体',
+    gitMemories: 'Git 记忆',
+    agentMemories: 'Agent 记忆',
+    thisWeek: '本周新增',
+    hooksAndMcp: 'hooks + MCP',
+    memorySources: '记忆来源',
+    retentionHealth: '衰减健康度',
+    sourceGit: 'Git',
+    sourceAgent: 'Agent',
+    sourceManual: '手动',
+
+    // Git Memory
+    gitMemoryTitle: 'Git 记忆',
+    gitMemorySubtitle: '来自 git 提交的记忆 — 不可变的事实源',
+    totalGitMemories: 'Git 记忆总数',
+    uniqueCommits: '唯一提交数',
+    typeCoverage: '类型覆盖',
+    noGitMemory: '暂无 Git 记忆',
+    noGitMemoryDesc: '使用以下命令安装 post-commit hook: memorix git-hook-install',
+    noGitMemoriesYet: '暂无 Git 记忆',
+    noGitMemoriesHint: '安装 post-commit hook 以自动捕获 git 记忆：',
+    recentGitMemories: '最近的 Git 记忆',
+    commit: '提交',
+    created: '创建时间',
+
+    // Config
+    configTitle: '配置溯源',
+    configSubtitle: '每个配置值的来源 — 两个文件，两种角色',
+    configSourceMatrix: '配置源矩阵',
+    configHint: '= 行为配置',
+    configHintEnv: '= 仅存放密钥',
+    valueProvenance: '值的溯源',
+    trackedValues: '个追踪值',
+    configKey: '键',
+    configValue: '值',
+    configSource: '来源',
+    configStatus: '状态',
+    moveToEnv: '应移至 .env',
+    configUnavailable: '配置不可用',
+    configUnavailableDesc: '无法加载配置数据',
+
+    // Identity
+    identityTitle: '项目身份健康度',
+    identitySubtitle: '项目 ID 稳定性、别名和跨 Agent 一致性',
+    healthStatus: '健康状态',
+    healthy: '✓ 健康',
+    unhealthy: '⚠ 存在问题',
+    knownProjectIds: '已知项目 ID',
+    aliasGroups: '别名组',
+    dirtyIds: '脏 ID',
+    currentIdentity: '当前身份',
+    currentProjectId: '当前项目 ID',
+    canonicalId: '标准 ID',
+    aliases: '别名',
+    healthIssues: '健康问题',
+    noIssues: '未检测到问题。项目身份状态良好。',
+    dirtyProjectIds: '脏项目 ID',
+    allKnownProjectIds: '所有已知项目 ID',
+    tagCurrent: '当前',
+    tagCanonical: '标准',
+    tagDirty: '脏',
+    identityUnavailable: '身份信息不可用',
+    identityUnavailableDesc: '无法加载项目身份数据',
+
     // Nav tooltips
     navDashboard: '仪表盘',
+    navGitMemory: 'Git 记忆',
     navGraph: '知识图谱',
     navObservations: '观察记录',
     navRetention: '记忆衰减',
+    navConfig: '配置溯源',
+    navIdentity: '身份健康',
     navSessions: '会话',
     navTeam: '团队',
   },
@@ -303,7 +445,7 @@ document.addEventListener('DOMContentLoaded', () => {
 // Router & Navigation
 // ============================================================
 
-const pages = ['dashboard', 'graph', 'observations', 'retention', 'sessions', 'team'];
+const pages = ['dashboard', 'git-memory', 'graph', 'observations', 'retention', 'config', 'identity', 'sessions', 'team'];
 let currentPage = 'dashboard';
 
 function navigate(page) {
@@ -485,9 +627,12 @@ async function loadPage(page) {
 
   switch (page) {
     case 'dashboard': await loadDashboard(); break;
+    case 'git-memory': await loadGitMemory(); break;
     case 'graph': await loadGraph(); break;
     case 'observations': await loadObservations(); break;
     case 'retention': await loadRetention(); break;
+    case 'config': await loadConfig(); break;
+    case 'identity': await loadIdentity(); break;
     case 'sessions': await loadSessions(); break;
     case 'team': await loadTeam(); break;
   }
@@ -509,6 +654,10 @@ async function loadDashboard() {
   }
 
   const projectLabel = project ? project.name : '';
+  const sc = stats.sourceCounts || { git: 0, agent: 0, manual: 0 };
+  const totalObs = stats.observations || 0;
+  const gs = stats.gitSummary || { total: 0, recentWeek: 0, recentMemories: [] };
+  const rs = stats.retentionSummary || { active: 0, stale: 0, archive: 0, immune: 0 };
 
   const typeIcons = {
     'session-request': '🎯', gotcha: '🔴', 'problem-solution': '🟡',
@@ -516,45 +665,81 @@ async function loadDashboard() {
     'why-it-exists': '🟠', decision: '🟤', 'trade-off': '⚖️',
   };
 
-  // Type distribution
   const typeEntries = Object.entries(stats.typeCounts || {}).sort((a, b) => b[1] - a[1]);
   const maxTypeCount = Math.max(...typeEntries.map(e => e[1]), 1);
 
+  // Source bar percentages
+  const srcTotal = Math.max(sc.git + sc.agent + sc.manual, 1);
+  const gitPct = Math.round(sc.git / srcTotal * 100);
+  const agentPct = Math.round(sc.agent / srcTotal * 100);
+  const manualPct = 100 - gitPct - agentPct;
+
   container.innerHTML = `
     <div class="page-header">
-      <h1 class="page-title">${t('dashboard')} ${projectLabel ? `<span style="font-size: 14px; font-weight: 400; color: var(--text-muted); margin-left: 8px; padding: 2px 10px; background: var(--bg-card); border: 1px solid var(--border-subtle); border-radius: 6px; vertical-align: middle;">${escapeHtml(projectLabel)}</span>` : ''}</h1>
-      <p class="page-subtitle">${t('dashboardSubtitle')}</p>
+      <h1 class="page-title">${t('memoryControlPlane')} ${projectLabel ? `<span class="overview-project-badge">${escapeHtml(projectLabel)}</span>` : ''}</h1>
+      <p class="page-subtitle">${totalObs} ${t('memoriesAcross')} ${stats.entities} ${t('entitiesUnit')}</p>
     </div>
 
     <div class="stats-grid">
+      <div class="stat-card" data-accent="green">
+        <div class="stat-label">${t('gitMemories')}</div>
+        <div class="stat-value">${sc.git}</div>
+        <div class="stat-sub">${gs.recentWeek} ${t('thisWeek')}</div>
+      </div>
+      <div class="stat-card" data-accent="purple">
+        <div class="stat-label">${t('agentMemories')}</div>
+        <div class="stat-value">${sc.agent}</div>
+        <div class="stat-sub">${t('hooksAndMcp')}</div>
+      </div>
       <div class="stat-card" data-accent="cyan">
         <div class="stat-label">${t('entities')}</div>
         <div class="stat-value">${stats.entities}</div>
+        <div class="stat-sub">${stats.relations} ${t('relations')}</div>
       </div>
-      <div class="stat-card" data-accent="purple">
-        <div class="stat-label">${t('relations')}</div>
-        <div class="stat-value">${stats.relations}</div>
-      </div>
-      <div class="stat-card" data-accent="amber">
-        <div class="stat-label">${t('observations')}</div>
-        <div class="stat-value">${stats.observations}</div>
-      </div>
-      <div class="stat-card" data-accent="green">
-        <div class="stat-label">${t('nextId')}</div>
-        <div class="stat-value">#${stats.nextId}</div>
-      </div>
-      <div class="stat-card" data-accent="${stats.embedding?.enabled ? 'cyan' : 'amber'}">
+      <div class="stat-card" data-accent="${stats.embedding?.enabled ? 'blue' : 'amber'}">
         <div class="stat-label">${t('vectorSearch')}</div>
         <div class="stat-value" style="font-size: 18px;">${stats.embedding?.enabled ? '✓ ' + t('enabled') : t('fulltextOnly')}</div>
-        ${stats.embedding?.provider ? `<div style="font-size: 10px; color: var(--text-muted); margin-top: 4px; font-family: var(--font-mono);">${stats.embedding.provider} (${stats.embedding.dimensions}d)</div>` : ''}
+        ${stats.embedding?.provider ? `<div class="stat-sub">${stats.embedding.provider} (${stats.embedding.dimensions}d)</div>` : ''}
       </div>
     </div>
 
-    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
-      <div class="panel">
-        <div class="panel-header">
-          <span class="panel-title">${t('observationTypes')}</span>
+    <!-- Source Breakdown -->
+    <div class="overview-row">
+      <div class="panel" style="flex:1;">
+        <div class="panel-header"><span class="panel-title">${t('memorySources')}</span></div>
+        <div class="panel-body">
+          <div class="source-bar-container">
+            <div class="source-bar">
+              ${gitPct > 0 ? `<div class="source-bar-seg" style="width:${gitPct}%;background:var(--accent-green);" title="Git ${gitPct}%"></div>` : ''}
+              ${agentPct > 0 ? `<div class="source-bar-seg" style="width:${agentPct}%;background:var(--accent-purple);" title="Agent ${agentPct}%"></div>` : ''}
+              ${manualPct > 0 ? `<div class="source-bar-seg" style="width:${manualPct}%;background:var(--accent-amber);" title="Manual ${manualPct}%"></div>` : ''}
+            </div>
+            <div class="source-legend">
+              <span class="source-legend-item"><span class="source-dot" style="background:var(--accent-green)"></span> ${t('sourceGit')} <strong>${sc.git}</strong></span>
+              <span class="source-legend-item"><span class="source-dot" style="background:var(--accent-purple)"></span> ${t('sourceAgent')} <strong>${sc.agent}</strong></span>
+              <span class="source-legend-item"><span class="source-dot" style="background:var(--accent-amber)"></span> ${t('sourceManual')} <strong>${sc.manual}</strong></span>
+            </div>
+          </div>
         </div>
+      </div>
+
+      <div class="panel" style="flex:1;">
+        <div class="panel-header"><span class="panel-title">${t('retentionHealth')}</span></div>
+        <div class="panel-body">
+          <div class="retention-mini-grid">
+            <div class="retention-mini-item"><span class="retention-mini-value" style="color:var(--accent-green)">${rs.active}</span><span class="retention-mini-label">${t('active')}</span></div>
+            <div class="retention-mini-item"><span class="retention-mini-value" style="color:var(--accent-amber)">${rs.stale}</span><span class="retention-mini-label">${t('stale')}</span></div>
+            <div class="retention-mini-item"><span class="retention-mini-value" style="color:var(--accent-red)">${rs.archive}</span><span class="retention-mini-label">${t('archiveCandidates')}</span></div>
+            <div class="retention-mini-item"><span class="retention-mini-value" style="color:var(--accent-purple)">${rs.immune}</span><span class="retention-mini-label">${t('immune')}</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Type Distribution + Recent Activity -->
+    <div class="overview-row">
+      <div class="panel" style="flex:1;">
+        <div class="panel-header"><span class="panel-title">${t('observationTypes')}</span></div>
         <div class="panel-body">
           ${typeEntries.length > 0 ? `
             <div style="display: flex; gap: 20px; align-items: flex-start;">
@@ -576,10 +761,8 @@ async function loadDashboard() {
         </div>
       </div>
 
-      <div class="panel">
-        <div class="panel-header">
-          <span class="panel-title">${t('recentActivity')}</span>
-        </div>
+      <div class="panel" style="flex:1;">
+        <div class="panel-header"><span class="panel-title">${t('recentActivity')}</span></div>
         <div class="panel-body">
           <ul class="activity-list">
             ${(stats.recentObservations || []).map(obs => `
@@ -600,7 +783,6 @@ async function loadDashboard() {
     </div>
   `;
 
-  // Render pie chart if data exists
   if (typeEntries.length > 0) {
     requestAnimationFrame(() => renderPieChart('type-pie-chart', typeEntries, typeIcons));
   }
@@ -807,6 +989,10 @@ function renderGraph(graph) {
   let dragNode = null;
   let panStart = null;
   let simTick = 0;
+  let isSettled = false;
+  let stableMode = nodes.length > 15; // Auto-stable for larger graphs
+  const SETTLE_THRESHOLD = 0.15;
+  let settleCountdown = 0; // frames below threshold before declaring settled
 
   // Group nodes by color → separate galaxies
   const colorGroups = {};
@@ -855,13 +1041,17 @@ function renderGraph(graph) {
       }
     }
 
-    // --- Node-to-node repulsion ---
+    // --- Warmup factor (ramp all forces gradually to prevent explosive start) ---
+    const warmup = Math.min(1, simTick / 100);
+
+    // --- Node-to-node repulsion (also ramped) ---
+    const curRepulsion = REPULSION * (0.1 + 0.9 * warmup);
     for (let i = 0; i < nodes.length; i++) {
       for (let j = i + 1; j < nodes.length; j++) {
         const a = nodes[i], b = nodes[j];
         let dx = b.x - a.x, dy = b.y - a.y;
         let dist = Math.sqrt(dx * dx + dy * dy) || 1;
-        let force = REPULSION / (dist * dist);
+        let force = curRepulsion / (dist * dist);
         // Same-color nodes repel less (stay in galaxy)
         if (a.color === b.color) force *= 0.4;
         let fx = (dx / dist) * force, fy = (dy / dist) * force;
@@ -870,8 +1060,7 @@ function renderGraph(graph) {
       }
     }
 
-    // --- Edge attraction (gradual warmup to prevent violent bouncing) ---
-    const warmup = Math.min(1, simTick / 120);
+    // --- Edge attraction (also ramped) ---
     const curAttraction = ATTRACTION * warmup;
     for (const edge of edges) {
       let dx = edge.target.x - edge.source.x, dy = edge.target.y - edge.source.y;
@@ -890,20 +1079,33 @@ function renderGraph(graph) {
       node.vy += (cc.y - node.y) * CLUSTER_PULL;
     }
 
-    // --- Continuous breathing jitter (subtle early, gentler forever) ---
-    const jitter = simTick < 80 ? 0.15 : 0.03;
-    const maxV = 3.0; // Cap velocity to prevent wild bouncing
+    // --- Gentle jitter only during warmup, then pure physics ---
+    const jitter = simTick < 60 ? 0.06 * (1 - simTick / 60) : 0;
+    const maxV = simTick < 40 ? 1.2 : 3.0; // Strict speed limit during early frames
     let totalMovement = 0;
     for (const node of nodes) {
       if (node === dragNode) continue;
       node.vx *= DAMPING; node.vy *= DAMPING;
-      node.vx += (Math.random() - 0.5) * jitter;
-      node.vy += (Math.random() - 0.5) * jitter;
+      if (jitter > 0) {
+        node.vx += (Math.random() - 0.5) * jitter;
+        node.vy += (Math.random() - 0.5) * jitter;
+      }
       // Clamp velocity
       const speed = Math.sqrt(node.vx * node.vx + node.vy * node.vy);
       if (speed > maxV) { node.vx *= maxV / speed; node.vy *= maxV / speed; }
       node.x += node.vx; node.y += node.vy;
       totalMovement += Math.abs(node.vx) + Math.abs(node.vy);
+    }
+
+    // Settle detection — stop physics when stable
+    if (stableMode && simTick > 120) {
+      const avgMovement = totalMovement / Math.max(1, nodes.length);
+      if (avgMovement < SETTLE_THRESHOLD) {
+        settleCountdown++;
+        if (settleCountdown > 30) isSettled = true;
+      } else {
+        settleCountdown = 0;
+      }
     }
     return totalMovement;
   }
@@ -1292,14 +1494,19 @@ function renderGraph(graph) {
     drawer.classList.add('open');
   }
 
-  // --- Animation loop (always dynamic — continuous breathing) ---
+  // --- Animation loop — stops physics when settled, breathing is visual-only ---
+  let animFrame = null;
   function tick() {
-    simulate();
+    if (!isSettled) {
+      simulate();
+    }
     draw();
-    requestAnimationFrame(tick);
+    animFrame = requestAnimationFrame(tick);
   }
 
   function wakeUp() {
+    isSettled = false;
+    settleCountdown = 0;
     nodes.forEach(n => {
       n.vx += (Math.random() - 0.5) * 0.5;
       n.vy += (Math.random() - 0.5) * 0.5;
@@ -1825,6 +2032,295 @@ window.toggleObsDetail = toggleObsDetail;
 window.deleteObs = deleteObs;
 
 // ============================================================
+// Git Memory Page
+// ============================================================
+
+async function loadGitMemory() {
+  const container = document.getElementById('page-git-memory');
+  container.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+
+  const [stats, allObs] = await Promise.all([api('stats'), api('observations')]);
+  if (!stats || !allObs) {
+    container.innerHTML = emptyState('🔀', t('noGitMemory'), t('noGitMemoryDesc'));
+    return;
+  }
+
+  const gitObs = (allObs || []).filter(o => o.source === 'git').sort((a, b) => (b.id || 0) - (a.id || 0));
+  const gs = stats.gitSummary || { total: 0, recentWeek: 0, recentMemories: [] };
+  const sc = stats.sourceCounts || {};
+
+  // Type breakdown of git memories
+  const gitTypes = {};
+  gitObs.forEach(o => { gitTypes[o.type || 'unknown'] = (gitTypes[o.type || 'unknown'] || 0) + 1; });
+  const gitTypeEntries = Object.entries(gitTypes).sort((a, b) => b[1] - a[1]);
+
+  container.innerHTML = `
+    <div class="page-header">
+      <h1 class="page-title">${t('gitMemoryTitle')}</h1>
+      <p class="page-subtitle">${gitObs.length} ${t('gitMemorySubtitle')}</p>
+    </div>
+
+    <div class="stats-grid">
+      <div class="stat-card" data-accent="green">
+        <div class="stat-label">${t('totalGitMemories')}</div>
+        <div class="stat-value">${gitObs.length}</div>
+      </div>
+      <div class="stat-card" data-accent="cyan">
+        <div class="stat-label">${t('thisWeek')}</div>
+        <div class="stat-value">${gs.recentWeek}</div>
+      </div>
+      <div class="stat-card" data-accent="purple">
+        <div class="stat-label">${t('uniqueCommits')}</div>
+        <div class="stat-value">${new Set(gitObs.map(o => o.commitHash).filter(Boolean)).size}</div>
+      </div>
+      <div class="stat-card" data-accent="amber">
+        <div class="stat-label">${t('typeCoverage')}</div>
+        <div class="stat-value">${gitTypeEntries.length}</div>
+        <div class="stat-sub">${gitTypeEntries.slice(0, 3).map(([t]) => t).join(', ')}</div>
+      </div>
+    </div>
+
+    ${gitObs.length === 0 ? `
+      <div class="panel">
+        <div class="panel-body" style="text-align:center;padding:48px;">
+          <div style="font-size:36px;margin-bottom:12px;">🔀</div>
+          <div style="font-size:16px;font-weight:600;color:var(--text-primary);margin-bottom:8px;">${t('noGitMemoriesYet')}</div>
+          <div style="font-size:13px;color:var(--text-muted);max-width:400px;margin:0 auto;">
+            ${t('noGitMemoriesHint')}<br>
+            <code style="background:var(--bg-surface);padding:4px 10px;border-radius:6px;margin-top:8px;display:inline-block;font-size:12px;">memorix git-hook-install</code>
+          </div>
+        </div>
+      </div>
+    ` : `
+      <div class="panel">
+        <div class="panel-header">
+          <span class="panel-title">${t('recentGitMemories')}</span>
+          <span style="font-size:11px;color:var(--text-muted);">${gitObs.length} total</span>
+        </div>
+        <div class="panel-body" style="padding:0;">
+          <table class="retention-table">
+            <thead>
+              <tr>
+                <th>${t('id')}</th>
+                <th>${t('commit')}</th>
+                <th>${t('title')}</th>
+                <th>${t('type')}</th>
+                <th>${t('entity')}</th>
+                <th>${t('files')}</th>
+                <th>${t('created')}</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${gitObs.slice(0, 50).map(obs => `
+                <tr>
+                  <td style="font-family:var(--font-mono);color:var(--text-muted);">#${obs.id}</td>
+                  <td><code class="git-hash">${obs.commitHash ? escapeHtml(obs.commitHash.slice(0, 7)) : '—'}</code></td>
+                  <td style="max-width:250px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(obs.title || 'Untitled')}</td>
+                  <td><span class="type-badge" data-type="${obs.type || 'unknown'}">${obs.type || 'unknown'}</span></td>
+                  <td style="font-family:var(--font-mono);font-size:12px;color:var(--text-muted);">${escapeHtml(obs.entityName || '')}</td>
+                  <td style="font-family:var(--font-mono);font-size:11px;color:var(--text-muted);">${(obs.filesModified || []).length || '—'}</td>
+                  <td style="font-size:11px;color:var(--text-muted);">${obs.createdAt ? formatTime(obs.createdAt) : '—'}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    `}
+  `;
+}
+
+// ============================================================
+// Config Provenance Page
+// ============================================================
+
+async function loadConfig() {
+  const container = document.getElementById('page-config');
+  container.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+
+  const data = await api('config');
+  if (!data) {
+    container.innerHTML = emptyState('⚙️', t('configUnavailable'), t('configUnavailableDesc'));
+    return;
+  }
+
+  const fileEntries = Object.entries(data.files || {});
+  const values = data.values || [];
+
+  container.innerHTML = `
+    <div class="page-header">
+      <h1 class="page-title">${t('configTitle')}</h1>
+      <p class="page-subtitle">${t('configSubtitle')}</p>
+    </div>
+
+    <div class="overview-row">
+      <div class="panel" style="flex:1;">
+        <div class="panel-header"><span class="panel-title">${t('configSourceMatrix')}</span></div>
+        <div class="panel-body">
+          <div class="config-matrix">
+            ${fileEntries.map(([name, info]) => `
+              <div class="config-file-row">
+                <span class="config-file-status ${info.exists ? 'exists' : 'missing'}">${info.exists ? '✓' : '✗'}</span>
+                <span class="config-file-name">${escapeHtml(name)}</span>
+                <span class="config-file-path">${info.path ? escapeHtml(info.path) : ''}</span>
+              </div>
+            `).join('')}
+          </div>
+          <div class="config-hint">
+            <strong>memorix.yml</strong> ${t('configHint')} &nbsp;|&nbsp; <strong>.env</strong> ${t('configHintEnv')}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-header">
+        <span class="panel-title">${t('valueProvenance')}</span>
+        <span style="font-size:11px;color:var(--text-muted);">${values.length} ${t('trackedValues')}</span>
+      </div>
+      <div class="panel-body" style="padding:0;">
+        <table class="retention-table">
+          <thead>
+            <tr>
+              <th>${t('configKey')}</th>
+              <th>${t('configValue')}</th>
+              <th>${t('configSource')}</th>
+              <th>${t('configStatus')}</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${values.map(v => {
+              const isWarn = v.source && v.source.includes('move to .env');
+              const isSensitive = v.sensitive;
+              return `
+                <tr>
+                  <td><code class="config-key">${escapeHtml(v.key)}</code></td>
+                  <td style="font-family:var(--font-mono);font-size:12px;">${isSensitive ? '<span class="config-masked">' + escapeHtml(v.value) + '</span>' : escapeHtml(v.value)}</td>
+                  <td><span class="config-source-badge ${isWarn ? 'warn' : ''}">${escapeHtml(v.source)}</span></td>
+                  <td>${isWarn ? '<span class="config-warn-badge">⚠ ' + t('moveToEnv') + '</span>' : ''}</td>
+                </tr>
+              `;
+            }).join('')}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  `;
+}
+
+// ============================================================
+// Identity Health Page
+// ============================================================
+
+async function loadIdentity() {
+  const container = document.getElementById('page-identity');
+  container.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+
+  const data = await api('identity');
+  if (!data) {
+    container.innerHTML = emptyState('🛡️', t('identityUnavailable'), t('identityUnavailableDesc'));
+    return;
+  }
+
+  const healthColor = data.isHealthy ? 'var(--accent-green)' : 'var(--accent-red)';
+  const healthIcon = data.isHealthy ? t('healthy') : t('unhealthy');
+
+  container.innerHTML = `
+    <div class="page-header">
+      <h1 class="page-title">${t('identityTitle')}</h1>
+      <p class="page-subtitle">${t('identitySubtitle')}</p>
+    </div>
+
+    <div class="stats-grid">
+      <div class="stat-card" data-accent="${data.isHealthy ? 'green' : 'red'}">
+        <div class="stat-label">${t('healthStatus')}</div>
+        <div class="stat-value" style="font-size:20px;color:${healthColor}">${healthIcon}</div>
+      </div>
+      <div class="stat-card" data-accent="cyan">
+        <div class="stat-label">${t('knownProjectIds')}</div>
+        <div class="stat-value">${data.allProjectIds?.length || 0}</div>
+      </div>
+      <div class="stat-card" data-accent="purple">
+        <div class="stat-label">${t('aliasGroups')}</div>
+        <div class="stat-value">${data.aliasGroups || 0}</div>
+      </div>
+      <div class="stat-card" data-accent="amber">
+        <div class="stat-label">${t('dirtyIds')}</div>
+        <div class="stat-value">${data.dirtyIds?.length || 0}</div>
+      </div>
+    </div>
+
+    <div class="overview-row">
+      <div class="panel" style="flex:1;">
+        <div class="panel-header"><span class="panel-title">${t('currentIdentity')}</span></div>
+        <div class="panel-body">
+          <div class="identity-row">
+            <span class="identity-label">${t('currentProjectId')}</span>
+            <code class="identity-value">${escapeHtml(data.currentProjectId || '—')}</code>
+          </div>
+          <div class="identity-row">
+            <span class="identity-label">${t('canonicalId')}</span>
+            <code class="identity-value">${escapeHtml(data.canonicalId || '—')}</code>
+          </div>
+          <div class="identity-row">
+            <span class="identity-label">${t('aliases')}</span>
+            <div>${(data.aliases || []).map(a => `<code class="identity-alias">${escapeHtml(a)}</code>`).join(' ')}</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel" style="flex:1;">
+        <div class="panel-header"><span class="panel-title">${t('healthIssues')}</span></div>
+        <div class="panel-body">
+          ${(data.healthIssues || []).length === 0
+            ? '<div style="color:var(--accent-green);font-size:13px;">' + t('noIssues') + '</div>'
+            : (data.healthIssues || []).map(issue => `
+                <div class="identity-issue">
+                  <span style="color:var(--accent-red);">⚠</span>
+                  <span>${escapeHtml(issue)}</span>
+                </div>
+              `).join('')
+          }
+        </div>
+      </div>
+    </div>
+
+    ${(data.dirtyIds || []).length > 0 ? `
+      <div class="panel">
+        <div class="panel-header"><span class="panel-title">${t('dirtyProjectIds')}</span></div>
+        <div class="panel-body">
+          <div style="display:flex;flex-wrap:wrap;gap:8px;">
+            ${data.dirtyIds.map(id => `<code class="identity-dirty">${escapeHtml(id)}</code>`).join('')}
+          </div>
+        </div>
+      </div>
+    ` : ''}
+
+    <div class="panel">
+      <div class="panel-header">
+        <span class="panel-title">${t('allKnownProjectIds')}</span>
+        <span style="font-size:11px;color:var(--text-muted);">${data.allProjectIds?.length || 0} total</span>
+      </div>
+      <div class="panel-body">
+        <div style="display:flex;flex-direction:column;gap:6px;">
+          ${(data.allProjectIds || []).map(id => {
+            const isDirty = (data.dirtyIds || []).includes(id);
+            const isCurrent = id === data.currentProjectId;
+            const isCanonical = id === data.canonicalId;
+            return `<div class="identity-id-row">
+              <code class="identity-id ${isDirty ? 'dirty' : ''}">${escapeHtml(id)}</code>
+              ${isCurrent ? '<span class="identity-tag current">' + t('tagCurrent') + '</span>' : ''}
+              ${isCanonical ? '<span class="identity-tag canonical">' + t('tagCanonical') + '</span>' : ''}
+              ${isDirty ? '<span class="identity-tag dirty">' + t('tagDirty') + '</span>' : ''}
+            </div>`;
+          }).join('')}
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+// ============================================================
 // Utilities
 // ============================================================
 
@@ -1972,8 +2468,23 @@ async function loadTeam() {
   }
 
   const data = await api('team');
-  if (!data) {
-    container.innerHTML = emptyState('', t('teamTitle'), t('teamNoData'));
+  if (!data || data.unavailable) {
+    container.innerHTML = `
+      <div class="page-header">
+        <h1 class="page-title">${t('teamTitle')}</h1>
+        <p class="page-subtitle">${t('teamSubtitle')}</p>
+      </div>
+      <div class="panel">
+        <div class="panel-body" style="text-align:center;padding:48px;">
+          <div style="font-size:36px;margin-bottom:12px;">👥</div>
+          <div style="font-size:16px;font-weight:600;color:var(--text-primary);margin-bottom:8px;">${t('teamNoData')}</div>
+          <div style="font-size:13px;color:var(--text-muted);max-width:480px;margin:0 auto;line-height:1.6;">
+            ${t('teamNoDataHint')}<br>
+            <code style="background:var(--bg-surface);padding:4px 10px;border-radius:6px;margin-top:8px;display:inline-block;font-size:12px;">memorix serve-http --port 3211</code>
+          </div>
+        </div>
+      </div>
+    `;
     return;
   }
 

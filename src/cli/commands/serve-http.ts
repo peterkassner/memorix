@@ -306,16 +306,101 @@ export default defineCommand({
         }
 
         if (apiPath === '/stats') {
-          const { loadObservationsJson, loadIdCounter } = await import('../../store/persistence.js');
-          const { loadGraphJsonl } = await import('../../store/persistence.js');
+          const { loadObservationsJson, loadIdCounter, loadGraphJsonl } = await import('../../store/persistence.js');
           const graph = await loadGraphJsonl(dashDataDir);
-          const allObs = await loadObservationsJson(dashDataDir) as Array<{ projectId?: string; type?: string; id?: number; title?: string; entityName?: string }>;
+          const allObs = await loadObservationsJson(dashDataDir) as Array<{
+            projectId?: string;
+            type?: string;
+            id?: number;
+            title?: string;
+            entityName?: string;
+            createdAt?: string;
+            source?: string;
+            commitHash?: string;
+            filesModified?: string[];
+            importance?: number;
+            accessCount?: number;
+          }>;
           const observations = allObs.filter(o => o.projectId === project.id);
           const nextId = await loadIdCounter(dashDataDir);
           const typeCounts: Record<string, number> = {};
-          for (const obs of observations) { const t = obs.type || 'unknown'; typeCounts[t] = (typeCounts[t] || 0) + 1; }
+          for (const obs of observations) {
+            const t = obs.type || 'unknown';
+            typeCounts[t] = (typeCounts[t] || 0) + 1;
+          }
+
+          const sourceCounts: Record<string, number> = { git: 0, agent: 0, manual: 0 };
+          const gitMemories: typeof observations = [];
+          const now = Date.now();
+          const sevenDaysAgo = now - 7 * 24 * 60 * 60 * 1000;
+          let recentGitCount = 0;
+
+          for (const obs of observations) {
+            const src = obs.source || 'agent';
+            sourceCounts[src] = (sourceCounts[src] || 0) + 1;
+            if (src === 'git') {
+              gitMemories.push(obs);
+              if (obs.createdAt && new Date(obs.createdAt).getTime() > sevenDaysAgo) {
+                recentGitCount++;
+              }
+            }
+          }
+
+          const gitSorted = [...gitMemories].sort((a, b) => (b.id || 0) - (a.id || 0));
+          const recentGitMemories = gitSorted.slice(0, 8).map(o => ({
+            id: o.id,
+            title: o.title,
+            type: o.type,
+            commitHash: o.commitHash,
+            entityName: o.entityName,
+            createdAt: o.createdAt,
+            filesModified: o.filesModified,
+          }));
+
+          let retentionSummary = { active: 0, stale: 0, archive: 0, immune: 0 };
+          for (const obs of observations) {
+            const age = now - new Date(obs.createdAt || now).getTime();
+            const ageHours = age / (1000 * 60 * 60);
+            const importance = obs.importance ?? 5;
+            const accessCount = obs.accessCount ?? 0;
+            const lambda = 0.01;
+            const score = Math.min(importance * Math.exp(-lambda * ageHours) + Math.min(accessCount * 0.5, 3), 10);
+            const isImmune = importance >= 8 || obs.type === 'gotcha' || obs.type === 'decision';
+            if (isImmune) retentionSummary.immune++;
+            if (score >= 3) retentionSummary.active++;
+            else if (score >= 1) retentionSummary.stale++;
+            else retentionSummary.archive++;
+          }
+
           const sorted = [...observations].sort((a, b) => (b.id || 0) - (a.id || 0)).slice(0, 10);
-          sendJson({ entities: graph.entities.length, relations: graph.relations.length, observations: observations.length, nextId, typeCounts, recentObservations: sorted });
+
+          let embeddingStatus = { enabled: false, provider: '', dimensions: 0 };
+          try {
+            const { getEmbeddingProvider } = await import('../../embedding/provider.js');
+            const embProvider = await getEmbeddingProvider();
+            embeddingStatus = {
+              enabled: embProvider !== null,
+              provider: embProvider?.name || '',
+              dimensions: embProvider?.dimensions || 0,
+            };
+          } catch { /* best effort */ }
+
+          sendJson({
+            entities: graph.entities.length,
+            relations: graph.relations.length,
+            observations: observations.length,
+            nextId,
+            typeCounts,
+            sourceCounts,
+            recentObservations: sorted,
+            embedding: embeddingStatus,
+            gitSummary: {
+              total: gitMemories.length,
+              recentWeek: recentGitCount,
+              recentMemories: recentGitMemories,
+            },
+            retentionSummary,
+          });
           return;
         }
 
@@ -363,6 +448,157 @@ export default defineCommand({
           const archiveCount = scored.filter(s => s.score < 1).length;
           const immuneCount = scored.filter(s => s.isImmune).length;
           sendJson({ summary: { active: activeCount, stale: staleCount, archive: archiveCount, immune: immuneCount }, items: scored });
+          return;
+        }
+
+        if (apiPath === '/config') {
+          const os = await import('node:os');
+          const { existsSync } = await import('node:fs');
+          const { join } = await import('node:path');
+          const { loadYamlConfig } = await import('../../config/yaml-loader.js');
+          const { loadFileConfig, loadDotenv, getLoadedEnvFiles } = await import('../../config.js');
+
+          loadDotenv(projectRoot);
+          const yml = loadYamlConfig(projectRoot);
+          const legacy = loadFileConfig();
+
+          const files: Record<string, { exists: boolean; path: string }> = {};
+          const home = os.homedir();
+          const paths: Record<string, string> = {
+            'project memorix.yml': join(projectRoot, 'memorix.yml'),
+            'user memorix.yml': join(home, '.memorix', 'memorix.yml'),
+            'project .env': join(projectRoot, '.env'),
+            'user .env': join(home, '.memorix', '.env'),
+            'legacy config.json': join(home, '.memorix', 'config.json'),
+          };
+          for (const [key, fpath] of Object.entries(paths)) {
+            files[key] = { exists: existsSync(fpath), path: fpath };
+          }
+
+          const values: Array<{ key: string; value: string; source: string; sensitive?: boolean }> = [];
+
+          const llmProvider = process.env.MEMORIX_LLM_PROVIDER || yml.llm?.provider || legacy.llm?.provider;
+          if (llmProvider) {
+            values.push({
+              key: 'llm.provider',
+              value: llmProvider,
+              source: process.env.MEMORIX_LLM_PROVIDER ? 'env' : yml.llm?.provider ? 'memorix.yml' : 'config.json',
+            });
+          }
+
+          const llmModel = process.env.MEMORIX_LLM_MODEL || yml.llm?.model || legacy.llm?.model;
+          if (llmModel) {
+            values.push({
+              key: 'llm.model',
+              value: llmModel,
+              source: process.env.MEMORIX_LLM_MODEL ? 'env' : yml.llm?.model ? 'memorix.yml' : 'config.json',
+            });
+          }
+
+          const llmKey =
+            process.env.MEMORIX_LLM_API_KEY ||
+            process.env.MEMORIX_API_KEY ||
+            yml.llm?.apiKey ||
+            legacy.llm?.apiKey ||
+            process.env.OPENAI_API_KEY;
+          if (llmKey) {
+            let src = 'unknown';
+            if (process.env.MEMORIX_LLM_API_KEY) src = 'env:MEMORIX_LLM_API_KEY';
+            else if (process.env.MEMORIX_API_KEY) src = 'env:MEMORIX_API_KEY';
+            else if (yml.llm?.apiKey) src = 'memorix.yml (move to .env!)';
+            else if (legacy.llm?.apiKey) src = 'config.json (legacy)';
+            else if (process.env.OPENAI_API_KEY) src = 'env:OPENAI_API_KEY';
+            values.push({ key: 'llm.apiKey', value: '****' + llmKey.slice(-4), source: src, sensitive: true });
+          } else {
+            values.push({ key: 'llm.apiKey', value: 'not set', source: 'none' });
+          }
+
+          const embProvider = process.env.MEMORIX_EMBEDDING || yml.embedding?.provider || legacy.embedding || 'off';
+          values.push({
+            key: 'embedding.provider',
+            value: embProvider,
+            source: process.env.MEMORIX_EMBEDDING ? 'env' : yml.embedding?.provider ? 'memorix.yml' : legacy.embedding ? 'config.json' : 'default',
+          });
+
+          values.push({
+            key: 'git.autoHook',
+            value: String(yml.git?.autoHook ?? false),
+            source: yml.git?.autoHook !== undefined ? 'memorix.yml' : 'default',
+          });
+          values.push({
+            key: 'git.skipMergeCommits',
+            value: String(yml.git?.skipMergeCommits ?? true),
+            source: yml.git?.skipMergeCommits !== undefined ? 'memorix.yml' : 'default',
+          });
+
+          if (yml.behavior?.formationMode) {
+            values.push({ key: 'behavior.formationMode', value: yml.behavior.formationMode, source: 'memorix.yml' });
+          }
+          if (yml.behavior?.sessionInject) {
+            values.push({ key: 'behavior.sessionInject', value: yml.behavior.sessionInject, source: 'memorix.yml' });
+          }
+
+          values.push({
+            key: 'server.transport',
+            value: yml.server?.transport || 'stdio',
+            source: yml.server?.transport ? 'memorix.yml' : 'default',
+          });
+          values.push({
+            key: 'server.dashboard',
+            value: String(yml.server?.dashboard ?? true),
+            source: yml.server?.dashboard !== undefined ? 'memorix.yml' : 'default',
+          });
+
+          sendJson({ files, values, loadedEnvFiles: [...getLoadedEnvFiles()] });
+          return;
+        }
+
+        if (apiPath === '/identity') {
+          const { loadObservationsJson } = await import('../../store/persistence.js');
+          const allObs = await loadObservationsJson(baseDir) as Array<{ projectId?: string }>;
+          const allProjectIds = [...new Set(allObs.map(o => o.projectId).filter(Boolean))] as string[];
+
+          const dirtyPatterns = [
+            /^placeholder\//,
+            /System32/i,
+            /Microsoft VS Code/i,
+            /node_modules/i,
+            /\.vscode/i,
+            /^local\/[A-Z]:\\/,
+          ];
+          const dirtyIds = allProjectIds.filter(id => dirtyPatterns.some(p => p.test(id)));
+
+          let aliasGroups: any[] = [];
+          let canonicalId = project.id;
+          try {
+            const aliasModule = await import('../../project/aliases.js');
+            canonicalId = await aliasModule.getCanonicalId(project.id);
+            const registryPath = pathModule.default.join(baseDir, '.project-aliases.json');
+            const raw = await fsPromises.readFile(registryPath, 'utf-8');
+            const registry = JSON.parse(raw);
+            aliasGroups = registry.groups || [];
+          } catch { /* best effort */ }
+
+          const currentGroup = aliasGroups.find((g: any) => g.aliases?.includes(project.id) || g.canonical === project.id);
+          const aliases = currentGroup?.aliases || [project.id];
+
+          const hasDirtyIds = dirtyIds.length > 0;
+          const hasMultipleUnmerged = allProjectIds.length > aliasGroups.length + 1;
+          const isHealthy = !hasDirtyIds && !hasMultipleUnmerged;
+
+          sendJson({
+            currentProjectId: project.id,
+            canonicalId,
+            aliases,
+            allProjectIds,
+            dirtyIds,
+            aliasGroups: aliasGroups.length,
+            isHealthy,
+            healthIssues: [
+              ...(hasDirtyIds ? [`${dirtyIds.length} dirty project ID(s) detected`] : []),
+              ...(hasMultipleUnmerged ? ['Potential unmerged project identity fragments detected'] : []),
+            ],
+          });
           return;
         }
 

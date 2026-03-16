@@ -156,6 +156,49 @@ async function handleApi(
                     typeCounts[t] = (typeCounts[t] || 0) + 1;
                 }
 
+                // Source breakdown (git / agent / manual)
+                const sourceCounts: Record<string, number> = { git: 0, agent: 0, manual: 0 };
+                const gitMemories: Array<any> = [];
+                const now = Date.now();
+                const sevenDaysAgo = now - 7 * 24 * 60 * 60 * 1000;
+                let recentGitCount = 0;
+
+                for (const obs of observations) {
+                    const src = (obs as any).source || 'agent';
+                    sourceCounts[src] = (sourceCounts[src] || 0) + 1;
+                    if (src === 'git') {
+                        gitMemories.push(obs);
+                        if (obs.createdAt && new Date(obs.createdAt).getTime() > sevenDaysAgo) {
+                            recentGitCount++;
+                        }
+                    }
+                }
+
+                // Git memory summary
+                const gitSorted = [...gitMemories].sort((a, b) => (b.id || 0) - (a.id || 0));
+                const recentGitMemories = gitSorted.slice(0, 8).map(o => ({
+                    id: o.id, title: o.title, type: o.type,
+                    commitHash: (o as any).commitHash,
+                    entityName: o.entityName, createdAt: o.createdAt,
+                    filesModified: (o as any).filesModified,
+                }));
+
+                // Retention summary
+                let retentionSummary = { active: 0, stale: 0, archive: 0, immune: 0 };
+                for (const obs of observations) {
+                    const age = now - new Date((obs as any).createdAt || now).getTime();
+                    const ageHours = age / (1000 * 60 * 60);
+                    const importance = (obs as any).importance ?? 5;
+                    const accessCount = (obs as any).accessCount ?? 0;
+                    const lambda = 0.01;
+                    const score = Math.min(importance * Math.exp(-lambda * ageHours) + Math.min(accessCount * 0.5, 3), 10);
+                    const isImmune = importance >= 8 || obs.type === 'gotcha' || obs.type === 'decision';
+                    if (isImmune) retentionSummary.immune++;
+                    if (score >= 3) retentionSummary.active++;
+                    else if (score >= 1) retentionSummary.stale++;
+                    else retentionSummary.archive++;
+                }
+
                 // Recent observations (last 10)
                 const sorted = [...observations]
                     .sort((a, b) => (b.id || 0) - (a.id || 0))
@@ -179,8 +222,15 @@ async function handleApi(
                     observations: observations.length,
                     nextId,
                     typeCounts,
+                    sourceCounts,
                     recentObservations: sorted,
                     embedding: embeddingStatus,
+                    gitSummary: {
+                        total: gitMemories.length,
+                        recentWeek: recentGitCount,
+                        recentMemories: recentGitMemories,
+                    },
+                    retentionSummary,
                 });
                 break;
             }
@@ -238,6 +288,138 @@ async function handleApi(
                 sendJson(res, {
                     summary: { active: activeCount, stale: staleCount, archive: archiveCount, immune: immuneCount },
                     items: scored,
+                });
+                break;
+            }
+
+            case '/config': {
+                // Config provenance — shows where each config value comes from
+                const os = await import('node:os');
+                const { existsSync } = await import('node:fs');
+                const { join } = await import('node:path');
+
+                let yml: any = {};
+                try {
+                    const { loadYamlConfig } = await import('../config/yaml-loader.js');
+                    yml = loadYamlConfig(effectiveProjectId.includes('/') ? undefined : undefined);
+                } catch { /* best effort */ }
+
+                // Check which config files exist
+                const projectRoot = process.cwd(); // approximate — dashboard may not have project root
+                const files: Record<string, { exists: boolean; path: string }> = {
+                    'project memorix.yml': { exists: false, path: '' },
+                    'user memorix.yml': { exists: false, path: '' },
+                    'project .env': { exists: false, path: '' },
+                    'user .env': { exists: false, path: '' },
+                    'legacy config.json': { exists: false, path: '' },
+                };
+                try {
+                    const home = os.homedir();
+                    const paths: Record<string, string> = {
+                        'project memorix.yml': join(projectRoot, 'memorix.yml'),
+                        'user memorix.yml': join(home, '.memorix', 'memorix.yml'),
+                        'project .env': join(projectRoot, '.env'),
+                        'user .env': join(home, '.memorix', '.env'),
+                        'legacy config.json': join(home, '.memorix', 'config.json'),
+                    };
+                    for (const [key, fpath] of Object.entries(paths)) {
+                        files[key] = { exists: existsSync(fpath), path: fpath };
+                    }
+                } catch { /* best effort */ }
+
+                // Config values with provenance
+                const values: Array<{ key: string; value: string; source: string; sensitive?: boolean }> = [];
+
+                // LLM
+                const llmProvider = process.env.MEMORIX_LLM_PROVIDER || yml.llm?.provider;
+                if (llmProvider) values.push({ key: 'llm.provider', value: llmProvider, source: process.env.MEMORIX_LLM_PROVIDER ? 'env' : 'memorix.yml' });
+
+                const llmModel = process.env.MEMORIX_LLM_MODEL || yml.llm?.model;
+                if (llmModel) values.push({ key: 'llm.model', value: llmModel, source: process.env.MEMORIX_LLM_MODEL ? 'env' : 'memorix.yml' });
+
+                const llmKey = process.env.MEMORIX_LLM_API_KEY || process.env.MEMORIX_API_KEY || yml.llm?.apiKey || process.env.OPENAI_API_KEY;
+                if (llmKey) {
+                    let src = 'unknown';
+                    if (process.env.MEMORIX_LLM_API_KEY) src = 'env:MEMORIX_LLM_API_KEY';
+                    else if (process.env.MEMORIX_API_KEY) src = 'env:MEMORIX_API_KEY';
+                    else if (yml.llm?.apiKey) src = 'memorix.yml (move to .env!)';
+                    else if (process.env.OPENAI_API_KEY) src = 'env:OPENAI_API_KEY';
+                    values.push({ key: 'llm.apiKey', value: '****' + llmKey.slice(-4), source: src, sensitive: true });
+                } else {
+                    values.push({ key: 'llm.apiKey', value: 'not set', source: 'none' });
+                }
+
+                // Embedding
+                const embProvider = process.env.MEMORIX_EMBEDDING || yml.embedding?.provider || 'off';
+                values.push({ key: 'embedding.provider', value: embProvider, source: process.env.MEMORIX_EMBEDDING ? 'env' : yml.embedding?.provider ? 'memorix.yml' : 'default' });
+
+                // Git
+                values.push({ key: 'git.autoHook', value: String(yml.git?.autoHook ?? false), source: yml.git?.autoHook !== undefined ? 'memorix.yml' : 'default' });
+                values.push({ key: 'git.skipMergeCommits', value: String(yml.git?.skipMergeCommits ?? true), source: yml.git?.skipMergeCommits !== undefined ? 'memorix.yml' : 'default' });
+
+                // Behavior
+                if (yml.behavior?.formationMode) values.push({ key: 'behavior.formationMode', value: yml.behavior.formationMode, source: 'memorix.yml' });
+                if (yml.behavior?.sessionInject) values.push({ key: 'behavior.sessionInject', value: yml.behavior.sessionInject, source: 'memorix.yml' });
+
+                // Server
+                values.push({ key: 'server.transport', value: yml.server?.transport || 'stdio', source: yml.server?.transport ? 'memorix.yml' : 'default' });
+                values.push({ key: 'server.dashboard', value: String(yml.server?.dashboard ?? true), source: yml.server?.dashboard !== undefined ? 'memorix.yml' : 'default' });
+
+                sendJson(res, { files, values });
+                break;
+            }
+
+            case '/identity': {
+                // Project identity health
+                const allObs = await loadObservationsJson(baseDir) as Array<{ projectId?: string }>;
+                const allProjectIds = [...new Set(allObs.map(o => o.projectId).filter(Boolean))] as string[];
+
+                // Known dirty patterns
+                const dirtyPatterns = [
+                    /^placeholder\//,
+                    /System32/i,
+                    /Microsoft VS Code/i,
+                    /node_modules/i,
+                    /\.vscode/i,
+                    /^local\/[A-Z]:\\/,
+                ];
+                const dirtyIds = allProjectIds.filter(id => dirtyPatterns.some(p => p.test(id)));
+
+                // Get alias info
+                let aliasGroups: any[] = [];
+                let canonicalId = effectiveProjectId;
+                try {
+                    const aliasModule = await import('../project/aliases.js');
+                    canonicalId = await aliasModule.getCanonicalId(effectiveProjectId);
+
+                    // Load full registry to get all groups
+                    const { promises: fsP } = await import('node:fs');
+                    const registryPath = path.join(baseDir, '.project-aliases.json');
+                    const raw = await fsP.readFile(registryPath, 'utf-8');
+                    const registry = JSON.parse(raw);
+                    aliasGroups = registry.groups || [];
+                } catch { /* alias module may not be available */ }
+
+                const currentGroup = aliasGroups.find((g: any) => g.aliases?.includes(effectiveProjectId) || g.canonical === effectiveProjectId);
+                const aliases = currentGroup?.aliases || [effectiveProjectId];
+
+                // Health assessment
+                const hasDirtyIds = dirtyIds.length > 0;
+                const hasMultipleUnmerged = allProjectIds.length > aliasGroups.length + 1;
+                const isHealthy = !hasDirtyIds && !hasMultipleUnmerged;
+
+                sendJson(res, {
+                    currentProjectId: effectiveProjectId,
+                    canonicalId,
+                    aliases,
+                    allProjectIds,
+                    dirtyIds,
+                    aliasGroups: aliasGroups.length,
+                    isHealthy,
+                    healthIssues: [
+                        ...(hasDirtyIds ? [`${dirtyIds.length} dirty project ID(s) detected`] : []),
+                        ...(hasMultipleUnmerged ? ['Possible unmerged project identity splits'] : []),
+                    ],
                 });
                 break;
             }
@@ -422,7 +604,11 @@ export async function startDashboard(
             return;
         }
 
-        if (url.startsWith('/api/team') && teamInstances) {
+        if (url.startsWith('/api/team')) {
+            if (!teamInstances) {
+                sendJson(res, { unavailable: true, reason: 'http-transport-required' });
+                return;
+            }
             try {
                 teamInstances.fileLocks.cleanExpired();
                 const agents = teamInstances.registry.listAgents();
