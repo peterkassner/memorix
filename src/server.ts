@@ -176,9 +176,12 @@ export async function createMemorixServer(cwd?: string, existingServer?: McpServ
 
   // Initialize project root for YAML config resolution — ensures all config getters
   // (getLLMApiKey, getGitConfig, etc.) pick up project-level memorix.yml, not just user-level.
+  // Also load .env from project root for secrets (API keys, base URLs).
   try {
     const { initProjectRoot } = await import('./config/yaml-loader.js');
     initProjectRoot(project.rootPath);
+    const { loadDotenv } = await import('./config/dotenv-loader.js');
+    loadDotenv(project.rootPath);
   } catch { /* config init is best-effort */ }
 
   // Initialize components
@@ -3024,10 +3027,13 @@ export async function createMemorixServer(cwd?: string, existingServer?: McpServ
     project = { ...newDetected, id: newCanonicalId };
     projectDir = newProjectDir;
 
-    // Update YAML config root for the new project
+    // Update YAML config root and reload .env for the new project
     try {
       const { initProjectRoot } = await import('./config/yaml-loader.js');
       initProjectRoot(project.rootPath);
+      const { resetDotenv, loadDotenv } = await import('./config/dotenv-loader.js');
+      resetDotenv();
+      loadDotenv(project.rootPath);
     } catch { /* best-effort */ }
 
     // Re-initialize stores
