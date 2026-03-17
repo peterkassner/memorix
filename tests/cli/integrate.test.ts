@@ -11,7 +11,7 @@ describe('integrate-shared', () => {
   });
 
   it('uses user home for global integrations', () => {
-    expect(getIntegrationTargetRoot(true, 'E:/repo')).toContain('Users');
+    expect(getIntegrationTargetRoot(true, 'E:/repo', 'C:/Users/tester')).toBe('C:/Users/tester');
   });
 
   it('labels project integrations clearly', () => {

@@ -1,7 +1,11 @@
 import { homedir } from 'node:os';
 
-export function getIntegrationTargetRoot(useGlobalDefaults: boolean, cwd: string): string {
-  return useGlobalDefaults ? homedir() : cwd;
+export function getIntegrationTargetRoot(
+  useGlobalDefaults: boolean,
+  cwd: string,
+  homeDir = homedir(),
+): string {
+  return useGlobalDefaults ? homeDir : cwd;
 }
 
 export function getIntegrationScopeLabel(useGlobalDefaults: boolean): string {

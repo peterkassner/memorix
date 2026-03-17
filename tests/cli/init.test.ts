@@ -1,3 +1,4 @@
+import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -31,7 +32,9 @@ describe('init-shared', () => {
   });
 
   it('returns the correct target dir for global scope', () => {
-    expect(getInitTargetDir('global', 'E:/repo', 'C:/Users/tester')).toBe('C:\\Users\\tester\\.memorix');
+    expect(getInitTargetDir('global', 'E:/repo', 'C:/Users/tester')).toBe(
+      path.join('C:/Users/tester', '.memorix'),
+    );
   });
 
   it('returns the current project dir for project scope', () => {
