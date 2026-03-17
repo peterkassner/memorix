@@ -2,35 +2,7 @@
  * API Embedding Provider
  *
  * Remote embedding via any OpenAI-compatible /v1/embeddings endpoint.
- * Works with: OpenAI, Qwen (DashScope), Cohere, 中转站/反代, Ollama, etc.
- *
- * Advantages over local providers:
- *   - Zero local resource usage (no 300-500MB RAM)
- *   - Access to larger, higher-quality models (1024-3072 dimensions)
- *   - Works on any machine without native bindings
- *
- * Performance advantages vs competitors (mcp-memory-service, claude-mem, Mem0):
- *   ┌────────────────────────────┬──────────────┬──────────────────────────┐
- *   │ Feature                    │ Competitors  │ Memorix                  │
- *   ├────────────────────────────┼──────────────┼──────────────────────────┤
- *   │ Embedding cache            │ None         │ 10K LRU + disk persist   │
- *   │ Batch API calls            │ 1-by-1       │ Up to 2048 per request   │
- *   │ Cache hit → API bypass     │ No           │ SHA-256 dedup, 0ms       │
- *   │ Retry with backoff         │ Crash/skip   │ Exponential + Retry-After│
- *   │ Text normalization         │ No           │ Whitespace + truncation  │
- *   │ Debounced disk writes      │ N/A          │ 5s coalesce window       │
- *   │ Concurrent batch chunks    │ Sequential   │ Parallel (4 concurrent)  │
- *   │ Dimension shortening       │ Hardcoded    │ Runtime configurable     │
- *   │ External dependency        │ Chroma/SQLite│ Zero (native fetch)      │
- *   │ Input token waste          │ Full text    │ Truncated to 8191 tokens │
- *   └────────────────────────────┴──────────────┴──────────────────────────┘
- *
- * Environment variables:
- *   MEMORIX_EMBEDDING=api                        — enable this provider
- *   MEMORIX_EMBEDDING_API_KEY                    — API key (fallback: MEMORIX_LLM_API_KEY → OPENAI_API_KEY)
- *   MEMORIX_EMBEDDING_BASE_URL                   — base URL (fallback: MEMORIX_LLM_BASE_URL → https://api.openai.com/v1)
- *   MEMORIX_EMBEDDING_MODEL                      — model name (default: text-embedding-3-small)
- *   MEMORIX_EMBEDDING_DIMENSIONS                 — optional dimension override (e.g., 512 for cost savings)
+ * Works with OpenAI, DashScope/Qwen, Ollama-compatible gateways, and similar providers.
  */
 
 import { createHash } from 'node:crypto';
@@ -38,8 +10,6 @@ import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { join } from 'node:path';
 import { homedir } from 'node:os';
 import type { EmbeddingProvider } from './provider.js';
-
-// ─── Cache Configuration ─────────────────────────────────────────────
 
 const CACHE_DIR = process.env.MEMORIX_DATA_DIR || join(homedir(), '.memorix', 'data');
 const CACHE_FILE = join(CACHE_DIR, '.embedding-api-cache.json');
@@ -49,32 +19,15 @@ const MAX_CACHE_SIZE = 10000;
 let diskCacheDirty = false;
 let diskSaveTimer: ReturnType<typeof setTimeout> | null = null;
 
-/** Max input text length (chars) — prevent token waste on huge texts */
 const MAX_INPUT_CHARS = 32000;
-
-/** Max concurrent batch chunks to process in parallel */
 const MAX_CONCURRENCY = 4;
-
-/** Debounce window for disk cache writes (ms) */
 const DISK_SAVE_DEBOUNCE_MS = 5000;
 
-// ─── API Configuration ───────────────────────────────────────────────
-
-/** Max texts per API batch (OpenAI limit: 2048) */
-const MAX_BATCH_SIZE = 2048;
-
-/** Max retries for transient failures */
+const DEFAULT_MAX_BATCH_SIZE = 2048;
+const DASHSCOPE_MAX_BATCH_SIZE = 10;
 const MAX_RETRIES = 3;
-
-/** Base delay for exponential backoff (ms) */
 const BASE_DELAY_MS = 500;
 
-// ─── Cache Helpers ───────────────────────────────────────────────────
-
-/**
- * Normalize text for consistent cache hits.
- * Collapses whitespace and trims — "hello   world" and "hello world" get same embedding.
- */
 function normalizeText(text: string): string {
   return text.replace(/\s+/g, ' ').trim().slice(0, MAX_INPUT_CHARS);
 }
@@ -90,7 +43,7 @@ async function loadDiskCache(): Promise<void> {
     for (const [k, v] of entries) cache.set(k, v);
     console.error(`[memorix] Loaded ${entries.length} cached API embeddings from disk`);
   } catch {
-    // No cache file or corrupt — start fresh
+    // No cache file or corrupt cache; start fresh.
   }
 }
 
@@ -102,14 +55,10 @@ async function saveDiskCacheNow(): Promise<void> {
     await writeFile(CACHE_FILE, JSON.stringify(entries));
     diskCacheDirty = false;
   } catch {
-    // Ignore write errors — cache is optimization, not critical
+    // Cache persistence is best-effort only.
   }
 }
 
-/**
- * Debounced disk cache save — coalesces rapid writes into one 5s-delayed write.
- * Competitors write on every single embed call; we batch for I/O efficiency.
- */
 function scheduleDiskSave(): void {
   if (diskSaveTimer) clearTimeout(diskSaveTimer);
   diskSaveTimer = setTimeout(() => {
@@ -126,8 +75,6 @@ function cacheSet(hash: string, value: number[]): void {
   cache.set(hash, value);
   diskCacheDirty = true;
 }
-
-// ─── API Types ───────────────────────────────────────────────────────
 
 interface EmbeddingAPIResponse {
   object: string;
@@ -150,7 +97,26 @@ interface APIEmbeddingConfig {
   requestedDimensions: number | null;
 }
 
-// ─── Provider Implementation ─────────────────────────────────────────
+function getPreferredBatchSize(config: APIEmbeddingConfig): number {
+  if (/dashscope\.aliyuncs\.com/i.test(config.baseUrl)) {
+    return DASHSCOPE_MAX_BATCH_SIZE;
+  }
+  return DEFAULT_MAX_BATCH_SIZE;
+}
+
+function parseBatchLimit(error: unknown): number | null {
+  if (!(error instanceof Error)) return null;
+
+  const explicit = error.message.match(/should not be larger than\s+(\d+)/i);
+  if (explicit) return parseInt(explicit[1], 10);
+
+  if (/batch size/i.test(error.message)) {
+    const fallback = error.message.match(/(\d+)/);
+    if (fallback) return parseInt(fallback[1], 10);
+  }
+
+  return null;
+}
 
 export class APIEmbeddingProvider implements EmbeddingProvider {
   readonly name: string;
@@ -166,17 +132,11 @@ export class APIEmbeddingProvider implements EmbeddingProvider {
     this.name = `api-${config.model.replace(/\//g, '-')}`;
   }
 
-  /**
-   * Initialize the API embedding provider.
-   * Probes the API with a test embedding to detect dimensions.
-   */
   static async create(): Promise<APIEmbeddingProvider> {
     const config = APIEmbeddingProvider.resolveConfig();
 
-    // Load disk cache
     await loadDiskCache();
 
-    // Probe API to detect dimensions
     const probeDimensions = await APIEmbeddingProvider.probeAPI(config);
 
     console.error(`[memorix] API embedding: ${config.model} @ ${config.baseUrl} (${probeDimensions}d)`);
@@ -187,12 +147,7 @@ export class APIEmbeddingProvider implements EmbeddingProvider {
     return new APIEmbeddingProvider(config, probeDimensions);
   }
 
-  /**
-   * Resolve configuration from environment variables.
-   * Falls back to LLM config → OpenAI defaults.
-   */
   private static resolveConfig(): APIEmbeddingConfig {
-    // Unified config: env vars > config.json > defaults
     let apiKey: string | undefined;
     let baseUrl: string;
     let model: string;
@@ -205,10 +160,9 @@ export class APIEmbeddingProvider implements EmbeddingProvider {
       model = cfg.getEmbeddingModel();
       requestedDimensions = cfg.getEmbeddingDimensions();
     } catch {
-      // Fallback: direct env var reading
       apiKey =
         process.env.MEMORIX_EMBEDDING_API_KEY ||
-        process.env.MEMORIX_API_KEY ||  // Unified API key
+        process.env.MEMORIX_API_KEY ||
         process.env.MEMORIX_LLM_API_KEY ||
         process.env.OPENAI_API_KEY;
       baseUrl =
@@ -226,14 +180,11 @@ export class APIEmbeddingProvider implements EmbeddingProvider {
       );
     }
 
-    baseUrl = baseUrl.replace(/\/+$/, ''); // Strip trailing slash
+    baseUrl = baseUrl.replace(/\/+$/, '');
 
     return { apiKey, baseUrl, model, requestedDimensions };
   }
 
-  /**
-   * Probe API with a test text to detect actual output dimensions.
-   */
   private static async probeAPI(config: APIEmbeddingConfig): Promise<number> {
     const body: Record<string, unknown> = {
       model: config.model,
@@ -250,7 +201,7 @@ export class APIEmbeddingProvider implements EmbeddingProvider {
     );
 
     if (response.data.length === 0 || !response.data[0].embedding) {
-      throw new Error('API probe returned no embeddings — check model name and API key');
+      throw new Error('API probe returned no embeddings; check model name and API key');
     }
 
     return response.data[0].embedding.length;
@@ -278,7 +229,7 @@ export class APIEmbeddingProvider implements EmbeddingProvider {
 
     const embedding = response.data[0].embedding;
     if (embedding.length !== this.dimensions) {
-      throw new Error(`Expected ${this.dimensions}d, got ${embedding.length}d — dimension mismatch`);
+      throw new Error(`Expected ${this.dimensions}d, got ${embedding.length}d; dimension mismatch`);
     }
 
     this.trackUsage(response);
@@ -293,7 +244,6 @@ export class APIEmbeddingProvider implements EmbeddingProvider {
     const uncachedIndices: number[] = [];
     const uncachedTexts: string[] = [];
 
-    // Check cache for each text
     for (let i = 0; i < normalizedTexts.length; i++) {
       const hash = textHash(normalizedTexts[i]);
       const cached = cache.get(hash);
@@ -312,29 +262,18 @@ export class APIEmbeddingProvider implements EmbeddingProvider {
       `[memorix] API embedding ${uncachedTexts.length}/${texts.length} texts (cache hit: ${cacheHitRate}%)`,
     );
 
-    // Split into chunks of MAX_BATCH_SIZE, then process up to MAX_CONCURRENCY in parallel
-    const chunks: { texts: string[]; indices: number[] }[] = [];
-    for (let batchStart = 0; batchStart < uncachedTexts.length; batchStart += MAX_BATCH_SIZE) {
-      chunks.push({
-        texts: uncachedTexts.slice(batchStart, batchStart + MAX_BATCH_SIZE),
-        indices: uncachedIndices.slice(batchStart, batchStart + MAX_BATCH_SIZE),
-      });
-    }
+    const processChunk = async (chunkTexts: string[], chunkIndices: number[]): Promise<void> => {
+      if (chunkTexts.length === 0) return;
 
-    // Process chunks with bounded concurrency (competitors do sequential)
-    for (let ci = 0; ci < chunks.length; ci += MAX_CONCURRENCY) {
-      const concurrentChunks = chunks.slice(ci, ci + MAX_CONCURRENCY);
-      const batchStartOffset = ci * MAX_BATCH_SIZE;
+      const body: Record<string, unknown> = {
+        model: this.config.model,
+        input: chunkTexts,
+      };
+      if (this.config.requestedDimensions) {
+        body.dimensions = this.config.requestedDimensions;
+      }
 
-      await Promise.all(concurrentChunks.map(async (chunk, chunkIdx) => {
-        const body: Record<string, unknown> = {
-          model: this.config.model,
-          input: chunk.texts,
-        };
-        if (this.config.requestedDimensions) {
-          body.dimensions = this.config.requestedDimensions;
-        }
-
+      try {
         const response = await fetchWithRetry(
           `${this.config.baseUrl}/embeddings`,
           this.config.apiKey,
@@ -343,24 +282,50 @@ export class APIEmbeddingProvider implements EmbeddingProvider {
 
         this.trackUsage(response);
 
-        const globalChunkStart = batchStartOffset + chunkIdx * MAX_BATCH_SIZE;
-
-        // API may return results in any order — use the index field
         for (const item of response.data) {
-          const originalIdx = chunk.indices[item.index];
+          const originalIdx = chunkIndices[item.index];
           results[originalIdx] = item.embedding;
-          cacheSet(textHash(uncachedTexts[globalChunkStart + item.index]), item.embedding);
+          cacheSet(textHash(normalizedTexts[originalIdx]), item.embedding);
         }
-      }));
+      } catch (error) {
+        const providerLimit = parseBatchLimit(error);
+        const fallbackSize = providerLimit ?? Math.ceil(chunkTexts.length / 2);
+
+        if (chunkTexts.length > 1 && fallbackSize < chunkTexts.length) {
+          console.error(
+            `[memorix] Embedding batch too large for provider, retrying in chunks of ${fallbackSize}`,
+          );
+          for (let start = 0; start < chunkTexts.length; start += fallbackSize) {
+            await processChunk(
+              chunkTexts.slice(start, start + fallbackSize),
+              chunkIndices.slice(start, start + fallbackSize),
+            );
+          }
+          return;
+        }
+
+        throw error;
+      }
+    };
+
+    const preferredBatchSize = getPreferredBatchSize(this.config);
+    const chunks: { texts: string[]; indices: number[] }[] = [];
+    for (let batchStart = 0; batchStart < uncachedTexts.length; batchStart += preferredBatchSize) {
+      chunks.push({
+        texts: uncachedTexts.slice(batchStart, batchStart + preferredBatchSize),
+        indices: uncachedIndices.slice(batchStart, batchStart + preferredBatchSize),
+      });
+    }
+
+    for (let ci = 0; ci < chunks.length; ci += MAX_CONCURRENCY) {
+      const concurrentChunks = chunks.slice(ci, ci + MAX_CONCURRENCY);
+      await Promise.all(concurrentChunks.map((chunk) => processChunk(chunk.texts, chunk.indices)));
     }
 
     scheduleDiskSave();
     return results;
   }
 
-  /**
-   * Get usage stats for logging/debugging.
-   */
   getStats(): { totalTokens: number; totalApiCalls: number; cacheSize: number } {
     return {
       totalTokens: this.totalTokensUsed,
@@ -377,12 +342,6 @@ export class APIEmbeddingProvider implements EmbeddingProvider {
   }
 }
 
-// ─── HTTP with Retry ─────────────────────────────────────────────────
-
-/**
- * Fetch with exponential backoff retry.
- * Handles 429 (rate limit) and 5xx (server errors) gracefully.
- */
 async function fetchWithRetry(
   url: string,
   apiKey: string,
@@ -415,7 +374,6 @@ async function fetchWithRetry(
     return response.json() as Promise<EmbeddingAPIResponse>;
   }
 
-  // Retry on rate limit (429) or server errors (5xx)
   if ((response.status === 429 || response.status >= 500) && attempt < MAX_RETRIES) {
     const delay = BASE_DELAY_MS * Math.pow(2, attempt);
     const retryAfter = response.headers.get('retry-after');

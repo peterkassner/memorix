@@ -14,9 +14,13 @@ import { OBSERVATION_ICONS, type ObservationType } from '../types.js';
 import { getEmbeddingProvider, type EmbeddingProvider } from '../embedding/provider.js';
 import { calculateProjectAffinity, extractProjectKeywords, type AffinityContext, type MemoryContent } from './project-affinity.js';
 import { detectQueryIntent, applyIntentBoost } from '../search/intent-detector.js';
+import { maybeExpandSearchQuery } from '../search/query-expansion.js';
 
 let db: AnyOrama | null = null;
 let embeddingEnabled = false;
+const NON_CJK_HYBRID_SIMILARITY = 0.45;
+const COMMAND_STYLE_TITLE = /^(Ran:|Command:)/i;
+const COMMAND_LIKE_QUERY = /\b(git|npm|npx|pnpm|yarn|node|bash|powershell|curl|memorix)\b/i;
 
 /**
  * Build a globally unique Orama document ID for an observation.
@@ -28,6 +32,14 @@ export function makeOramaObservationId(projectId: string, observationId: number)
 
 function makeEntryKey(projectId: string | undefined, observationId: number): string {
   return `${projectId ?? ''}::${observationId}`;
+}
+
+function isCommandLikeQuery(query: string): boolean {
+  return COMMAND_LIKE_QUERY.test(query);
+}
+
+function isCommandStyleEntry(title: string): boolean {
+  return COMMAND_STYLE_TITLE.test(title);
 }
 
 /**
@@ -108,7 +120,10 @@ export async function batchGenerateEmbeddings(texts: string[]): Promise<(number[
   try {
     const results = await provider.embedBatch(texts);
     return results;
-  } catch {
+  } catch (error) {
+    console.error(
+      `[memorix] Batch embedding failed, falling back to null vectors: ${error instanceof Error ? error.message : error}`,
+    );
     return texts.map(() => null);
   }
 }
@@ -164,14 +179,17 @@ export async function searchObservations(options: SearchOptions): Promise<IndexE
 
   // Determine search mode: hybrid (with vector) or fulltext (default)
   const hasQuery = options.query && options.query.trim().length > 0;
+  const originalQuery = options.query;
+  const expandedEmbeddingQuery = hasQuery ? await maybeExpandSearchQuery(options.query!) : options.query;
 
   // ── Intent-Aware Recall ──────────────────────────────────────
   // Detect query intent (why/when/how/what/problem) and adjust
   // field weights and type boosting accordingly.
-  const intentResult = hasQuery ? detectQueryIntent(options.query!) : null;
+  const intentResult = hasQuery ? detectQueryIntent(originalQuery!) : null;
 
-  // When post-filtering by multiple project aliases, request extra results to compensate
-  const requestLimit = (projectIds && projectIds.length > 1)
+  // Orama's vector/hybrid search can leak cross-project hits even when `where`
+  // is present, so always keep enough headroom for a deterministic post-filter.
+  const requestLimit = projectIds
     ? (options.limit ?? 20) * 3
     : (options.limit ?? 20);
 
@@ -189,7 +207,7 @@ export async function searchObservations(options: SearchOptions): Promise<IndexE
     : defaultBoost;
 
   let searchParams: Record<string, unknown> = {
-    term: options.query,
+    term: originalQuery,
     limit: requestLimit,
     ...(Object.keys(filters).length > 0 ? { where: filters } : {}),
     // Search specific fields (not tokens, accessCount, etc.)
@@ -197,7 +215,7 @@ export async function searchObservations(options: SearchOptions): Promise<IndexE
     // Field boosting: intent-aware or default
     boost: fieldBoost,
     // Fuzzy tolerance: allow 1-char typos for short queries, 2 for longer
-    ...(hasQuery ? { tolerance: options.query!.length > 6 ? 2 : 1 } : {}),
+    ...(hasQuery ? { tolerance: originalQuery!.length > 6 ? 2 : 1 } : {}),
   };
 
   // If embedding provider is available and we have a query, use hybrid search
@@ -208,13 +226,13 @@ export async function searchObservations(options: SearchOptions): Promise<IndexE
       if (provider) {
         // Embedding timeout: 15 seconds
         const EMBEDDING_TIMEOUT_MS = 15000;
-        const embedPromise = provider.embed(options.query!);
+        const embedPromise = provider.embed(expandedEmbeddingQuery!);
         const timeoutPromise = new Promise<never>((_, reject) =>
           setTimeout(() => reject(new Error(`Embedding timeout after ${EMBEDDING_TIMEOUT_MS}ms`)), EMBEDDING_TIMEOUT_MS)
         );
         queryVector = await Promise.race([embedPromise, timeoutPromise]);
         // Detect CJK-heavy queries: BM25 can't tokenize Chinese/Japanese/Korean well
-        const cjkRatio = (options.query!.match(/[\u4e00-\u9fff\u3040-\u309f\u30a0-\u30ff\uac00-\ud7af]/g) || []).length / options.query!.length;
+        const cjkRatio = (originalQuery!.match(/[\u4e00-\u9fff\u3040-\u309f\u30a0-\u30ff\uac00-\ud7af]/g) || []).length / originalQuery!.length;
         const isCJKHeavy = cjkRatio > 0.3;
         searchParams = {
           ...searchParams,
@@ -223,7 +241,9 @@ export async function searchObservations(options: SearchOptions): Promise<IndexE
             value: queryVector,
             property: 'embedding',
           },
-          similarity: isCJKHeavy ? 0.3 : 0.5,
+          // English paraphrase queries were getting clipped just below 0.5
+          // even when vector-only search could already find the right memory.
+          similarity: isCJKHeavy ? 0.3 : NON_CJK_HYBRID_SIMILARITY,
           hybridWeights: isCJKHeavy
             ? { text: 0.2, vector: 0.8 }  // CJK: trust vector over BM25
             : { text: 0.6, vector: 0.4 },
@@ -262,9 +282,10 @@ export async function searchObservations(options: SearchOptions): Promise<IndexE
 
   // Build intermediate results with rawTime for temporal filtering
   let intermediate = results.hits
-    // Post-filter by project aliases when multiple aliases exist (Orama doesn't support `in` for strings)
+    // Always post-filter by projectIds. Vector/hybrid search can leak hits even when
+    // the `where` clause is present, so this keeps project isolation deterministic.
     .filter((hit) => {
-      if (!projectIds || projectIds.length <= 1) return true;
+      if (!projectIds) return true;
       const doc = hit.document as unknown as MemorixDocument;
       return projectIds.includes(doc.projectId);
     })
@@ -320,6 +341,13 @@ export async function searchObservations(options: SearchOptions): Promise<IndexE
       const effectiveBoost = 1 + (boost - 1) * intentResult.confidence;
       return { ...entry, score: entry.score * effectiveBoost };
     });
+  }
+
+  if (hasQuery && !isCommandLikeQuery(originalQuery!)) {
+    intermediate = intermediate.map(entry => ({
+      ...entry,
+      score: isCommandStyleEntry(entry.title) ? entry.score * 0.55 : entry.score,
+    }));
   }
 
   // Re-sort: chronological for WHEN queries, relevance for others
@@ -380,8 +408,8 @@ export async function searchObservations(options: SearchOptions): Promise<IndexE
     intermediate = intermediate.filter(e => new Date(e.rawTime).getTime() <= untilDate);
   }
 
-  // Apply original limit after post-filtering (we requested extra when multi-alias post-filter is active)
-  if (projectIds && projectIds.length > 1) {
+  // Apply original limit after post-filtering (we intentionally over-requested when project filtering is active)
+  if (projectIds) {
     intermediate = intermediate.slice(0, options.limit ?? 20);
   }
 
@@ -389,7 +417,11 @@ export async function searchObservations(options: SearchOptions): Promise<IndexE
   // After Orama + recency + affinity scoring, use LLM to rerank by
   // semantic relevance to the actual query context.
   // ~40% improvement in Top-5 precision when enabled.
-  if (hasQuery && intermediate.length > 2) {
+  const rerankCjkRatio = hasQuery
+    ? (originalQuery!.match(/[\u4e00-\u9fff\u3040-\u309f\u30a0-\u30ff\uac00-\ud7af]/g) || []).length / originalQuery!.length
+    : 0;
+
+  if (hasQuery && intermediate.length > 2 && rerankCjkRatio <= 0.3) {
     try {
       const { rerankResults } = await import('../llm/quality.js');
       // Build narrative snippets from original search hits for richer reranking
@@ -408,14 +440,14 @@ export async function searchObservations(options: SearchOptions): Promise<IndexE
       
       // LLM rerank timeout: 10 seconds
       const RERANK_TIMEOUT_MS = 10000;
-      const rerankPromise = rerankResults(options.query!, candidates);
+      const rerankPromise = rerankResults(originalQuery!, candidates);
       const timeoutPromise = new Promise<never>((_, reject) =>
         setTimeout(() => reject(new Error(`LLM rerank timeout after ${RERANK_TIMEOUT_MS}ms`)), RERANK_TIMEOUT_MS)
       );
       const { reranked, usedLLM } = await Promise.race([rerankPromise, timeoutPromise]);
       
       if (usedLLM) {
-        // Rebuild intermediate with reranked order, preserving all original fields
+        // Rebuild intermediate with reranked order, preserving all original fields.
         const candidateMap = new Map(candidates.map((candidate, index) => [candidate.id, intermediate[index]]));
         const rerankedIntermediate = reranked
           .map(r => candidateMap.get(r.id))
@@ -434,8 +466,8 @@ export async function searchObservations(options: SearchOptions): Promise<IndexE
   let entries: IndexEntry[] = intermediate.map(({ rawTime: _, ...rest }) => rest);
 
   // Explainable recall: annotate entries with match reasons (O(1) lookup via Map)
-  if (hasQuery && options.query) {
-    const queryLower = options.query.toLowerCase();
+  if (hasQuery && originalQuery) {
+    const queryLower = originalQuery.toLowerCase();
     const queryTokens = queryLower.split(/\s+/).filter(t => t.length > 1);
     const entryMap = new Map(entries.map(e => [makeEntryKey(e.projectId, e.id), e]));
     for (const hit of results.hits) {

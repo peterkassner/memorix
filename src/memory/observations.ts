@@ -16,7 +16,6 @@ import {
   resetDb,
   generateEmbedding,
   batchGenerateEmbeddings,
-  isEmbeddingEnabled,
   makeOramaObservationId,
 } from '../store/orama-store.js';
 import { saveObservationsJson, loadObservationsJson, saveIdCounter, loadIdCounter } from '../store/persistence.js';
@@ -495,15 +494,14 @@ export async function reindexObservations(): Promise<number> {
 
   // Batch-generate all embeddings at once (much faster than individual calls)
   let embeddings: (number[] | null)[] = [];
-  if (isEmbeddingEnabled()) {
-    try {
+  try {
       const texts = observations.map(obs =>
         [obs.title, obs.narrative, ...obs.facts].join(' '),
       );
       embeddings = await batchGenerateEmbeddings(texts);
-    } catch {
       // Batch embedding failed — fall back to no embeddings
-    }
+  } catch {
+    // Batch embedding failed; fall back to no embeddings.
   }
 
   let count = 0;

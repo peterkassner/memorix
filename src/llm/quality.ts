@@ -120,6 +120,7 @@ Rules:
 - Consider semantic relevance, not just keyword overlap
 - Gotchas and decisions related to the query topic should rank higher
 - Recent problem-solutions for the same component should rank higher
+- Command or audit-log memories (titles starting with "Ran:" or "Command:") should rank lower for natural-language questions unless the query is explicitly about commands, scripts, or audit history
 - Generic or loosely related memories should rank lower
 - Output ONLY a JSON array of IDs in order of relevance (most relevant first)
 - Include ALL candidate IDs, just reorder them

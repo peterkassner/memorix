@@ -246,6 +246,64 @@ describe('API Embedding Provider', () => {
       expect(results).toHaveLength(2);
       expect(mockFetch).toHaveBeenCalledTimes(callCount); // No new calls
     });
+
+    it('should respect DashScope batch size limits', async () => {
+      process.env.MEMORIX_EMBEDDING_BASE_URL = 'https://dashscope.aliyuncs.com/compatible-mode/v1';
+      process.env.MEMORIX_EMBEDDING_MODEL = 'text-embedding-v4';
+
+      const probeVec = makeVector(1024);
+      mockFetch.mockResolvedValueOnce(mockEmbeddingResponse([probeVec], 'text-embedding-v4'));
+      const provider = await APIEmbeddingProvider.create();
+
+      const inputs = Array.from({ length: 12 }, (_, i) => `dashscope-batch-${i}`);
+      const chunk1 = Array.from({ length: 10 }, (_, i) => makeVector(1024, 0.01 * (i + 1)));
+      const chunk2 = Array.from({ length: 2 }, (_, i) => makeVector(1024, 0.2 + 0.01 * i));
+
+      mockFetch
+        .mockResolvedValueOnce(mockEmbeddingResponse(chunk1, 'text-embedding-v4'))
+        .mockResolvedValueOnce(mockEmbeddingResponse(chunk2, 'text-embedding-v4'));
+
+      const results = await provider.embedBatch(inputs);
+
+      expect(results).toHaveLength(12);
+      expect(results[0]).toEqual(chunk1[0]);
+      expect(results[9]).toEqual(chunk1[9]);
+      expect(results[10]).toEqual(chunk2[0]);
+      expect(results[11]).toEqual(chunk2[1]);
+
+      const firstBatchBody = JSON.parse(mockFetch.mock.calls[1][1].body);
+      const secondBatchBody = JSON.parse(mockFetch.mock.calls[2][1].body);
+      expect(firstBatchBody.input).toHaveLength(10);
+      expect(secondBatchBody.input).toHaveLength(2);
+    });
+
+    it('should split and retry when provider rejects an oversized batch', async () => {
+      const probeVec = makeVector(1536);
+      mockFetch.mockResolvedValueOnce(mockEmbeddingResponse([probeVec]));
+      const provider = await APIEmbeddingProvider.create();
+
+      const oversizeError = {
+        ok: false,
+        status: 400,
+        headers: mockHeaders(),
+        text: () => Promise.resolve('batch size is invalid, it should not be larger than 2'),
+      };
+
+      mockFetch
+        .mockResolvedValueOnce(oversizeError)
+        .mockResolvedValueOnce(mockEmbeddingResponse([makeVector(1536, 0.11), makeVector(1536, 0.12)]))
+        .mockResolvedValueOnce(mockEmbeddingResponse([makeVector(1536, 0.21), makeVector(1536, 0.22)]));
+
+      const results = await provider.embedBatch(['split-a', 'split-b', 'split-c', 'split-d']);
+
+      expect(results).toHaveLength(4);
+      expect(results.every((item) => Array.isArray(item) && item.length === 1536)).toBe(true);
+
+      const firstRetryBody = JSON.parse(mockFetch.mock.calls[2][1].body);
+      const secondRetryBody = JSON.parse(mockFetch.mock.calls[3][1].body);
+      expect(firstRetryBody.input).toEqual(['split-a', 'split-b']);
+      expect(secondRetryBody.input).toEqual(['split-c', 'split-d']);
+    });
   });
 
   describe('error handling & retry', () => {

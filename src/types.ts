@@ -231,6 +231,8 @@ export interface MemorixDocument {
   status: string;
   /** Origin: agent, git, manual */
   source: string;
+  /** Optional vector embedding for semantic/hybrid retrieval */
+  embedding?: number[];
 }
 
 // ============================================================

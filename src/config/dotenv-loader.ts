@@ -46,6 +46,10 @@ function loadEnvFile(filePath: string): void {
   loadedEnvFiles.push(filePath);
 }
 
+interface DotenvLoadOptions {
+  userHomeDir?: string;
+}
+
 // ─── Public API ───
 
 /**
@@ -54,7 +58,7 @@ function loadEnvFile(filePath: string): void {
  *
  * @param projectRoot - Project root directory (for project-level .env)
  */
-export function loadDotenv(projectRoot?: string): void {
+export function loadDotenv(projectRoot?: string, options: DotenvLoadOptions = {}): void {
   if (dotenvLoaded && dotenvProjectRoot === (projectRoot ?? null)) return;
 
   loadedEnvFiles.length = 0;
@@ -69,7 +73,7 @@ export function loadDotenv(projectRoot?: string): void {
 
   // 2. User-level .env (~/.memorix/.env) — lowest .env priority, load second
   //    (override: false means it only fills in keys not already set)
-  loadEnvFile(join(homedir(), '.memorix', '.env'));
+  loadEnvFile(join(options.userHomeDir ?? homedir(), '.memorix', '.env'));
 
   dotenvLoaded = true;
   dotenvProjectRoot = projectRoot ?? null;
