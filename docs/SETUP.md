@@ -60,6 +60,12 @@ This mode gives you:
 - Team and collaboration features
 - a single long-lived Memorix process shared by multiple agents
 
+Important for multi-project usage:
+
+- In HTTP control-plane mode, agents should call `memorix_session_start` with `projectRoot` set to the **absolute path of the current workspace or repo root** when that path is available.
+- `projectRoot` is a detection anchor only; Git remains the source of truth for the final project identity.
+- If the client cannot provide a reliable workspace path, Memorix should fail closed rather than silently inventing an `untracked/*` project.
+
 Recommended when:
 
 - you want to use the dashboard regularly
@@ -114,6 +120,8 @@ HTTP example:
 }
 ```
 
+If you use the HTTP control plane and your client supports workspace-aware prompts or rules, make sure it calls `memorix_session_start` with the current workspace absolute path as `projectRoot`.
+
 ### Cursor
 
 Project config: `.cursor/mcp.json`
@@ -156,6 +164,8 @@ HTTP example:
 }
 ```
 
+For Windsurf-like HTTP clients, pair the MCP URL with agent instructions that pass the current workspace absolute path as `projectRoot` when starting a Memorix session.
+
 ### Codex
 
 Config file: `~/.codex/config.toml`
@@ -173,6 +183,8 @@ HTTP example:
 [mcp_servers.memorix]
 url = "http://localhost:3211/mcp"
 ```
+
+For Codex-like HTTP clients, the transport URL alone is not enough for multi-project parallel work. The agent should also call `memorix_session_start` with the current workspace absolute path as `projectRoot`.
 
 ### GitHub Copilot / VS Code
 

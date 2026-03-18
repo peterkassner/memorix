@@ -157,25 +157,48 @@ export interface SharedTeamInstances {
   taskManager: InstanceType<typeof import('./team/tasks.js').TaskManager>;
 }
 
-export async function createMemorixServer(cwd?: string, existingServer?: McpServer, sharedTeam?: SharedTeamInstances): Promise<{
+export interface CreateMemorixServerOptions {
+  allowUntrackedFallback?: boolean;
+}
+
+export async function createMemorixServer(
+  cwd?: string,
+  existingServer?: McpServer,
+  sharedTeam?: SharedTeamInstances,
+  options: CreateMemorixServerOptions = {},
+): Promise<{
   server: McpServer;
   graphManager: KnowledgeGraphManager;
   projectId: string;
   deferredInit: () => Promise<void>;
   switchProject: (newCwd: string) => Promise<boolean>;
+  isExplicitlyBound: () => boolean;
 }> {
   // Detect current project — strict .git-based detection
+  const allowUntrackedFallback = options.allowUntrackedFallback ?? true;
   const detectedProject = detectProject(cwd);
   let rawProject: import('./types.js').ProjectInfo;
+  let projectResolved = true;
+  let projectResolutionError: string | null = null;
+  let explicitProjectBound = false; // Set true when memorix_session_start binds via projectRoot
   if (detectedProject) {
     rawProject = detectedProject;
   } else {
-    // No .git found — warn but don't crash. Use path-based fallback.
     const basePath = cwd ?? process.cwd();
     const name = (await import('node:path')).basename(basePath) || 'unknown';
-    rawProject = { id: `untracked/${name}`, name, rootPath: basePath };
-    console.error(`[memorix] WARNING: No .git found in "${basePath}" — project isolation degraded`);
-    console.error(`[memorix] Run "git init" in your project for proper isolation.`);
+    projectResolved = false;
+    projectResolutionError =
+      `No git project could be resolved from "${basePath}". ` +
+      'This client did not provide a usable workspace root, so project-scoped tools are disabled until a git-backed project is detected.';
+    rawProject = allowUntrackedFallback
+      ? { id: `untracked/${name}`, name, rootPath: basePath }
+      : { id: '__unresolved__', name, rootPath: basePath };
+    if (!allowUntrackedFallback) {
+      console.error(`[memorix] WARNING: ${projectResolutionError}`);
+    } else {
+      console.error(`[memorix] WARNING: No .git found in "${basePath}" - project isolation degraded`);
+      console.error(`[memorix] Run "git init" in your project for proper isolation.`);
+    }
   }
 
   // Migrate legacy per-project subdirectories into flat base directory (one-time, silent)
@@ -189,14 +212,16 @@ export async function createMemorixServer(cwd?: string, existingServer?: McpServ
 
   let projectDir = await getProjectDataDir(rawProject.id);
 
-  // Register alias and resolve to canonical project ID.
-  // This ensures the same physical project always uses the same ID
-  // regardless of which IDE or detection method discovered it.
-  initAliasRegistry(projectDir);
-  const canonicalId = await registerAlias(rawProject);
-  let project = { ...rawProject, id: canonicalId };
-  if (canonicalId !== rawProject.id) {
-    console.error(`[memorix] Alias resolved: ${rawProject.id} → ${canonicalId}`);
+  // Register aliases only for git-backed projects. Unresolved sessions should not
+  // silently create canonical IDs or pollute alias mappings.
+  let project = rawProject;
+  if (projectResolved) {
+    initAliasRegistry(projectDir);
+    const canonicalId = await registerAlias(rawProject);
+    project = { ...rawProject, id: canonicalId };
+    if (canonicalId !== rawProject.id) {
+      console.error(`[memorix] Alias resolved: ${rawProject.id} -> ${canonicalId}`);
+    }
   }
 
   // Initialize project root for YAML config resolution — ensures all config getters
@@ -266,6 +291,21 @@ export async function createMemorixServer(cwd?: string, existingServer?: McpServ
   // Sync advisory variables — populated by deferredInit(), used by memorix_search
   let syncAdvisoryShown = false;
   let syncAdvisory: string | null = null;
+  const requireResolvedProject = (action: string) => {
+    if (projectResolved) return null;
+    return {
+      content: [{
+        type: 'text' as const,
+        text:
+          `Cannot ${action} yet.\n` +
+          `${projectResolutionError ?? 'No git-backed project is currently bound to this session.'}\n\n` +
+          'To bind this session to a project, call memorix_session_start with the projectRoot parameter:\n' +
+          '  memorix_session_start({ projectRoot: "/path/to/your/project" })\n\n' +
+          'The path should point to a directory containing a .git folder.',
+      }],
+      isError: true as const,
+    };
+  };
 
   // Create MCP server (or use existing one from roots-aware flow)
   const server = existingServer ?? new McpServer({
@@ -317,6 +357,9 @@ export async function createMemorixServer(cwd?: string, existingServer?: McpServ
       },
     },
     async ({ entityName: rawEntityName, type: rawType, title: rawTitle, narrative, facts, filesModified, concepts, topicKey, progress, relatedCommits, relatedEntities }) => {
+      const unresolved = requireResolvedProject('store memory in the current project');
+      if (unresolved) return unresolved;
+
       // Mutable copies — Formation Pipeline may improve these
       let entityName = rawEntityName;
       let type = rawType;
@@ -846,6 +889,11 @@ export async function createMemorixServer(cwd?: string, existingServer?: McpServ
       },
     },
     async ({ query, limit, type, maxTokens, scope, since, until, status, source }) => {
+      if (scope !== 'global') {
+        const unresolved = requireResolvedProject('search the current project');
+        if (unresolved) return unresolved;
+      }
+
       const safeLimit = limit != null ? coerceNumber(limit, 20) : undefined;
       const safeMaxTokens = maxTokens != null ? coerceNumber(maxTokens, 0) : undefined;
 
@@ -981,6 +1029,9 @@ export async function createMemorixServer(cwd?: string, existingServer?: McpServ
       },
     },
     async ({ entityName, decision, alternatives, rationale, constraints, expectedOutcome, risks, concepts, filesModified, relatedCommits, relatedEntities }) => {
+      const unresolved = requireResolvedProject('store reasoning in the current project');
+      if (unresolved) return unresolved;
+
       // Build structured narrative from reasoning fields
       const narrativeParts: string[] = [rationale];
       if (alternatives && alternatives.length > 0) {
@@ -1056,6 +1107,11 @@ export async function createMemorixServer(cwd?: string, existingServer?: McpServ
       },
     },
     async ({ query, limit, scope }) => {
+      if (scope !== 'global') {
+        const unresolved = requireResolvedProject('search reasoning in the current project');
+        if (unresolved) return unresolved;
+      }
+
       const safeLimit = limit != null ? coerceNumber(limit, 10) : 10;
       const result = await compactSearch({
         query,
@@ -2224,13 +2280,62 @@ export async function createMemorixServer(cwd?: string, existingServer?: McpServ
       description:
         'Start a new coding session. Returns context from previous sessions so you can resume work seamlessly. ' +
         'Call this at the beginning of a session to track activity and get injected context. ' +
-        'Any previous active session for this project will be auto-closed.',
+        'Any previous active session for this project will be auto-closed.\n\n' +
+        'IMPORTANT for HTTP/control-plane mode: pass `projectRoot` with the absolute path to your ' +
+        'workspace root (e.g., the directory open in your IDE). Memorix uses this to detect the git ' +
+        'project and bind this session to the correct project context. Without it, project-scoped ' +
+        'tools will be disabled.',
       inputSchema: {
         sessionId: z.string().optional().describe('Custom session ID (auto-generated if omitted)'),
         agent: z.string().optional().describe('Agent/IDE name (e.g., "cursor", "windsurf", "claude-code")'),
+        projectRoot: z.string().optional().describe(
+          'Absolute path to the workspace/project root directory (e.g., the folder open in your IDE). ' +
+          'Memorix will detect the git project from this path and bind this session to it. ' +
+          'Required for HTTP transport when multiple projects are open simultaneously.',
+        ),
       },
     },
-    async ({ sessionId, agent }) => {
+    async ({ sessionId, agent, projectRoot: explicitRoot }) => {
+      // ── Explicit project binding via projectRoot ──────────────────────
+      // If the caller provides projectRoot, attempt to switch/bind to that project
+      // BEFORE checking whether the project is resolved. This is the primary
+      // mechanism for HTTP/control-plane multi-project support.
+      if (explicitRoot && typeof explicitRoot === 'string') {
+        let bound = await switchProject(explicitRoot);
+        // Fallback: workspace root may contain a git project in a subdirectory
+        if (!bound) {
+          const { findGitInSubdirs } = await import('./project/detector.js');
+          const subGit = findGitInSubdirs(explicitRoot);
+          if (subGit) {
+            bound = await switchProject(subGit);
+          }
+        }
+        if (!bound) {
+          // Explicit projectRoot was provided but no git repo found.
+          // ALWAYS fail closed — never silently fall back to a previously bound project.
+          const hint = projectResolved
+            ? `The session was previously bound to "${project.name}" (${project.id}), but the explicitly requested path has no git repo. Refusing to silently reuse the old binding.`
+            : 'No project is currently bound to this session.';
+          return {
+            content: [{
+              type: 'text' as const,
+              text:
+                `Cannot bind session to project.\n` +
+                `No git repository found at "${explicitRoot}".\n` +
+                `${hint}\n\n` +
+                'Ensure the path points to a directory containing a .git folder (or a subdirectory of one). ' +
+                'Run "git init" in your project root if needed.',
+            }],
+            isError: true as const,
+          };
+        }
+        // Bound successfully — mark as explicitly bound so roots won't override
+        explicitProjectBound = true;
+      }
+
+      const unresolved = requireResolvedProject('start a project session');
+      if (unresolved) return unresolved;
+
       const { startSession } = await import('./memory/session.js');
       const result = await startSession(projectDir, project.id, { sessionId, agent });
 
@@ -3050,21 +3155,32 @@ export async function createMemorixServer(cwd?: string, existingServer?: McpServ
     }
   };
 
-  // Runtime project switch — called when MCP roots change or new workspace detected.
+  // Runtime project switch — called when MCP roots change, projectRoot binding, or new workspace detected.
   // Updates all mutable state; tool closures automatically pick up new values.
   const switchProject = async (newCwd: string): Promise<boolean> => {
     const newDetected = detectProject(newCwd);
     if (!newDetected) return false; // no .git found at new path
 
+    // Resolve data dir FIRST (was buggy: used before declaration)
+    const newProjectDir = await getProjectDataDir(newDetected.id);
+    initAliasRegistry(newProjectDir);
     const newCanonicalId = await registerAlias(newDetected);
-    if (newCanonicalId === project.id) return false; // same project, no-op
+
+    // Allow switch if: different project OR current project is unresolved (__unresolved__)
+    if (newCanonicalId === project.id && projectResolved) return false; // same project, no-op
 
     console.error(`[memorix] Switching project: ${project.id} → ${newCanonicalId}`);
 
+    // Re-resolve data dir with canonical ID (may differ from raw detected ID)
+    const canonicalProjectDir = newCanonicalId !== newDetected.id
+      ? await getProjectDataDir(newCanonicalId)
+      : newProjectDir;
+
     // Update mutable state — all tool closures reference these by closure
-    const newProjectDir = await getProjectDataDir(newCanonicalId);
+    projectResolved = true;
+    projectResolutionError = null;
     project = { ...newDetected, id: newCanonicalId };
-    projectDir = newProjectDir;
+    projectDir = canonicalProjectDir;
 
     // Update YAML config root and reload .env for the new project
     try {
@@ -3086,5 +3202,8 @@ export async function createMemorixServer(cwd?: string, existingServer?: McpServ
     return true;
   };
 
-  return { server, graphManager, projectId: project.id, deferredInit, switchProject };
+  return {
+    server, graphManager, projectId: project.id, deferredInit, switchProject,
+    isExplicitlyBound: () => explicitProjectBound,
+  };
 }

@@ -142,6 +142,8 @@ memorix serve
 
 Use this for normal MCP clients that expect stdio transport.
 
+This is the best fit for quick, single-project usage where the client already launches Memorix from the correct workspace root.
+
 ### HTTP MCP + Dashboard
 
 ```bash
@@ -153,6 +155,12 @@ Use this when you want:
 - HTTP MCP transport
 - collaboration tools
 - the dashboard on the same port
+
+Important:
+
+- In HTTP control-plane mode, agents should call `memorix_session_start` with `projectRoot` set to the **absolute path of the current workspace or repo root** when that path is available.
+- `projectRoot` is a detection anchor only; Git remains the source of truth for the final project identity.
+- If the client cannot supply a reliable workspace path, HTTP mode should fail closed instead of silently inventing an `untracked/*` project.
 
 Typical endpoints:
 
@@ -277,9 +285,11 @@ Memorix works out of the box with BM25/full-text search. It can also use optiona
 
 At session start:
 
-1. load session context
-2. search relevant recent memory
-3. fetch detail only when needed
+1. load session context with `memorix_session_start`
+2. in HTTP control-plane mode, pass `projectRoot` = the absolute current workspace or repo-root path when available
+3. if session start cannot resolve the project, retry with the correct path before using project-scoped tools
+4. search relevant recent memory
+5. fetch detail only when needed
 
 During work:
 

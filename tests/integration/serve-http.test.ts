@@ -175,7 +175,7 @@ beforeAll(async () => {
         if (sessionId && sessions.has(sessionId)) {
           await sessions.get(sessionId)!.transport.handleRequest(req, res, body);
         } else if (!sessionId && isInitializeRequest(body)) {
-          let createdState: { transport: any; server: any; switchProject: any } | null = null;
+          let createdState: { transport: any; server: any; switchProject: any; isExplicitlyBound: any } | null = null;
           const transport = new StreamableHTTPServerTransport({
             sessionIdGenerator: () => randomUUID(),
             onsessioninitialized: (sid: string) => {
@@ -186,12 +186,19 @@ beforeAll(async () => {
             const sid = transport.sessionId;
             if (sid) sessions.delete(sid);
           };
-          const { server, switchProject } = await createMemorixServer(testDir);
-          createdState = { transport, server, switchProject };
+          const { server, switchProject, isExplicitlyBound } = await createMemorixServer(
+            testDir,
+            undefined,
+            undefined,
+            { allowUntrackedFallback: false },
+          );
+          createdState = { transport, server, switchProject, isExplicitlyBound };
           await server.connect(transport);
 
           const tryRootsSwitch = async () => {
             try {
+              // Guard: explicit projectRoot binding prevents roots override
+              if (isExplicitlyBound()) return;
               const { roots } = await server.server.listRoots();
               if (!roots || roots.length === 0) return;
               for (const root of roots) {
@@ -370,6 +377,260 @@ describe('HTTP Transport', () => {
     } finally {
       await transportA.close();
       await transportB.close();
+    }
+  });
+
+  it('fails closed when the client does not provide roots or projectRoot', async () => {
+    const sessionId = await initSession();
+
+    const response = await mcpPost({
+      jsonrpc: '2.0',
+      method: 'tools/call',
+      params: {
+        name: 'memorix_session_start',
+        arguments: {},
+      },
+      id: 99,
+    }, sessionId);
+
+    expect(response.status).toBe(200);
+    const toolResult = CallToolResultSchema.parse(response.json?.result);
+    expect(toolResult.isError).toBe(true);
+    const textContent = toolResult.content.map((part: any) => part.text ?? '').join('\n');
+    expect(textContent).toContain('Cannot start a project session');
+    expect(textContent).toContain('projectRoot');
+    expect(textContent).not.toContain('Project:');
+  });
+
+  it('should bind session to project via explicit projectRoot', async () => {
+    const sessionId = await initSession();
+
+    const response = await mcpPost({
+      jsonrpc: '2.0',
+      method: 'tools/call',
+      params: {
+        name: 'memorix_session_start',
+        arguments: { agent: 'test-explicit', projectRoot: projectADir },
+      },
+      id: 100,
+    }, sessionId);
+
+    expect(response.status).toBe(200);
+    const toolResult = CallToolResultSchema.parse(response.json?.result);
+    expect(toolResult.isError).toBeFalsy();
+    const text = toolResult.content.map((part: any) => part.text ?? '').join('\n');
+    expect(text).toContain('Session started');
+    expect(text).toContain('AVIDS2/http-project-a');
+    expect(text).toContain('Project:');
+  });
+
+  it('should support dual session parallel binding to different projects', async () => {
+    const sidA = await initSession();
+    const sidB = await initSession();
+
+    // Session A binds to project-a
+    const resA = await mcpPost({
+      jsonrpc: '2.0',
+      method: 'tools/call',
+      params: {
+        name: 'memorix_session_start',
+        arguments: { agent: 'parallel-a', projectRoot: projectADir },
+      },
+      id: 201,
+    }, sidA);
+
+    // Session B binds to project-b
+    const resB = await mcpPost({
+      jsonrpc: '2.0',
+      method: 'tools/call',
+      params: {
+        name: 'memorix_session_start',
+        arguments: { agent: 'parallel-b', projectRoot: projectBDir },
+      },
+      id: 202,
+    }, sidB);
+
+    const resultA = CallToolResultSchema.parse(resA.json?.result);
+    const resultB = CallToolResultSchema.parse(resB.json?.result);
+
+    expect(resultA.isError).toBeFalsy();
+    expect(resultB.isError).toBeFalsy();
+
+    const textA = resultA.content.map((part: any) => part.text ?? '').join('\n');
+    const textB = resultB.content.map((part: any) => part.text ?? '').join('\n');
+
+    // Each session should be in its own project bucket
+    expect(textA).toContain('AVIDS2/http-project-a');
+    expect(textB).toContain('AVIDS2/http-project-b');
+    // No cross-contamination
+    expect(textA).not.toContain('http-project-b');
+    expect(textB).not.toContain('http-project-a');
+  });
+
+  it('should fail binding when projectRoot has no git repo', async () => {
+    const noGitDir = path.join(testDir, 'no-git-here');
+    await fs.mkdir(noGitDir, { recursive: true });
+
+    const sessionId = await initSession();
+
+    const response = await mcpPost({
+      jsonrpc: '2.0',
+      method: 'tools/call',
+      params: {
+        name: 'memorix_session_start',
+        arguments: { agent: 'test-nogit', projectRoot: noGitDir },
+      },
+      id: 300,
+    }, sessionId);
+
+    const toolResult = CallToolResultSchema.parse(response.json?.result);
+    expect(toolResult.isError).toBe(true);
+    const text = toolResult.content.map((part: any) => part.text ?? '').join('\n');
+    expect(text).toContain('Cannot bind session to project');
+    expect(text).toContain('No git repository found');
+  });
+
+  it('should use bound project context for memorix_store after session_start', async () => {
+    const sessionId = await initSession();
+
+    // Bind to project A
+    await mcpPost({
+      jsonrpc: '2.0',
+      method: 'tools/call',
+      params: {
+        name: 'memorix_session_start',
+        arguments: { agent: 'store-test', projectRoot: projectADir },
+      },
+      id: 401,
+    }, sessionId);
+
+    // Store an observation — should go into project A's context
+    const storeRes = await mcpPost({
+      jsonrpc: '2.0',
+      method: 'tools/call',
+      params: {
+        name: 'memorix_store',
+        arguments: {
+          entityName: 'http-bind-test',
+          type: 'discovery',
+          title: 'HTTP binding test observation',
+          narrative: 'This observation should be stored in project A context',
+        },
+      },
+      id: 402,
+    }, sessionId);
+
+    const storeResult = CallToolResultSchema.parse(storeRes.json?.result);
+    expect(storeResult.isError).toBeFalsy();
+    const storeText = storeResult.content.map((part: any) => part.text ?? '').join('\n');
+    expect(storeText).toContain('AVIDS2/http-project-a');
+
+    // Search should also be scoped to project A
+    const searchRes = await mcpPost({
+      jsonrpc: '2.0',
+      method: 'tools/call',
+      params: {
+        name: 'memorix_search',
+        arguments: { query: 'HTTP binding test' },
+      },
+      id: 403,
+    }, sessionId);
+
+    const searchResult = CallToolResultSchema.parse(searchRes.json?.result);
+    expect(searchResult.isError).toBeFalsy();
+    const searchText = searchResult.content.map((part: any) => part.text ?? '').join('\n');
+    expect(searchText).toContain('HTTP binding test');
+  });
+
+  it('should fail closed when already bound + bad projectRoot is given', async () => {
+    const sessionId = await initSession();
+
+    // First: successfully bind to project A
+    const bindRes = await mcpPost({
+      jsonrpc: '2.0',
+      method: 'tools/call',
+      params: {
+        name: 'memorix_session_start',
+        arguments: { agent: 'rebind-test', projectRoot: projectADir },
+      },
+      id: 601,
+    }, sessionId);
+    const bindResult = CallToolResultSchema.parse(bindRes.json?.result);
+    expect(bindResult.isError).toBeFalsy();
+    const bindText = bindResult.content.map((part: any) => part.text ?? '').join('\n');
+    expect(bindText).toContain('AVIDS2/http-project-a');
+
+    // Second: attempt to re-bind with a path that has NO git repo
+    const noGitDir = path.join(testDir, 'stale-path-no-git');
+    await fs.mkdir(noGitDir, { recursive: true });
+
+    const rebindRes = await mcpPost({
+      jsonrpc: '2.0',
+      method: 'tools/call',
+      params: {
+        name: 'memorix_session_start',
+        arguments: { agent: 'rebind-test', projectRoot: noGitDir },
+      },
+      id: 602,
+    }, sessionId);
+
+    const rebindResult = CallToolResultSchema.parse(rebindRes.json?.result);
+    // Must fail — must NOT silently reuse old project-a binding
+    expect(rebindResult.isError).toBe(true);
+    const rebindText = rebindResult.content.map((part: any) => part.text ?? '').join('\n');
+    expect(rebindText).toContain('Cannot bind session to project');
+    expect(rebindText).toContain('Refusing to silently reuse the old binding');
+  });
+
+  it('should not override explicit projectRoot binding via roots notification', async () => {
+    // Use the MCP Client SDK so we can send roots notifications
+    const client = new Client(
+      { name: 'roots-override-test', version: '1.0.0' },
+      { capabilities: { roots: { listChanged: true } } },
+    );
+
+    // Client advertises project-b as root
+    client.setRequestHandler(ListRootsRequestSchema, async () => ({
+      roots: [{ uri: pathToFileURL(projectBDir).href, name: 'project-b' }],
+    }));
+
+    const transport = new StreamableHTTPClientTransport(new URL(`${BASE_URL}/mcp`));
+
+    try {
+      await client.connect(transport);
+
+      // Step 1: Explicitly bind to project-a via projectRoot
+      const bindRes = await client.request({
+        method: 'tools/call',
+        params: {
+          name: 'memorix_session_start',
+          arguments: { agent: 'roots-override-test', projectRoot: projectADir },
+        },
+      }, CallToolResultSchema);
+
+      const bindText = bindRes.content?.[0]?.text ?? '';
+      expect(bindText).toContain('AVIDS2/http-project-a');
+
+      // Step 2: Fire roots changed notification (advertising project-b)
+      await client.sendRootsListChanged();
+      await new Promise(resolve => setTimeout(resolve, 200));
+
+      // Step 3: Call session_start again WITHOUT projectRoot — its response always
+      // shows "Project: <name> (<id>)" which directly proves the bound context.
+      const verifyRes = await client.request({
+        method: 'tools/call',
+        params: {
+          name: 'memorix_session_start',
+          arguments: { agent: 'roots-override-verify' },
+        },
+      }, CallToolResultSchema);
+
+      const verifyText = verifyRes.content?.[0]?.text ?? '';
+      // Project context must still be project-a, NOT switched to project-b by roots
+      expect(verifyText).toContain('AVIDS2/http-project-a');
+      expect(verifyText).not.toContain('http-project-b');
+    } finally {
+      await transport.close();
     }
   });
 

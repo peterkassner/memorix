@@ -77,6 +77,8 @@ memorix serve-http --port 3211
 
 Use `serve-http` when you want the HTTP transport, collaboration features, and the dashboard on the same port.
 
+In HTTP control-plane mode, agents should call `memorix_session_start` with `projectRoot` set to the **absolute path of the current workspace or repo root** when that path is available. Git remains the source of truth for the final project identity; `projectRoot` is the detection anchor that keeps parallel sessions from drifting into the wrong project bucket.
+
 Add Memorix to your MCP client:
 
 <details open>
@@ -159,6 +161,8 @@ Then open:
 - Dashboard: `http://localhost:3211`
 
 This mode gives you collaboration tools, project identity diagnostics, config provenance, Git Memory views, and the dashboard in one place.
+
+When multiple HTTP sessions are open at once, each session should bind itself with `memorix_session_start(projectRoot=...)` before using project-scoped memory tools.
 
 ---
 

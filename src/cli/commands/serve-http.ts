@@ -74,6 +74,7 @@ export default defineCommand({
       transport: InstanceType<typeof StreamableHTTPServerTransport>;
       server: Awaited<ReturnType<typeof createMemorixServer>>['server'];
       switchProject: Awaited<ReturnType<typeof createMemorixServer>>['switchProject'];
+      isExplicitlyBound: Awaited<ReturnType<typeof createMemorixServer>>['isExplicitlyBound'];
     };
 
     // Session map: sessionId → transport + per-session server state
@@ -144,8 +145,13 @@ export default defineCommand({
         };
 
         // Create a fresh MCP server for this session (with shared team state)
-        const { server, switchProject } = await createMemorixServer(projectRoot, undefined, sharedTeam);
-        createdState = { transport, server, switchProject };
+        const { server, switchProject, isExplicitlyBound } = await createMemorixServer(
+          projectRoot,
+          undefined,
+          sharedTeam,
+          { allowUntrackedFallback: false },
+        );
+        createdState = { transport, server, switchProject, isExplicitlyBound };
         await server.connect(transport);
 
         const persistRoot = async (rootPath: string) => {
@@ -161,6 +167,12 @@ export default defineCommand({
 
         const tryRootsSwitch = async () => {
           try {
+            // If session was explicitly bound via projectRoot in memorix_session_start,
+            // do NOT allow roots notifications to override the binding.
+            if (isExplicitlyBound()) {
+              console.error(`[memorix] Session ${transport.sessionId?.slice(0, 8) ?? 'pending'} roots switch skipped: session was explicitly bound via projectRoot`);
+              return;
+            }
             const { roots } = await server.server.listRoots();
             if (!roots || roots.length === 0) return;
 
@@ -252,7 +264,12 @@ export default defineCommand({
     const pathModule = await import('node:path');
     const { fileURLToPath } = await import('node:url');
 
-    const project = detectProject(projectRoot) ?? { id: `untracked/${pathModule.default.basename(projectRoot)}`, name: pathModule.default.basename(projectRoot), rootPath: projectRoot };
+    const detectedDashboardProject = detectProject(projectRoot);
+    const project = detectedDashboardProject ?? {
+      id: '__unresolved__',
+      name: pathModule.default.basename(projectRoot),
+      rootPath: projectRoot,
+    };
     const dashDataDir = await getProjectDataDir(project.id);
     const baseDir = getBaseDataDir();
 

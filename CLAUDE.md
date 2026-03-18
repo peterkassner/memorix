@@ -2,14 +2,24 @@
 
 You have access to Memorix, a local-first memory platform for coding agents. Use it to persist and recall project knowledge across sessions, preserve reasoning, and retrieve Git-backed engineering truth when relevant.
 
-## Rule 1: Start with context
+## Rule 1: Bind the project, then start with context
 
 At the beginning of every conversation:
 
 1. Call `memorix_session_start` to load the previous session summary and recent high-value context.
-2. Then call `memorix_search` with a query related to the user's first message or the current project.
-3. If results matter, use `memorix_detail` to inspect the most relevant memories.
-4. If the user is asking about "what changed", prioritize Git-backed memories when relevant.
+2. If you are connected to the HTTP control plane (`memorix serve-http`) and you know the current workspace path, pass:
+   - `agent`
+   - `projectRoot` = the absolute path of the current workspace or repo root
+3. If you are using stdio / Quick Mode and Memorix is already project-bound, calling `memorix_session_start` without `projectRoot` is acceptable.
+4. If session start fails because the project could not be resolved, retry with the correct absolute workspace path instead of continuing with project-scoped memory calls.
+5. Then call `memorix_search` with a query related to the user's first message or the current project.
+6. If results matter, use `memorix_detail` to inspect the most relevant memories.
+7. If the user is asking about "what changed", prioritize Git-backed memories when relevant.
+
+Important:
+
+- `projectRoot` is a detection anchor only; Git remains the source of truth for project identity.
+- In HTTP control-plane mode, explicit `projectRoot` binding is the safest way to avoid cross-project drift.
 
 ## Rule 2: Store meaningful knowledge, not noise
 
@@ -71,7 +81,7 @@ Best practices:
 
 ### Core retrieval
 
-- `memorix_session_start` - load session context
+- `memorix_session_start` - load session context; in HTTP mode, prefer passing `projectRoot`
 - `memorix_search` - search current or global memory
 - `memorix_detail` - read full memory details
 - `memorix_timeline` - inspect chronological context
