@@ -17,7 +17,7 @@ import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
 import { startSession, endSession, getSessionContext, listSessions, getActiveSession } from '../../src/memory/session.js';
-import { storeObservation, initObservations } from '../../src/memory/observations.js';
+import { storeObservation, initObservations, resolveObservations } from '../../src/memory/observations.js';
 import { resetDb } from '../../src/store/orama-store.js';
 
 let testDir: string;
@@ -145,6 +145,59 @@ describe('Session Lifecycle', () => {
       expect(context).toContain('Key Memories');
       expect(context).toContain('JWT tokens expire silently');
       expect(context).toContain('Use Docker for deployment');
+    });
+
+    it('should prefer relevant project memories over newer noisy demo records', async () => {
+      await storeObservation({
+        entityName: 'deploy',
+        type: 'decision',
+        title: 'Use blue-green deploys for my_status',
+        narrative: 'my_status should keep the deployment switch safe',
+        facts: ['my_status deploy switch uses blue-green rollout'],
+        projectId: PROJECT_ID,
+        filesModified: ['E:/code/test/session-lifecycle/my_status/deploy.ts'],
+      });
+
+      await storeObservation({
+        entityName: 'memorix-demo',
+        type: 'discovery',
+        title: 'Memorix 全能力展示 - Antigravity IDE',
+        narrative: '这是一个演示记录，不应该默认注入到新会话',
+        facts: ['demo-only'],
+        projectId: PROJECT_ID,
+        filesModified: ['E:/code/for_memmcp_test/demo.ts'],
+      });
+
+      const context = await getSessionContext(testDir, PROJECT_ID);
+
+      expect(context).toContain('Use blue-green deploys for my_status');
+      expect(context).not.toContain('Memorix 全能力展示 - Antigravity IDE');
+    });
+
+    it('should ignore resolved observations during context injection', async () => {
+      const { observation: resolvedObservation } = await storeObservation({
+        entityName: 'auth',
+        type: 'gotcha',
+        title: 'Old gotcha should stay resolved',
+        narrative: 'This was fixed already and should not be injected again',
+        facts: ['resolved memory'],
+        projectId: PROJECT_ID,
+      });
+      await resolveObservations([resolvedObservation.id], 'resolved');
+
+      await storeObservation({
+        entityName: 'auth',
+        type: 'problem-solution',
+        title: 'Current auth fix',
+        narrative: 'This is the still-active memory the session should see',
+        facts: ['active memory'],
+        projectId: PROJECT_ID,
+      });
+
+      const context = await getSessionContext(testDir, PROJECT_ID);
+
+      expect(context).toContain('Current auth fix');
+      expect(context).not.toContain('Old gotcha should stay resolved');
     });
 
     it('should show session history for multiple sessions', async () => {

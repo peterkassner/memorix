@@ -11,10 +11,42 @@
  * - Cross-agent session awareness (all agents share session data)
  */
 
-import type { Session, Observation } from '../types.js';
-import { loadSessionsJson, saveSessionsJson, loadObservationsJson } from '../store/persistence.js';
-import { withFileLock } from '../store/file-lock.js';
+import type { Observation, Session } from '../types.js';
 import { resolveAliases } from '../project/aliases.js';
+import { withFileLock } from '../store/file-lock.js';
+import { loadObservationsJson, loadSessionsJson, saveSessionsJson } from '../store/persistence.js';
+
+const PRIORITY_TYPES = new Set(['gotcha', 'decision', 'problem-solution', 'trade-off', 'discovery']);
+const TYPE_EMOJI: Record<string, string> = {
+  'gotcha': '🔶',
+  'decision': '🟠',
+  'problem-solution': '🟡',
+  'trade-off': '⚖️',
+  'discovery': '🟣',
+  'how-it-works': '🔵',
+  'what-changed': '🟢',
+  'why-it-exists': '🟤',
+  'session-request': '🎯',
+};
+const TYPE_WEIGHTS: Record<string, number> = {
+  'gotcha': 6,
+  'decision': 5.5,
+  'problem-solution': 5.25,
+  'trade-off': 4.75,
+  'discovery': 4.25,
+};
+const NOISE_PATTERNS = [
+  /\[测试\]/i,
+  /\btest(?:ing)?\b/i,
+  /验证/i,
+  /兼容/i,
+  /\bdemo\b/i,
+  /展示/i,
+  /handoff/i,
+  /交接/i,
+  /migration/i,
+  /迁移/i,
+];
 
 /**
  * Resolve a projectId into a Set of all known aliases.
@@ -36,6 +68,74 @@ function generateSessionId(): string {
   const ts = Date.now().toString(36);
   const rand = Math.random().toString(36).slice(2, 8);
   return `sess-${ts}-${rand}`;
+}
+
+function tokenizeProjectId(projectId: string): string[] {
+  const leaf = projectId.split('/').at(-1) ?? projectId;
+  return Array.from(
+    new Set(
+      leaf
+        .toLowerCase()
+        .split(/[^a-z0-9]+/i)
+        .map((token) => token.trim())
+        .filter((token) => token.length >= 2),
+    ),
+  );
+}
+
+function stringifyObservation(obs: Observation, includeFiles: boolean = true): string {
+  const parts = [
+    obs.title,
+    obs.narrative,
+    obs.entityName,
+    ...(obs.facts ?? []),
+    ...(obs.concepts ?? []),
+  ];
+
+  if (includeFiles) {
+    parts.push(...(obs.filesModified ?? []));
+  }
+
+  return parts
+    .filter(Boolean)
+    .join('\n')
+    .toLowerCase();
+}
+
+function isNoiseObservation(obs: Observation): boolean {
+  const text = stringifyObservation(obs, false);
+  return NOISE_PATTERNS.some((pattern) => pattern.test(text));
+}
+
+function scoreObservationForSessionContext(obs: Observation, projectTokens: string[], now = Date.now()): number {
+  let score = TYPE_WEIGHTS[obs.type] ?? 1;
+  const text = stringifyObservation(obs);
+  const ageDays = Math.max(0, (now - new Date(obs.createdAt).getTime()) / (1000 * 60 * 60 * 24));
+
+  // Recency still matters, but should not dominate everything.
+  score += Math.max(0.2, 2.5 - Math.min(ageDays, 45) * 0.05);
+
+  // Prefer observations that mention the current project name or touch its paths.
+  if (projectTokens.length > 0) {
+    const matchingTokens = projectTokens.filter((token) => text.includes(token));
+    if (matchingTokens.length > 0) {
+      score += 2 + matchingTokens.length * 0.6;
+    } else if ((obs.filesModified?.length ?? 0) > 0) {
+      score -= 1.25;
+    }
+  }
+
+  // Avoid injecting obviously stale or completed memories back into new sessions.
+  if (obs.status === 'resolved' || obs.status === 'archived') {
+    score -= 100;
+  }
+
+  // Downrank demos, tests, migrations, and handoff records unless nothing else exists.
+  if (isNoiseObservation(obs)) {
+    score -= 4;
+  }
+
+  return score;
 }
 
 /**
@@ -104,7 +204,7 @@ export async function endSession(
 
   await withFileLock(projectDir, async () => {
     const sessions = await loadSessionsJson(projectDir) as Session[];
-    const session = sessions.find(s => s.id === sessionId);
+    const session = sessions.find((entry) => entry.id === sessionId);
 
     if (!session) return;
 
@@ -137,10 +237,9 @@ export async function getSessionContext(
   const sessions = await loadSessionsJson(projectDir) as Session[];
   const allObs = await loadObservationsJson(projectDir) as Observation[];
 
-  // Get recent completed sessions for this project (newest first)
   const aliasSet = await resolveProjectIds(projectId);
   const projectSessions = sessions
-    .filter(s => aliasSet.has(s.projectId) && s.status === 'completed')
+    .filter((session) => aliasSet.has(session.projectId) && session.status === 'completed')
     .sort((a, b) => new Date(b.endedAt || b.startedAt).getTime() - new Date(a.endedAt || a.startedAt).getTime())
     .slice(0, limit);
 
@@ -150,36 +249,33 @@ export async function getSessionContext(
 
   const lines: string[] = [];
 
-  // Last session summary
   if (projectSessions.length > 0) {
     const last = projectSessions[0];
-    lines.push(`## Previous Session`);
+    lines.push('## Previous Session');
     if (last.agent) {
       lines.push(`Agent: ${last.agent}`);
     }
     lines.push(`Ended: ${last.endedAt || last.startedAt}`);
     if (last.summary && last.summary !== '(session ended implicitly by new session start)') {
-      lines.push('');
-      lines.push(last.summary);
+      lines.push('', last.summary);
     }
     lines.push('');
   }
 
-  // High-priority recent observations (gotchas, decisions, discoveries)
-  const PRIORITY_TYPES = new Set(['gotcha', 'decision', 'problem-solution', 'trade-off', 'discovery']);
-  const TYPE_EMOJI: Record<string, string> = {
-    'gotcha': '🔴', 'decision': '🟤', 'problem-solution': '🟡',
-    'trade-off': '⚖️', 'discovery': '🟣', 'how-it-works': '🔵',
-    'what-changed': '🟢', 'why-it-exists': '🟠', 'session-request': '🎯',
-  };
-
+  const projectTokens = tokenizeProjectId(projectId);
   const priorityObs = allObs
-    .filter(o => aliasSet.has(o.projectId) && PRIORITY_TYPES.has(o.type))
-    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-    .slice(0, 5);
+    .filter((obs) => aliasSet.has(obs.projectId) && PRIORITY_TYPES.has(obs.type) && (obs.status ?? 'active') === 'active')
+    .filter((obs) => !isNoiseObservation(obs))
+    .map((obs) => ({ obs, score: scoreObservationForSessionContext(obs, projectTokens) }))
+    .sort((a, b) => {
+      if (b.score !== a.score) return b.score - a.score;
+      return new Date(b.obs.createdAt).getTime() - new Date(a.obs.createdAt).getTime();
+    })
+    .slice(0, 5)
+    .map(({ obs }) => obs);
 
   if (priorityObs.length > 0) {
-    lines.push(`## Key Memories`);
+    lines.push('## Key Memories');
     for (const obs of priorityObs) {
       const emoji = TYPE_EMOJI[obs.type] ?? '📌';
       const fact = obs.facts?.[0] ? ` — ${obs.facts[0]}` : '';
@@ -188,14 +284,13 @@ export async function getSessionContext(
     lines.push('');
   }
 
-  // Session history summary
   if (projectSessions.length > 1) {
     lines.push(`## Session History (last ${projectSessions.length})`);
-    for (const s of projectSessions) {
-      const date = (s.endedAt || s.startedAt).slice(0, 10);
-      const agent = s.agent ? ` [${s.agent}]` : '';
-      const summary = s.summary
-        ? ` — ${s.summary.split('\n')[0].replace(/^#+\s*/, '').slice(0, 80)}`
+    for (const session of projectSessions) {
+      const date = (session.endedAt || session.startedAt).slice(0, 10);
+      const agent = session.agent ? ` [${session.agent}]` : '';
+      const summary = session.summary
+        ? ` — ${session.summary.split('\n')[0].replace(/^#+\s*/, '').slice(0, 80)}`
         : '';
       lines.push(`- ${date}${agent}${summary}`);
     }
@@ -215,7 +310,7 @@ export async function listSessions(
   const sessions = await loadSessionsJson(projectDir) as Session[];
   if (projectId) {
     const aliasSet = await resolveProjectIds(projectId);
-    return sessions.filter(s => aliasSet.has(s.projectId));
+    return sessions.filter((session) => aliasSet.has(session.projectId));
   }
   return sessions;
 }
@@ -229,5 +324,5 @@ export async function getActiveSession(
 ): Promise<Session | null> {
   const sessions = await loadSessionsJson(projectDir) as Session[];
   const aliasSet = await resolveProjectIds(projectId);
-  return sessions.find(s => aliasSet.has(s.projectId) && s.status === 'active') || null;
+  return sessions.find((session) => aliasSet.has(session.projectId) && session.status === 'active') || null;
 }
