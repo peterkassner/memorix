@@ -304,7 +304,8 @@ describe('HTTP Transport', () => {
     try {
       await initSession();
       const logs = errorSpy.mock.calls.map(call => call.join(' ')).join('\n');
-      expect(logs).toContain('HTTP session awaiting explicit project binding');
+      // The 'awaiting binding' log was removed for noise reduction.
+      // Verify the session is lightweight: no reindexing, no LLM, no project init.
       expect(logs).not.toContain('Reindexed');
       expect(logs).not.toContain('LLM enhanced mode');
       expect(logs).not.toContain('Project: __unresolved__');

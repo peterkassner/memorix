@@ -522,7 +522,8 @@ async function initProjectSwitcher() {
     }
 
     // Determine active project
-    let active = allProjects.find(p => p.isCurrent);
+    // Strategy: prefer URL param > isCurrent (if it has real data) > first project with most observations
+    let active = null;
     if (urlProject) {
       const urlMatch = allProjects.find(p => p.id === urlProject);
       if (urlMatch) {
@@ -532,7 +533,26 @@ async function initProjectSwitcher() {
         loadPage(currentPage);
       }
     }
-    if (!active) active = allProjects[0];
+    if (!active) {
+      const current = allProjects.find(p => p.isCurrent);
+      // Only use isCurrent if it's a real project with data (not __unresolved__ / system dir with 0 obs)
+      if (current && current.count > 0 && current.id !== '__unresolved__') {
+        active = current;
+        selectedProject = current.id;
+      } else {
+        // Auto-select the first project with the most observations (list is pre-sorted by count desc)
+        const firstReal = allProjects.find(p => p.count > 0 && p.id !== '__unresolved__');
+        if (firstReal) {
+          active = firstReal;
+          selectedProject = firstReal.id;
+        } else {
+          active = current || allProjects[0];
+          selectedProject = active?.id || '';
+        }
+      }
+      Object.keys(loaded).forEach(k => delete loaded[k]);
+      loadPage(currentPage);
+    }
 
     updateTrigger(active);
     renderProjectList(allProjects, active);
@@ -596,7 +616,7 @@ async function initProjectSwitcher() {
         const project = allProjects.find(p => p.id === id);
         if (!project) return;
 
-        selectedProject = project.isCurrent ? '' : project.id;
+        selectedProject = project.id;
         updateTrigger(project);
         switcher.classList.remove('open');
 

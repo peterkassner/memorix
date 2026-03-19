@@ -80,6 +80,24 @@ export default defineCommand({
     // Session map: sessionId → transport + per-session server state
     const sessions = new Map<string, SessionState>();
 
+    // Session activity tracking (for GC timeout)
+    const sessionLastActivity = new Map<string, number>();
+
+    // Probe session noise reduction: defer init logs, suppress short-lived sessions
+    let suppressedProbeCount = 0;
+    let lastProbeSummaryTime = Date.now();
+    const PROBE_SUMMARY_INTERVAL_MS = 60_000; // Log summary at most once per minute
+    const SESSION_LOG_DELAY_MS = 5_000; // Only log sessions alive > 5 seconds
+    const pendingLogTimers = new Map<string, ReturnType<typeof setTimeout>>();
+
+    function maybeProbeSummary() {
+      if (suppressedProbeCount > 0 && Date.now() - lastProbeSummaryTime > PROBE_SUMMARY_INTERVAL_MS) {
+        console.error(`[memorix] ${suppressedProbeCount} probe connection(s) suppressed (short-lived / unresolved)`);
+        suppressedProbeCount = 0;
+        lastProbeSummaryTime = Date.now();
+      }
+    }
+
     /**
      * Parse JSON body from IncomingMessage
      */
@@ -129,16 +147,30 @@ export default defineCommand({
         const transport = new StreamableHTTPServerTransport({
           sessionIdGenerator: () => randomUUID(),
           onsessioninitialized: (sid: string) => {
-            console.error(`[memorix] HTTP session initialized: ${sid}`);
             if (createdState) sessions.set(sid, createdState);
             sessionLastActivity.set(sid, Date.now());
+            // Defer log — only emit if session survives past SESSION_LOG_DELAY_MS
+            const timer = setTimeout(() => {
+              pendingLogTimers.delete(sid);
+              console.error(`[memorix] HTTP session active: ${sid.slice(0, 8)}…`);
+            }, SESSION_LOG_DELAY_MS);
+            pendingLogTimers.set(sid, timer);
           },
         });
 
         transport.onclose = () => {
           const sid = transport.sessionId;
-          if (sid && sessions.has(sid)) {
-            console.error(`[memorix] HTTP session closed: ${sid}`);
+          if (sid) {
+            // If the deferred init log hasn't fired yet, this was a short-lived probe
+            const pending = pendingLogTimers.get(sid);
+            if (pending) {
+              clearTimeout(pending);
+              pendingLogTimers.delete(sid);
+              suppressedProbeCount++;
+              maybeProbeSummary();
+            } else if (sessions.has(sid)) {
+              console.error(`[memorix] HTTP session closed: ${sid.slice(0, 8)}…`);
+            }
             sessions.delete(sid);
             sessionLastActivity.delete(sid);
           }
@@ -723,7 +755,10 @@ export default defineCommand({
           const allObs = await loadObservationsJson(baseDir) as Array<{ projectId?: string; status?: string }>;
           const projectSet = new Map<string, number>();
           for (const obs of allObs) { if (obs.projectId && (obs.status ?? 'active') === 'active') projectSet.set(obs.projectId, (projectSet.get(obs.projectId) || 0) + 1); }
-          const projects = Array.from(projectSet.entries()).sort((a, b) => b[1] - a[1]).map(([id, count]) => ({ id, name: id.split('/').pop() || id, count, isCurrent: id === defaultProject.id }));
+          const projects = Array.from(projectSet.entries())
+            .filter(([id]) => id !== '__unresolved__')
+            .sort((a, b) => b[1] - a[1])
+            .map(([id, count]) => ({ id, name: id.split('/').pop() || id, count, isCurrent: id === defaultProject.id }));
           sendJson(projects);
           return;
         }
@@ -797,8 +832,8 @@ export default defineCommand({
 
     // Session timeout GC — close sessions idle for 30 minutes
     const SESSION_TIMEOUT_MS = 30 * 60 * 1000;
-    const sessionLastActivity = new Map<string, number>();
     const gcInterval = setInterval(() => {
+      maybeProbeSummary(); // Flush suppressed probe count periodically
       const now = Date.now();
       for (const [sid, state] of sessions) {
         const lastActive = sessionLastActivity.get(sid) ?? 0;
@@ -814,6 +849,9 @@ export default defineCommand({
 
     // Graceful shutdown
     const shutdown = async () => {
+      if (suppressedProbeCount > 0) {
+        console.error(`[memorix] ${suppressedProbeCount} probe connection(s) suppressed during this session`);
+      }
       console.error('[memorix] Shutting down HTTP server...');
       for (const [sid, state] of sessions) {
         try {

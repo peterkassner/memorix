@@ -304,7 +304,8 @@ export async function createMemorixServer(
 
   await initializeProjectRuntime('startup');
   } else {
-    console.error('[memorix] HTTP session awaiting explicit project binding (projectRoot/roots)');
+    // Intentionally silent — serve-http.ts deferred logging handles session lifecycle visibility.
+    // Noisy per-probe 'awaiting binding' log was removed to reduce terminal spam.
   }
 
   // Sync advisory variables — populated by deferredInit(), used by memorix_search
