@@ -303,14 +303,6 @@ export async function searchObservations(options: SearchOptions): Promise<IndexE
       const doc = hit.document as unknown as MemorixDocument;
       return (doc.status || 'active') === statusFilter;
     })
-    // Hard-filter: exclude command execution logs (Ran:/Command:/Executed:) unless
-    // the query itself is command-like.  73% of observations are Ran: logs from hooks —
-    // no score penalty can suppress this volume; they must be filtered out entirely.
-    .filter((hit) => {
-      if (hasQuery && isCommandLikeQuery(originalQuery!)) return true; // user wants commands
-      const doc = hit.document as unknown as MemorixDocument;
-      return !isCommandLogEntry(doc.title);
-    })
     .map((hit) => {
       const doc = hit.document as unknown as MemorixDocument;
       const obsType = doc.type as ObservationType;
@@ -334,6 +326,7 @@ export async function searchObservations(options: SearchOptions): Promise<IndexE
         score: (hit.score ?? 1) * recencyBoost,
         projectId: doc.projectId,
         source: (doc.source || 'agent') as 'agent' | 'git' | 'manual',
+        _isCommandLog: isCommandLogEntry(doc.title),
       };
     });
 
@@ -359,7 +352,25 @@ export async function searchObservations(options: SearchOptions): Promise<IndexE
     });
   }
 
+  // ── Command-log noise suppression (two-pass) ────────────────
+  // 73% of observations are Ran:/Command:/Executed: hook logs.  When the query
+  // is NOT command-like, we first try excluding them entirely.  If that would
+  // leave 0 real results (the query only matched command logs), we fall back to
+  // keeping them with a very aggressive 0.05x demotion so SOMETHING is returned
+  // but noise never dominates when real results exist.
   if (hasQuery && !isCommandLikeQuery(originalQuery!)) {
+    const nonCommandEntries = intermediate.filter(e => !(e as any)._isCommandLog);
+    if (nonCommandEntries.length > 0) {
+      // Enough real results — drop command logs entirely
+      intermediate = nonCommandEntries;
+    } else {
+      // Only command logs matched — keep them but demote heavily
+      intermediate = intermediate.map(entry => ({
+        ...entry,
+        score: (entry as any)._isCommandLog ? entry.score * 0.05 : entry.score,
+      }));
+    }
+    // Also soft-demote shell-specific patterns in remaining results
     intermediate = intermediate.map(entry => ({
       ...entry,
       score: isCommandStyleEntry(entry.title) ? entry.score * 0.3 : entry.score,
@@ -479,7 +490,7 @@ export async function searchObservations(options: SearchOptions): Promise<IndexE
   }
 
   // Build IndexEntry with optional match explanation
-  let entries: IndexEntry[] = intermediate.map(({ rawTime: _, ...rest }) => rest);
+  let entries: IndexEntry[] = intermediate.map(({ rawTime: _, _isCommandLog: _c, ...rest }: any) => rest);
 
   // Explainable recall: annotate entries with match reasons (O(1) lookup via Map)
   if (hasQuery && originalQuery) {
