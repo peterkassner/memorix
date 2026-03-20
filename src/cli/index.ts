@@ -838,9 +838,10 @@ const main = defineCommand({
       'background', 'doctor', 'dashboard', 'cleanup'];
     if (firstArg && knownSubs.includes(firstArg)) return;
 
-    // No subcommand provided — show interactive TUI menu if in TTY, otherwise show help
+    // No subcommand provided — show fullscreen workbench if in TTY, otherwise show help
     if (process.stdout.isTTY && process.stdin.isTTY) {
-      await workbench();
+      const { startWorkbench } = await import('./workbench.js');
+      await startWorkbench();
     } else {
       // Non-interactive mode: show usage hint
       console.error(`Memorix v${pkg.version} — Local-first memory control plane\n`);
