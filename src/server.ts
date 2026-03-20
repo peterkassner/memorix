@@ -956,8 +956,12 @@ export async function createMemorixServer(
         throw error;
       }
 
-      // Append sync advisory on first search of the session
+      // Append search mode and sync advisory
       let text = result.formatted;
+      try {
+        const { getLastSearchMode } = await import('./store/orama-store.js');
+        text += `\n\n_Search mode: ${getLastSearchMode()}_`;
+      } catch { /* best-effort */ }
       if (!syncAdvisoryShown && syncAdvisory) {
         text += syncAdvisory;
         syncAdvisoryShown = true;

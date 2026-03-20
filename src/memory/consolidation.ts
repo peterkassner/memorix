@@ -22,6 +22,12 @@ import { withFileLock } from '../store/file-lock.js';
 /** Default similarity threshold for merging (0.0-1.0) */
 const DEFAULT_SIMILARITY_THRESHOLD = 0.45;
 
+/** Higher threshold for high-value types — only near-duplicates should merge */
+const HIGH_VALUE_SIMILARITY_THRESHOLD = 0.85;
+
+/** Types that require much higher similarity to merge (carry unique implementation detail) */
+const HIGH_VALUE_TYPES = new Set(['gotcha', 'decision', 'trade-off', 'reasoning', 'problem-solution']);
+
 /** Minimum cluster size to trigger consolidation */
 const MIN_CLUSTER_SIZE = 2;
 
@@ -124,6 +130,12 @@ export async function findConsolidationCandidates(
   for (const [, group] of groups) {
     if (group.length < MIN_CLUSTER_SIZE) continue;
 
+    // High-value types require much higher similarity to merge
+    const groupType = group[0].type;
+    const effectiveThreshold = HIGH_VALUE_TYPES.has(groupType)
+      ? Math.max(threshold, HIGH_VALUE_SIMILARITY_THRESHOLD)
+      : threshold;
+
     // Pre-compute fingerprints
     const fingerprints = group.map(obs => ({
       obs,
@@ -145,7 +157,7 @@ export async function findConsolidationCandidates(
         if (clustered.has(fingerprints[j].obs.id)) continue;
 
         const sim = jaccardSimilarity(fingerprints[i].tokens, fingerprints[j].tokens);
-        if (sim >= threshold) {
+        if (sim >= effectiveThreshold) {
           cluster.push(fingerprints[j].obs);
           totalSim += sim;
           simCount++;
