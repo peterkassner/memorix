@@ -53,14 +53,23 @@ export function Sidebar({ health, background, activeView }: SidebarProps): React
 
         <Box>
           <Text color={COLORS.muted}>Provider  </Text>
-          <Text color={health.embeddingProvider === 'ready' ? COLORS.success : COLORS.muted}>
+          <Text color={
+            health.embeddingProvider === 'ready' ? COLORS.success
+            : health.embeddingProvider === 'unavailable' ? COLORS.warning
+            : COLORS.muted
+          }>
             {health.embeddingProvider}
           </Text>
         </Box>
 
         <Box>
           <Text color={COLORS.muted}>Search    </Text>
-          <Text color={health.searchMode === 'Hybrid' ? COLORS.success : COLORS.text}>
+          <Text color={
+            health.searchMode.includes('hybrid') ? COLORS.success
+            : health.searchMode.includes('vector') ? COLORS.accent
+            : health.searchMode.includes('rerank') ? COLORS.success
+            : COLORS.warning
+          }>
             {health.searchMode}
           </Text>
         </Box>

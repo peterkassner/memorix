@@ -46,8 +46,13 @@ export function HeaderBar({ version, project, health, mode }: HeaderBarProps): R
       <Box gap={1}>
         <Text color={COLORS.accentDim}>{mode.toLowerCase()}</Text>
         <Text color={COLORS.muted}>·</Text>
-        <Text color={health.searchMode === 'Hybrid' ? COLORS.success : COLORS.muted}>
-          {health.searchMode.toLowerCase()}
+        <Text color={
+          health.searchMode.includes('hybrid') ? COLORS.success
+          : health.searchMode.includes('vector') ? COLORS.accent
+          : health.searchMode.includes('rerank') ? COLORS.success
+          : COLORS.warning
+        }>
+          {health.searchMode}
         </Text>
         <Text color={COLORS.muted}>·</Text>
         <Text color={COLORS.text}>{health.activeMemories} memories</Text>

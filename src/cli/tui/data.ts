@@ -119,21 +119,21 @@ export async function getHealthInfo(projectId?: string): Promise<HealthInfo> {
       }
     } catch { /* ignore */ }
 
-    // Check embedding config
+    // Real embedding provider state (not config heuristic)
     try {
-      const configPath = `${process.env.HOME || process.env.USERPROFILE}/.memorix/config.json`;
-      if (fs.existsSync(configPath)) {
-        const config = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
-        if (config.embedding && config.embedding !== 'off') {
-          defaults.embeddingProvider = 'ready';
-          defaults.searchMode = 'Hybrid';
-        }
+      const { getEmbeddingProvider, isEmbeddingExplicitlyDisabled } = await import('../../embedding/provider.js');
+      if (isEmbeddingExplicitlyDisabled()) {
+        defaults.embeddingProvider = 'disabled';
+      } else {
+        const provider = await getEmbeddingProvider();
+        defaults.embeddingProvider = provider ? 'ready' : 'unavailable';
       }
-      // Check env override
-      if (process.env.MEMORIX_EMBEDDING && process.env.MEMORIX_EMBEDDING !== 'off') {
-        defaults.embeddingProvider = 'ready';
-        defaults.searchMode = 'Hybrid';
-      }
+    } catch { /* ignore */ }
+
+    // Real search mode from last actual search execution
+    try {
+      const { getLastSearchMode } = await import('../../store/orama-store.js');
+      defaults.searchMode = getLastSearchMode();
     } catch { /* ignore */ }
 
     return defaults;
