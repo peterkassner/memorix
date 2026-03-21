@@ -161,7 +161,7 @@ export function CommandBar({ onSubmit, onExit }: CommandBarProps): React.ReactEl
           {input || ''}
         </Text>
         <Text color={COLORS.muted}>
-          {input ? '' : 'Search memory or type /command'}
+          {input ? '' : 'search memories or /command'}
         </Text>
       </Box>
     </Box>

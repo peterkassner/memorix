@@ -24,6 +24,12 @@ export function HeaderBar({ version, project, health, mode }: HeaderBarProps): R
       flexDirection="row"
       justifyContent="space-between"
       paddingX={1}
+      borderStyle="single"
+      borderColor={COLORS.border}
+      borderBottom={true}
+      borderTop={false}
+      borderLeft={false}
+      borderRight={false}
     >
       {/* Left: Brand */}
       <Box>

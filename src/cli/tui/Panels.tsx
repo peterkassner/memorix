@@ -58,98 +58,69 @@ function groupRecent(items: MemoryItem[]): GroupedItem[] {
   return groups;
 }
 
-// ── Landing View (center-first workbench) ─────────────────────
+// ── Home View ──────────────────────────────────────────────────
 
-interface LandingViewProps {
+interface HomeViewProps {
   recentMemories: MemoryItem[];
   highValueSignals: MemoryItem[];
   project: ProjectInfo | null;
-  background: BackgroundInfo;
-  health: { activeMemories: number; searchMode: string; embeddingProvider: string };
   loading: boolean;
 }
 
-const LANDING_ACTIONS = [
-  { key: 's', label: 'Search',     cmd: '/search' },
-  { key: 'r', label: 'Remember',   cmd: '/remember' },
-  { key: 'd', label: 'Doctor',     cmd: '/doctor' },
-  { key: 'b', label: 'Background', cmd: '/background' },
-  { key: 'w', label: 'Dashboard',  cmd: '/dashboard' },
-  { key: 'c', label: 'Configure',  cmd: '/configure' },
-];
-
-export function LandingView({ recentMemories, highValueSignals, project, background, health, loading }: LandingViewProps): React.ReactElement {
+export function HomeView({ recentMemories, highValueSignals, project, loading }: HomeViewProps): React.ReactElement {
   return (
-    <Box flexDirection="column" paddingX={2} paddingY={1}>
-      {/* Brand block */}
-      <Box flexDirection="column" alignItems="center" marginBottom={1}>
-        <Text color={COLORS.accent} bold>{'  '}◇ Memorix</Text>
-        <Text color={COLORS.muted}>Memory workbench for code and agents</Text>
-      </Box>
-
-      {/* Project + system status — single compact line */}
-      <Box justifyContent="center" marginBottom={1}>
-        <Text color={COLORS.text}>{project?.name || 'no project'}</Text>
-        <Text color={COLORS.muted}> · </Text>
-        <Text color={COLORS.textDim}>{health.activeMemories} memories</Text>
-        <Text color={COLORS.muted}> · </Text>
-        <Text color={health.searchMode.includes('hybrid') ? COLORS.success : COLORS.warning}>{health.searchMode}</Text>
-        <Text color={COLORS.muted}> · </Text>
-        <Text color={background.healthy ? COLORS.success : background.running ? COLORS.warning : COLORS.muted}>
-          {background.healthy ? 'bg running' : background.running ? 'bg unhealthy' : 'bg stopped'}
-        </Text>
-      </Box>
-
-      {/* Suggested Actions — compact chip row */}
-      <Box justifyContent="center" gap={2} marginBottom={1}>
-        {LANDING_ACTIONS.map((a) => (
-          <Box key={a.key}>
-            <Text color={COLORS.accentDim} bold>{a.key}</Text>
-            <Text color={COLORS.text}> {a.label}</Text>
-          </Box>
-        ))}
-      </Box>
-
-      {/* Current Focus — top signals */}
-      {!loading && highValueSignals.length > 0 && (
-        <Box flexDirection="column" marginBottom={1}>
-          <Text color={COLORS.accent} bold>Focus</Text>
-          {highValueSignals.map((m) => (
-            <Box key={m.id}>
+    <Box flexDirection="column" paddingX={1}>
+      {/* Current Focus — top 3 high-value signals */}
+      <Box flexDirection="column" marginBottom={1}>
+        <Box marginBottom={0}>
+          <Text color={COLORS.accent} bold>Current Focus</Text>
+          <Text color={COLORS.muted}> — top signals for this project</Text>
+        </Box>
+        {loading ? (
+          <Text color={COLORS.muted}>Loading...</Text>
+        ) : highValueSignals.length === 0 ? (
+          <Text color={COLORS.muted}>No high-value signals yet. Decisions, gotchas, and solutions will appear here.</Text>
+        ) : (
+          highValueSignals.map((m) => (
+            <Box key={m.id} marginY={0}>
               <Text color={SOURCE_COLORS[m.source] || COLORS.muted}>{sourceBadge(m.source).padEnd(6)} </Text>
               <Text color={COLORS.warning}>{(TYPE_ICONS[m.type] || '·')} </Text>
-              <Text color={COLORS.text} bold>{m.title.slice(0, 60)}{m.title.length > 60 ? '...' : ''}</Text>
+              <Text color={COLORS.text} bold>{m.title.slice(0, 55)}{m.title.length > 55 ? '…' : ''}</Text>
               <Text color={COLORS.textDim}> #{m.id}</Text>
             </Box>
-          ))}
-        </Box>
-      )}
+          ))
+        )}
+      </Box>
 
-      {/* Recent Activity — grouped */}
-      {!loading && recentMemories.length > 0 && (
-        <Box flexDirection="column">
-          <Text color={COLORS.accentDim} bold>Recent</Text>
-          {groupRecent(recentMemories).map((item, idx) =>
+      {/* Recent Activity — last N items with source badges, grouped */}
+      <Box flexDirection="column">
+        <Box marginBottom={0}>
+          <Text color={COLORS.accentDim} bold>Recent Activity</Text>
+        </Box>
+        {loading ? (
+          <Text color={COLORS.muted}>Loading...</Text>
+        ) : recentMemories.length === 0 ? (
+          <Text color={COLORS.muted}>No memories yet. Use /remember to store one.</Text>
+        ) : (
+          groupRecent(recentMemories).map((item, idx) =>
             item.count > 1 ? (
               <Box key={`g-${idx}`}>
                 <Text color={SOURCE_COLORS[item.source] || COLORS.muted}>{sourceBadge(item.source).padEnd(6)} </Text>
-                <Text color={COLORS.muted}>  </Text>
+                <Text color={COLORS.muted}>… </Text>
                 <Text color={COLORS.textDim}>{item.count} related: </Text>
-                <Text color={COLORS.text}>{item.title.slice(0, 50)}{item.title.length > 50 ? '...' : ''}</Text>
+                <Text color={COLORS.text}>{item.title.slice(0, 45)}{item.title.length > 45 ? '…' : ''}</Text>
               </Box>
             ) : (
               <Box key={item.id}>
                 <Text color={SOURCE_COLORS[item.source] || COLORS.muted}>{sourceBadge(item.source).padEnd(6)} </Text>
                 <Text color={COLORS.muted}>{(TYPE_ICONS[item.type] || '·')} </Text>
                 <Text color={COLORS.textDim}>#{item.id} </Text>
-                <Text color={COLORS.text}>{item.title.slice(0, 55)}{item.title.length > 55 ? '...' : ''}</Text>
+                <Text color={COLORS.text}>{item.title.slice(0, 55)}{item.title.length > 55 ? '…' : ''}</Text>
               </Box>
             )
-          )}
-        </Box>
-      )}
-
-      {loading && <Text color={COLORS.muted}>Loading...</Text>}
+          )
+        )}
+      </Box>
     </Box>
   );
 }
