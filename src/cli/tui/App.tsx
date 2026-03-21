@@ -77,6 +77,15 @@ export function WorkbenchApp({ version, onExitForInteractive }: AppProps): React
   const [statusMsg, setStatusMsg] = useState<{ text: string; type: 'success' | 'error' | 'info' } | null>(null);
   const [mode, setMode] = useState('CLI');
   const [actionStatus, setActionStatus] = useState('');
+  const canEscReturnHome =
+    view === 'recent' ||
+    view === 'doctor' ||
+    view === 'project' ||
+    view === 'cleanup' ||
+    view === 'ingest' ||
+    view === 'background' ||
+    view === 'dashboard' ||
+    view === 'integrate';
 
   // Views that handle their own number/letter keys
   const isActionView =
@@ -105,7 +114,12 @@ export function WorkbenchApp({ version, onExitForInteractive }: AppProps): React
   }, [project]);
 
   // View-specific key dispatch: intercept 1-4, h, w on action views
-  useInput((ch) => {
+  useInput((ch, key) => {
+    if (key.escape && canEscReturnHome) {
+      handleCommand('/home');
+      return;
+    }
+
     if (!isActionView) return;
     if (view === 'cleanup' && (ch === '1' || ch === '2' || ch === '3')) {
       handleCleanupAction(ch);
@@ -761,17 +775,17 @@ fi
           disabled={isActionView}
           disabledHint={
             view === 'cleanup'
-              ? 'cleanup: press 1/2/3, or h for home'
+              ? 'cleanup: press 1/2/3, h or Esc for home'
               : view === 'ingest'
-                ? 'git > memory: press 1/2/3/4, or h for home'
+                ? 'git > memory: press 1/2/3/4, h or Esc for home'
                 : view === 'integrate'
-                  ? 'integrate: press 1-9, or h for home'
+                  ? 'integrate: press 1-9, h or Esc for home'
                 : view === 'background'
                   ? background.running
-                    ? 'background: press w/1/2/3, or h for home'
-                    : 'background: press 1/2, or h for home'
+                    ? 'background: press w/1/2/3, h or Esc for home'
+                    : 'background: press 1/2, h or Esc for home'
                   : view === 'dashboard'
-                    ? 'dashboard: press 1/2, or h for home'
+                    ? 'dashboard: press 1/2, h or Esc for home'
                     : 'action view active'
           }
         />
