@@ -70,10 +70,9 @@ export function Sidebar({ health, background, activeView }: SidebarProps): React
           <Text color={
             health.searchMode.includes('hybrid') ? COLORS.success
             : health.searchMode.includes('vector') ? COLORS.accent
-            : health.searchMode.includes('rerank') ? COLORS.success
             : COLORS.warning
           }>
-            {health.searchMode}
+            {health.searchMode.includes('hybrid') ? health.searchMode : 'BM25 full-text'}
           </Text>
         </Box>
 

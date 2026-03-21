@@ -104,17 +104,8 @@ async function runInteractiveCommand(cmd: string): Promise<void> {
         break;
       }
 
-      case '/cleanup': {
-        const { runCleanupInline } = await import('./interactive-commands.js');
-        await runCleanupInline();
-        break;
-      }
-
-      case '/ingest': {
-        const { runIngestInline } = await import('./interactive-commands.js');
-        await runIngestInline();
-        break;
-      }
+      // /cleanup and /ingest are now Ink-native views (handled in App.tsx)
+      // They should never reach this fallback path.
 
       default:
         console.log(`Unknown interactive command: ${cmd}`);

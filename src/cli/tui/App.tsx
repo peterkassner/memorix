@@ -6,7 +6,7 @@
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { Box, Text, useApp, useStdout } from 'ink';
+import { Box, Text, useApp, useStdout, useInput } from 'ink';
 import { COLORS, SLASH_COMMANDS } from './theme.js';
 import type { ViewType } from './theme.js';
 import { HeaderBar } from './HeaderBar.js';
@@ -68,6 +68,27 @@ export function WorkbenchApp({ version, onExitForInteractive }: AppProps): React
   const [statusMsg, setStatusMsg] = useState<{ text: string; type: 'success' | 'error' | 'info' } | null>(null);
   const [mode, setMode] = useState('CLI');
   const [actionStatus, setActionStatus] = useState('');
+
+  // Views that handle their own number/letter keys
+  const isActionView = view === 'cleanup' || view === 'ingest' || view === 'background' || view === 'dashboard';
+
+  // View-specific key dispatch: intercept 1-4, h, w on action views
+  useInput((ch) => {
+    if (!isActionView) return;
+    if (view === 'cleanup' && (ch === '1' || ch === '2' || ch === '3')) {
+      handleCleanupAction(ch);
+    } else if (view === 'ingest' && (ch === '1' || ch === '2' || ch === '3' || ch === '4')) {
+      handleIngestAction(ch);
+    } else if ((view === 'cleanup' || view === 'ingest') && ch === 'h') {
+      handleCommand('/home');
+    } else if (view === 'background' && (ch === '1' || ch === '2' || ch === '3')) {
+      handleBackgroundAction(ch);
+    } else if (view === 'background' && ch === 'w' && background.dashboard) {
+      handleBackgroundAction('w');
+    } else if (view === 'dashboard' && (ch === '1' || ch === '2')) {
+      handleDashboardAction(ch);
+    }
+  });
 
   // ── Initial data load ──────────────────────────────────────
   useEffect(() => {
@@ -358,6 +379,102 @@ export function WorkbenchApp({ version, onExitForInteractive }: AppProps): React
       setActionStatus(`Error: ${err instanceof Error ? err.message : String(err)}`);
     }
   }, []);
+
+  // ── Action handlers for Background and Dashboard views ─────
+  const handleBackgroundAction = useCallback(async (action: string) => {
+    setStatusMsg(null);
+    try {
+      const { execSync } = await import('node:child_process');
+      if (background.running) {
+        switch (action) {
+          case 'w': // Open dashboard
+            if (background.dashboard) {
+              try { execSync(`start "" "${background.dashboard}"`, { stdio: 'pipe' }); } catch {
+                try { execSync(`open "${background.dashboard}"`, { stdio: 'pipe' }); } catch {
+                  try { execSync(`xdg-open "${background.dashboard}"`, { stdio: 'pipe' }); } catch {
+                    setStatusMsg({ text: `Open: ${background.dashboard}`, type: 'info' });
+                  }
+                }
+              }
+              setStatusMsg({ text: `Opening ${background.dashboard}`, type: 'success' });
+            }
+            break;
+          case '1': // Restart
+            try {
+              execSync('memorix background restart', { stdio: 'pipe', timeout: 15000 });
+              setStatusMsg({ text: 'Control plane restarted.', type: 'success' });
+            } catch (e) { setStatusMsg({ text: `Restart failed: ${e instanceof Error ? e.message : e}`, type: 'error' }); }
+            break;
+          case '2': // Stop
+            try {
+              execSync('memorix background stop', { stdio: 'pipe', timeout: 10000 });
+              setStatusMsg({ text: 'Control plane stopped.', type: 'success' });
+            } catch (e) { setStatusMsg({ text: `Stop failed: ${e instanceof Error ? e.message : e}`, type: 'error' }); }
+            break;
+          case '3': // Logs
+            setStatusMsg({ text: 'Run: memorix background logs (in separate terminal)', type: 'info' });
+            break;
+        }
+      } else {
+        switch (action) {
+          case '1': // Start
+            try {
+              execSync('memorix background start', { stdio: 'pipe', timeout: 15000 });
+              setStatusMsg({ text: 'Control plane started.', type: 'success' });
+            } catch (e) { setStatusMsg({ text: `Start failed: ${e instanceof Error ? e.message : e}`, type: 'error' }); }
+            break;
+          case '2': // Standalone dashboard
+            setStatusMsg({ text: 'Run: memorix dashboard (in separate terminal)', type: 'info' });
+            break;
+        }
+      }
+      // Refresh background status after action
+      const bg = await getBackgroundStatus();
+      setBackground(bg);
+    } catch (err) {
+      setStatusMsg({ text: `Error: ${err instanceof Error ? err.message : String(err)}`, type: 'error' });
+    }
+  }, [background]);
+
+  const handleDashboardAction = useCallback(async (action: string) => {
+    setStatusMsg(null);
+    try {
+      const { execSync } = await import('node:child_process');
+      if (background.healthy && background.dashboard) {
+        switch (action) {
+          case '1': // Open dashboard URL
+            try { execSync(`start "" "${background.dashboard}"`, { stdio: 'pipe' }); } catch {
+              try { execSync(`open "${background.dashboard}"`, { stdio: 'pipe' }); } catch {
+                try { execSync(`xdg-open "${background.dashboard}"`, { stdio: 'pipe' }); } catch {
+                  setStatusMsg({ text: `Open: ${background.dashboard}`, type: 'info' });
+                }
+              }
+            }
+            setStatusMsg({ text: `Opening ${background.dashboard}`, type: 'success' });
+            break;
+          case '2': // Standalone
+            setStatusMsg({ text: 'Run: memorix dashboard (in separate terminal)', type: 'info' });
+            break;
+        }
+      } else {
+        switch (action) {
+          case '1': // Start background first
+            try {
+              execSync('memorix background start', { stdio: 'pipe', timeout: 15000 });
+              setStatusMsg({ text: 'Control plane started. Use /dashboard again to open.', type: 'success' });
+              const bg = await getBackgroundStatus();
+              setBackground(bg);
+            } catch (e) { setStatusMsg({ text: `Start failed: ${e instanceof Error ? e.message : e}`, type: 'error' }); }
+            break;
+          case '2': // Standalone
+            setStatusMsg({ text: 'Run: memorix dashboard (in separate terminal)', type: 'info' });
+            break;
+        }
+      }
+    } catch (err) {
+      setStatusMsg({ text: `Error: ${err instanceof Error ? err.message : String(err)}`, type: 'error' });
+    }
+  }, [background]);
 
   // ── Render main content based on view ──────────────────────
   const renderContent = () => {
