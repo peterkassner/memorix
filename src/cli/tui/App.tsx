@@ -57,8 +57,16 @@ export function WorkbenchApp({ version, onExitForInteractive }: AppProps): React
   const [loading, setLoading] = useState(true);
   const [project, setProject] = useState<ProjectInfo | null>(null);
   const [health, setHealth] = useState<HealthInfo>({
-    embeddingProvider: 'disabled', searchMode: 'BM25',
-    backfillPending: 0, totalMemories: 0, activeMemories: 0, sessions: 0,
+    embeddingProvider: 'disabled',
+    embeddingProviderName: undefined,
+    embeddingLabel: 'Disabled',
+    searchMode: 'fulltext',
+    searchModeLabel: 'BM25 full-text',
+    searchDiagnostic: '',
+    backfillPending: 0,
+    totalMemories: 0,
+    activeMemories: 0,
+    sessions: 0,
   });
   const [background, setBackground] = useState<BackgroundInfo>({ running: false, healthy: false });
   const [recentMemories, setRecentMemories] = useState<MemoryItem[]>([]);
@@ -537,7 +545,24 @@ export function WorkbenchApp({ version, onExitForInteractive }: AppProps): React
       {statusMsg && <StatusMessage message={statusMsg.text} type={statusMsg.type} />}
 
       {/* Command bar */}
-      <CommandBar onSubmit={handleCommand} onExit={() => exit()} />
+      <CommandBar
+        onSubmit={handleCommand}
+        onExit={() => exit()}
+        disabled={isActionView}
+        disabledHint={
+          view === 'cleanup'
+            ? 'cleanup: press 1/2/3, or h for home'
+            : view === 'ingest'
+              ? 'git > memory: press 1/2/3/4, or h for home'
+              : view === 'background'
+                ? background.running
+                  ? 'background: press w/1/2/3'
+                  : 'background: press 1/2'
+                : view === 'dashboard'
+                  ? 'dashboard: press 1/2'
+                  : 'action view active'
+        }
+      />
     </Box>
   );
 }

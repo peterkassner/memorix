@@ -1,8 +1,5 @@
 /**
- * Panels -- Content views for Memorix TUI
- *
- * HomeView, RecentView, SearchResultsView, DoctorView, ProjectView,
- * BackgroundView, DashboardView
+ * Content views for the Memorix TUI.
  */
 
 import React from 'react';
@@ -17,7 +14,14 @@ import type {
   HealthInfo,
 } from './data.js';
 
-// ── Home View (clean: project summary + status, NO recent list) ──
+function separator(width = 50): string {
+  return '-'.repeat(width);
+}
+
+function truncate(text: string, max = 60): string {
+  if (text.length <= max) return text;
+  return `${text.slice(0, max)}...`;
+}
 
 interface HomeViewProps {
   project: ProjectInfo | null;
@@ -26,13 +30,12 @@ interface HomeViewProps {
   loading: boolean;
 }
 
-export function HomeView({ project, health, background, loading }: HomeViewProps): React.ReactElement {
+export function HomeView({ project, health, background }: HomeViewProps): React.ReactElement {
   return (
     <Box flexDirection="column" paddingX={1}>
-      {/* Project summary */}
       <Box flexDirection="column" marginBottom={1}>
         <Text color={COLORS.accentDim} bold>Project</Text>
-        <Text color={COLORS.border}>{'─'.repeat(50)}</Text>
+        <Text color={COLORS.border}>{separator()}</Text>
         {project ? (
           <Box flexDirection="column">
             <Box>
@@ -53,24 +56,45 @@ export function HomeView({ project, health, background, loading }: HomeViewProps
         )}
       </Box>
 
-      {/* System status summary */}
       <Box flexDirection="column" marginBottom={1}>
         <Text color={COLORS.accentDim} bold>Status</Text>
-        <Text color={COLORS.border}>{'─'.repeat(50)}</Text>
+        <Text color={COLORS.border}>{separator()}</Text>
         <Box>
           <Text color={COLORS.muted}>{'Memories'.padEnd(12)}</Text>
           <Text color={COLORS.text}>{health.activeMemories} active</Text>
         </Box>
         <Box>
-          <Text color={COLORS.muted}>{'Search Mode'.padEnd(12)}</Text>
-          <Text color={health.searchMode.includes('hybrid') ? COLORS.success : COLORS.warning}>
-            {health.searchMode.includes('hybrid') ? health.searchMode : 'BM25 full-text'}
+          <Text color={COLORS.muted}>{'Embedding'.padEnd(12)}</Text>
+          <Text
+            color={
+              health.embeddingProvider === 'ready'
+                ? COLORS.success
+                : health.embeddingProvider === 'unavailable'
+                  ? COLORS.warning
+                  : COLORS.muted
+            }
+          >
+            {health.embeddingLabel}
           </Text>
         </Box>
+        {health.embeddingProviderName && (
+          <Box>
+            <Text color={COLORS.muted}>{'Provider'.padEnd(12)}</Text>
+            <Text color={COLORS.textDim}>{health.embeddingProviderName}</Text>
+          </Box>
+        )}
         <Box>
-          <Text color={COLORS.muted}>{'Embedding'.padEnd(12)}</Text>
-          <Text color={health.embeddingProvider === 'ready' ? COLORS.success : COLORS.muted}>{health.embeddingProvider}</Text>
+          <Text color={COLORS.muted}>{'Search Mode'.padEnd(12)}</Text>
+          <Text color={health.searchModeLabel.toLowerCase().includes('hybrid') ? COLORS.success : COLORS.warning}>
+            {health.searchModeLabel}
+          </Text>
         </Box>
+        {health.searchDiagnostic && (
+          <Box>
+            <Text color={COLORS.muted}>{''.padEnd(12)}</Text>
+            <Text color={COLORS.textDim}>{health.searchDiagnostic}</Text>
+          </Box>
+        )}
         <Box>
           <Text color={COLORS.muted}>{'Background'.padEnd(12)}</Text>
           <Text color={background.healthy ? COLORS.success : background.running ? COLORS.warning : COLORS.muted}>
@@ -80,13 +104,10 @@ export function HomeView({ project, health, background, loading }: HomeViewProps
         </Box>
       </Box>
 
-      {/* Lightweight recent hint (no list dump) */}
       <Text color={COLORS.muted}>Use /recent to view recent memory activity</Text>
     </Box>
   );
 }
-
-// ── Recent View (standalone, with dev noise filtering) ────────
 
 interface RecentViewProps {
   recentMemories: MemoryItem[];
@@ -103,24 +124,22 @@ const DEV_NOISE_PATTERNS = [
 ];
 
 export function RecentView({ recentMemories, loading }: RecentViewProps): React.ReactElement {
-  const filtered = recentMemories.filter(m =>
-    !DEV_NOISE_PATTERNS.some(p => p.test(m.title))
-  );
+  const filtered = recentMemories.filter((memory) => !DEV_NOISE_PATTERNS.some((pattern) => pattern.test(memory.title)));
 
   return (
     <Box flexDirection="column" paddingX={1}>
       <Text color={COLORS.accentDim} bold>Recent Memory Activity</Text>
-      <Text color={COLORS.border}>{'─'.repeat(50)}</Text>
+      <Text color={COLORS.border}>{separator()}</Text>
       {loading ? (
         <Text color={COLORS.muted}>Loading...</Text>
       ) : filtered.length === 0 ? (
         <Text color={COLORS.muted}>No recent activity. Use /remember to store a memory.</Text>
       ) : (
-        filtered.map((m) => (
-          <Box key={m.id}>
-            <Text color={COLORS.muted}>[{(TYPE_ICONS[m.type] || '.')}] </Text>
-            <Text color={COLORS.textDim}>#{m.id} </Text>
-            <Text color={COLORS.text}>{m.title.slice(0, 60)}{m.title.length > 60 ? '...' : ''}</Text>
+        filtered.map((memory) => (
+          <Box key={memory.id}>
+            <Text color={COLORS.muted}>[{TYPE_ICONS[memory.type] || '.'}] </Text>
+            <Text color={COLORS.textDim}>#{memory.id} </Text>
+            <Text color={COLORS.text}>{truncate(memory.title)}</Text>
           </Box>
         ))
       )}
@@ -130,8 +149,6 @@ export function RecentView({ recentMemories, loading }: RecentViewProps): React.
     </Box>
   );
 }
-
-// ── Search Results View ────────────────────────────────────────
 
 interface SearchResultsViewProps {
   results: SearchResult[];
@@ -145,29 +162,27 @@ export function SearchResultsView({ results, query, loading }: SearchResultsView
       <Box>
         <Text color={COLORS.accentDim} bold>Search: </Text>
         <Text color={COLORS.text}>"{query}"</Text>
-        {!loading && <Text color={COLORS.muted}> — {results.length} results</Text>}
+        {!loading && <Text color={COLORS.muted}> - {results.length} results</Text>}
       </Box>
-      <Text color={COLORS.border}>{'─'.repeat(50)}</Text>
+      <Text color={COLORS.border}>{separator()}</Text>
 
       {loading ? (
         <Text color={COLORS.muted}>Searching...</Text>
       ) : results.length === 0 ? (
         <Text color={COLORS.muted}>No results found.</Text>
       ) : (
-        results.map((r) => (
-          <Box key={r.id}>
-            <Text color={COLORS.muted}>[{r.icon}] </Text>
-            <Text color={COLORS.textDim}>#{r.id} </Text>
-            <Text color={COLORS.text}>{r.title.slice(0, 60)}{r.title.length > 60 ? '…' : ''}</Text>
-            <Text color={COLORS.muted}> ({(r.score * 100).toFixed(0)}%)</Text>
+        results.map((result) => (
+          <Box key={result.id}>
+            <Text color={COLORS.muted}>[{result.icon}] </Text>
+            <Text color={COLORS.textDim}>#{result.id} </Text>
+            <Text color={COLORS.text}>{truncate(result.title)}</Text>
+            <Text color={COLORS.muted}> ({(result.score * 100).toFixed(0)}%)</Text>
           </Box>
         ))
       )}
     </Box>
   );
 }
-
-// ── Doctor View ────────────────────────────────────────────────
 
 interface DoctorViewProps {
   doctor: DoctorResult | null;
@@ -182,17 +197,17 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 const STATUS_ICONS: Record<string, string> = {
-  ok: '✓',
-  warn: '⚠',
-  error: '✗',
-  info: '·',
+  ok: '+',
+  warn: '!',
+  error: 'x',
+  info: '-',
 };
 
 export function DoctorView({ doctor, loading }: DoctorViewProps): React.ReactElement {
   return (
     <Box flexDirection="column" paddingX={1}>
       <Text color={COLORS.accentDim} bold>Diagnostics</Text>
-      <Text color={COLORS.border}>{'─'.repeat(50)}</Text>
+      <Text color={COLORS.border}>{separator()}</Text>
 
       {loading ? (
         <Text color={COLORS.muted}>Running diagnostics...</Text>
@@ -200,11 +215,11 @@ export function DoctorView({ doctor, loading }: DoctorViewProps): React.ReactEle
         <Text color={COLORS.warning}>Failed to run diagnostics.</Text>
       ) : (
         <Box flexDirection="column">
-          {doctor.sections.map((section, i) => (
-            <Box key={i} flexDirection="column" marginBottom={1}>
+          {doctor.sections.map((section, index) => (
+            <Box key={index} flexDirection="column" marginBottom={1}>
               <Text color={COLORS.text} bold>{section.title}</Text>
-              {section.items.map((item, j) => (
-                <Box key={j}>
+              {section.items.map((item, itemIndex) => (
+                <Box key={itemIndex}>
                   <Text color={STATUS_COLORS[item.status] || COLORS.muted}>
                     {STATUS_ICONS[item.status] || '.'}{' '}
                   </Text>
@@ -215,7 +230,6 @@ export function DoctorView({ doctor, loading }: DoctorViewProps): React.ReactEle
             </Box>
           ))}
 
-          {/* Next actions */}
           <Box marginTop={1} flexDirection="column">
             <Text color={COLORS.accentDim} bold>Next</Text>
             <Text color={COLORS.muted}>  /dashboard  /background  /search  /recent</Text>
@@ -226,8 +240,6 @@ export function DoctorView({ doctor, loading }: DoctorViewProps): React.ReactEle
   );
 }
 
-// ── Project View ───────────────────────────────────────────────
-
 interface ProjectViewProps {
   project: ProjectInfo | null;
 }
@@ -236,7 +248,7 @@ export function ProjectView({ project }: ProjectViewProps): React.ReactElement {
   return (
     <Box flexDirection="column" paddingX={1}>
       <Text color={COLORS.accentDim} bold>Project Details</Text>
-      <Text color={COLORS.border}>{'─'.repeat(50)}</Text>
+      <Text color={COLORS.border}>{separator()}</Text>
 
       {!project ? (
         <Text color={COLORS.warning}>No project detected. Run git init first.</Text>
@@ -259,8 +271,6 @@ export function ProjectView({ project }: ProjectViewProps): React.ReactElement {
   );
 }
 
-// ── Background View ────────────────────────────────────────────
-
 interface BackgroundViewProps {
   background: BackgroundInfo;
   loading: boolean;
@@ -270,7 +280,7 @@ export function BackgroundView({ background, loading }: BackgroundViewProps): Re
   return (
     <Box flexDirection="column" paddingX={1}>
       <Text color={COLORS.accentDim} bold>Background Control Plane</Text>
-      <Text color={COLORS.border}>{'─'.repeat(50)}</Text>
+      <Text color={COLORS.border}>{separator()}</Text>
 
       {loading ? (
         <Text color={COLORS.muted}>Checking status...</Text>
@@ -279,7 +289,7 @@ export function BackgroundView({ background, loading }: BackgroundViewProps): Re
           <Box>
             <Text color={COLORS.muted}>{'Status'.padEnd(12)}</Text>
             <Text color={background.healthy ? COLORS.success : background.running ? COLORS.warning : COLORS.muted}>
-              {background.healthy ? '✓ Running & Healthy' : background.running ? '⚠ Running (unhealthy)' : '✗ Not running'}
+              {background.healthy ? 'Running & healthy' : background.running ? 'Running (unhealthy)' : 'Not running'}
             </Text>
           </Box>
           {background.pid && (
@@ -328,14 +338,16 @@ export function BackgroundView({ background, loading }: BackgroundViewProps): Re
             </Box>
           )}
 
-          {/* Actions -- real executable entries */}
           <Box marginTop={1} flexDirection="column">
             <Text color={COLORS.accentDim} bold>Actions</Text>
-            <Text color={COLORS.border}>{'─'.repeat(50)}</Text>
+            <Text color={COLORS.border}>{separator()}</Text>
             {background.running ? (
               <Box flexDirection="column">
                 {background.dashboard && (
-                  <Box><Text color={COLORS.accent}>  w  Open dashboard  </Text><Text color={COLORS.textDim}>{background.dashboard}</Text></Box>
+                  <Box>
+                    <Text color={COLORS.accent}>  w  Open dashboard  </Text>
+                    <Text color={COLORS.textDim}>{background.dashboard}</Text>
+                  </Box>
                 )}
                 <Box><Text color={COLORS.text}>  1  Restart control plane</Text></Box>
                 <Box><Text color={COLORS.text}>  2  Stop control plane</Text></Box>
@@ -357,8 +369,6 @@ export function BackgroundView({ background, loading }: BackgroundViewProps): Re
   );
 }
 
-// ── Dashboard View ─────────────────────────────────────────────
-
 interface DashboardViewProps {
   background: BackgroundInfo;
 }
@@ -367,7 +377,7 @@ export function DashboardView({ background }: DashboardViewProps): React.ReactEl
   return (
     <Box flexDirection="column" paddingX={1}>
       <Text color={COLORS.accentDim} bold>Dashboard</Text>
-      <Text color={COLORS.border}>{'─'.repeat(50)}</Text>
+      <Text color={COLORS.border}>{separator()}</Text>
 
       {background.healthy && background.dashboard ? (
         <Box flexDirection="column">
@@ -376,7 +386,7 @@ export function DashboardView({ background }: DashboardViewProps): React.ReactEl
             <Text color={COLORS.accent} bold>{background.dashboard}</Text>
           </Box>
           <Text color={COLORS.accentDim} bold>Actions</Text>
-          <Text color={COLORS.border}>{'─'.repeat(50)}</Text>
+          <Text color={COLORS.border}>{separator()}</Text>
           <Box><Text color={COLORS.accent}>  1  Open {background.dashboard} in browser</Text></Box>
           <Box><Text color={COLORS.text}>  2  Launch standalone dashboard</Text></Box>
         </Box>
@@ -386,8 +396,11 @@ export function DashboardView({ background }: DashboardViewProps): React.ReactEl
             <Text color={COLORS.warning}>No running control plane</Text>
           </Box>
           <Text color={COLORS.accentDim} bold>Actions</Text>
-          <Text color={COLORS.border}>{'─'.repeat(50)}</Text>
-          <Box><Text color={COLORS.success}>  1  Start control plane  </Text><Text color={COLORS.muted}>(then open dashboard)</Text></Box>
+          <Text color={COLORS.border}>{separator()}</Text>
+          <Box>
+            <Text color={COLORS.success}>  1  Start control plane  </Text>
+            <Text color={COLORS.muted}>(then open dashboard)</Text>
+          </Box>
           <Box><Text color={COLORS.text}>  2  Launch standalone dashboard</Text></Box>
         </Box>
       )}
@@ -395,18 +408,16 @@ export function DashboardView({ background }: DashboardViewProps): React.ReactEl
   );
 }
 
-// ── Cleanup View (Ink-native, replaces @clack/prompts) ────────
-
 interface CleanupViewProps {
   onAction: (action: string) => void;
   statusText: string;
 }
 
-export function CleanupView({ onAction, statusText }: CleanupViewProps): React.ReactElement {
+export function CleanupView({ statusText }: CleanupViewProps): React.ReactElement {
   return (
     <Box flexDirection="column" paddingX={1}>
       <Text color={COLORS.accentDim} bold>Cleanup & Purge</Text>
-      <Text color={COLORS.border}>{'─'.repeat(50)}</Text>
+      <Text color={COLORS.border}>{separator()}</Text>
       <Box flexDirection="column" marginTop={1}>
         <Box><Text color={COLORS.text}>  1  Uninstall project artifacts</Text></Box>
         <Box><Text color={COLORS.text}>  2  Purge current project memory</Text></Box>
@@ -420,18 +431,16 @@ export function CleanupView({ onAction, statusText }: CleanupViewProps): React.R
   );
 }
 
-// ── Ingest View (Ink-native, replaces @clack/prompts) ─────────
-
 interface IngestViewProps {
   onAction: (action: string) => void;
   statusText: string;
 }
 
-export function IngestView({ onAction, statusText }: IngestViewProps): React.ReactElement {
+export function IngestView({ statusText }: IngestViewProps): React.ReactElement {
   return (
     <Box flexDirection="column" paddingX={1}>
-      <Text color={COLORS.accentDim} bold>Git {'>'} Memory</Text>
-      <Text color={COLORS.border}>{'─'.repeat(50)}</Text>
+      <Text color={COLORS.accentDim} bold>Git &gt; Memory</Text>
+      <Text color={COLORS.border}>{separator()}</Text>
       <Box flexDirection="column" marginTop={1}>
         <Box><Text color={COLORS.text}>  1  Ingest recent commits</Text></Box>
         <Box><Text color={COLORS.text}>  2  Ingest git log</Text></Box>
@@ -446,8 +455,6 @@ export function IngestView({ onAction, statusText }: IngestViewProps): React.Rea
   );
 }
 
-// ── Status Message ─────────────────────────────────────────────
-
 interface StatusMessageProps {
   message: string;
   type: 'success' | 'error' | 'info';
@@ -455,7 +462,7 @@ interface StatusMessageProps {
 
 export function StatusMessage({ message, type }: StatusMessageProps): React.ReactElement {
   const color = type === 'success' ? COLORS.success : type === 'error' ? COLORS.error : COLORS.muted;
-  const icon = type === 'success' ? '✓' : type === 'error' ? '✗' : '·';
+  const icon = type === 'success' ? '+' : type === 'error' ? 'x' : 'i';
   return (
     <Box paddingX={1}>
       <Text color={color}>{icon} {message}</Text>
