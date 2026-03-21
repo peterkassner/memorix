@@ -20,6 +20,8 @@ import {
   ProjectView,
   BackgroundView,
   DashboardView,
+  CleanupView,
+  IngestView,
   StatusMessage,
 } from './Panels.js';
 import type {
@@ -65,6 +67,7 @@ export function WorkbenchApp({ version, onExitForInteractive }: AppProps): React
   const [doctor, setDoctor] = useState<DoctorResult | null>(null);
   const [statusMsg, setStatusMsg] = useState<{ text: string; type: 'success' | 'error' | 'info' } | null>(null);
   const [mode, setMode] = useState('CLI');
+  const [actionStatus, setActionStatus] = useState('');
 
   // ── Initial data load ──────────────────────────────────────
   useEffect(() => {
@@ -173,6 +176,18 @@ export function WorkbenchApp({ version, onExitForInteractive }: AppProps): React
           break;
         }
 
+        case 'cleanup': {
+          setView('cleanup');
+          setActionStatus('');
+          break;
+        }
+
+        case 'ingest': {
+          setView('ingest');
+          setActionStatus('');
+          break;
+        }
+
         case 'doctor': {
           setView('doctor');
           setLoading(true);
@@ -239,6 +254,111 @@ export function WorkbenchApp({ version, onExitForInteractive }: AppProps): React
     }
   }, [project, exit, onExitForInteractive]);
 
+  // ── Action handlers for Cleanup and Ingest views ──────────
+  const handleCleanupAction = useCallback(async (action: string) => {
+    setActionStatus('Executing...');
+    try {
+      const { detectProject } = await import('../../project/detector.js');
+      const { getProjectDataDir } = await import('../../store/persistence.js');
+      const proj = detectProject(process.cwd());
+
+      switch (action) {
+        case '1': { // Uninstall project artifacts
+          if (!proj) { setActionStatus('No project detected.'); return; }
+          try {
+            const { execSync } = await import('node:child_process');
+            execSync('memorix git-hook-uninstall', { cwd: process.cwd(), stdio: 'pipe' });
+            setActionStatus('Project artifacts uninstalled.');
+          } catch { setActionStatus('No artifacts to uninstall.'); }
+          break;
+        }
+        case '2': { // Purge current project memory
+          if (!proj) { setActionStatus('No project detected.'); return; }
+          const dataDir = await getProjectDataDir(proj.id);
+          const fs = await import('node:fs');
+          const path = await import('node:path');
+          const obsPath = path.join(dataDir, 'observations.json');
+          if (fs.existsSync(obsPath)) {
+            fs.writeFileSync(obsPath, '[]');
+            setActionStatus(`Purged memory for ${proj.name}. Observations reset to empty.`);
+          } else {
+            setActionStatus('No observations file found.');
+          }
+          break;
+        }
+        case '3': { // Purge ALL memory
+          const dataDir = await getProjectDataDir('_');
+          const fs = await import('node:fs');
+          const path = await import('node:path');
+          const obsPath = path.join(dataDir, 'observations.json');
+          if (fs.existsSync(obsPath)) {
+            fs.writeFileSync(obsPath, '[]');
+            setActionStatus('All memory purged. Observations reset to empty.');
+          } else {
+            setActionStatus('No observations file found.');
+          }
+          break;
+        }
+        default:
+          setActionStatus('');
+      }
+    } catch (err) {
+      setActionStatus(`Error: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }, []);
+
+  const handleIngestAction = useCallback(async (action: string) => {
+    setActionStatus('Executing...');
+    try {
+      switch (action) {
+        case '1': { // Ingest recent commits
+          try {
+            const { execSync } = await import('node:child_process');
+            const out = execSync('memorix ingest-commit --last 5', { cwd: process.cwd(), stdio: 'pipe' });
+            setActionStatus(`Ingested recent commits. ${out.toString().trim()}`);
+          } catch (e) {
+            setActionStatus(`Ingest failed: ${e instanceof Error ? e.message : String(e)}`);
+          }
+          break;
+        }
+        case '2': { // Ingest git log
+          try {
+            const { execSync } = await import('node:child_process');
+            const out = execSync('memorix ingest-log --last 20', { cwd: process.cwd(), stdio: 'pipe' });
+            setActionStatus(`Ingested git log. ${out.toString().trim()}`);
+          } catch (e) {
+            setActionStatus(`Ingest failed: ${e instanceof Error ? e.message : String(e)}`);
+          }
+          break;
+        }
+        case '3': { // Install post-commit hook
+          try {
+            const { execSync } = await import('node:child_process');
+            execSync('memorix git-hook-install', { cwd: process.cwd(), stdio: 'pipe' });
+            setActionStatus('Post-commit hook installed.');
+          } catch (e) {
+            setActionStatus(`Hook install failed: ${e instanceof Error ? e.message : String(e)}`);
+          }
+          break;
+        }
+        case '4': { // Uninstall post-commit hook
+          try {
+            const { execSync } = await import('node:child_process');
+            execSync('memorix git-hook-uninstall', { cwd: process.cwd(), stdio: 'pipe' });
+            setActionStatus('Post-commit hook uninstalled.');
+          } catch (e) {
+            setActionStatus(`Hook uninstall failed: ${e instanceof Error ? e.message : String(e)}`);
+          }
+          break;
+        }
+        default:
+          setActionStatus('');
+      }
+    } catch (err) {
+      setActionStatus(`Error: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }, []);
+
   // ── Render main content based on view ──────────────────────
   const renderContent = () => {
     switch (view) {
@@ -254,6 +374,10 @@ export function WorkbenchApp({ version, onExitForInteractive }: AppProps): React
         return <DashboardView background={background} />;
       case 'recent':
         return <RecentView recentMemories={recentMemories} loading={loading} />;
+      case 'cleanup':
+        return <CleanupView onAction={handleCleanupAction} statusText={actionStatus} />;
+      case 'ingest':
+        return <IngestView onAction={handleIngestAction} statusText={actionStatus} />;
       case 'home':
       default:
         return <HomeView project={project} health={health} background={background} loading={loading} />;

@@ -178,8 +178,8 @@ export async function getRecentMemories(limit = 8): Promise<MemoryItem[]> {
 
 export async function searchMemories(query: string, limit = 10): Promise<SearchResult[]> {
   try {
-    const { searchObservations, getDb } = await import('../../store/orama-store.js');
-    const { getProjectDataDir } = await import('../../store/persistence.js');
+    const { searchObservations, getDb, hydrateIndex } = await import('../../store/orama-store.js');
+    const { getProjectDataDir, loadObservationsJson } = await import('../../store/persistence.js');
     const { detectProject } = await import('../../project/detector.js');
     const { initObservations } = await import('../../memory/observations.js');
 
@@ -189,6 +189,10 @@ export async function searchMemories(query: string, limit = 10): Promise<SearchR
     const dataDir = await getProjectDataDir(proj.id);
     await initObservations(dataDir);
     await getDb();
+
+    // Hydrate Orama index from persisted observations (idempotent)
+    const allObs = await loadObservationsJson(dataDir) as any[];
+    await hydrateIndex(allObs);
 
     const results = await searchObservations({ query, limit, projectId: proj.id });
 

@@ -24,8 +24,8 @@ export const SLASH_COMMANDS: SlashCommand[] = [
   { name: '/home',       description: 'Back to home',             alias: '/h' },
   { name: '/configure',  description: 'Settings',                 alias: '/config', interactive: true },
   { name: '/integrate',  description: 'Set up an IDE',            alias: '/setup', interactive: true },
-  { name: '/cleanup',    description: 'Cleanup & purge',          interactive: true },
-  { name: '/ingest',     description: 'Git -> Memory',            interactive: true },
+  { name: '/cleanup',    description: 'Cleanup & purge' },
+  { name: '/ingest',     description: 'Git -> Memory' },
   { name: '/help',       description: 'Show commands',            alias: '/?' },
   { name: '/exit',       description: 'Exit workbench',           alias: '/q' },
 ];
@@ -69,4 +69,4 @@ export const BOX = {
 } as const;
 
 // ── View Types ─────────────────────────────────────────────────
-export type ViewType = 'home' | 'search' | 'doctor' | 'project' | 'background' | 'dashboard' | 'recent';
+export type ViewType = 'home' | 'search' | 'doctor' | 'project' | 'background' | 'dashboard' | 'recent' | 'cleanup' | 'ingest';

@@ -62,8 +62,10 @@ export function HomeView({ project, health, background, loading }: HomeViewProps
           <Text color={COLORS.text}>{health.activeMemories} active</Text>
         </Box>
         <Box>
-          <Text color={COLORS.muted}>{'Search'.padEnd(12)}</Text>
-          <Text color={health.searchMode.includes('hybrid') ? COLORS.success : COLORS.warning}>{health.searchMode}</Text>
+          <Text color={COLORS.muted}>{'Search Mode'.padEnd(12)}</Text>
+          <Text color={health.searchMode.includes('hybrid') ? COLORS.success : COLORS.warning}>
+            {health.searchMode.includes('hybrid') ? health.searchMode : 'BM25 full-text'}
+          </Text>
         </Box>
         <Box>
           <Text color={COLORS.muted}>{'Embedding'.padEnd(12)}</Text>
@@ -388,6 +390,57 @@ export function DashboardView({ background }: DashboardViewProps): React.ReactEl
           <Box><Text color={COLORS.success}>  1  Start control plane  </Text><Text color={COLORS.muted}>(then open dashboard)</Text></Box>
           <Box><Text color={COLORS.text}>  2  Launch standalone dashboard</Text></Box>
         </Box>
+      )}
+    </Box>
+  );
+}
+
+// ── Cleanup View (Ink-native, replaces @clack/prompts) ────────
+
+interface CleanupViewProps {
+  onAction: (action: string) => void;
+  statusText: string;
+}
+
+export function CleanupView({ onAction, statusText }: CleanupViewProps): React.ReactElement {
+  return (
+    <Box flexDirection="column" paddingX={1}>
+      <Text color={COLORS.accentDim} bold>Cleanup & Purge</Text>
+      <Text color={COLORS.border}>{'─'.repeat(50)}</Text>
+      <Box flexDirection="column" marginTop={1}>
+        <Box><Text color={COLORS.text}>  1  Uninstall project artifacts</Text></Box>
+        <Box><Text color={COLORS.text}>  2  Purge current project memory</Text></Box>
+        <Box><Text color={COLORS.warning}>  3  Purge ALL memory (danger)</Text></Box>
+        <Box><Text color={COLORS.muted}>  h  Back to home</Text></Box>
+      </Box>
+      {statusText && (
+        <Box marginTop={1}><Text color={COLORS.muted}>{statusText}</Text></Box>
+      )}
+    </Box>
+  );
+}
+
+// ── Ingest View (Ink-native, replaces @clack/prompts) ─────────
+
+interface IngestViewProps {
+  onAction: (action: string) => void;
+  statusText: string;
+}
+
+export function IngestView({ onAction, statusText }: IngestViewProps): React.ReactElement {
+  return (
+    <Box flexDirection="column" paddingX={1}>
+      <Text color={COLORS.accentDim} bold>Git {'>'} Memory</Text>
+      <Text color={COLORS.border}>{'─'.repeat(50)}</Text>
+      <Box flexDirection="column" marginTop={1}>
+        <Box><Text color={COLORS.text}>  1  Ingest recent commits</Text></Box>
+        <Box><Text color={COLORS.text}>  2  Ingest git log</Text></Box>
+        <Box><Text color={COLORS.text}>  3  Install post-commit hook</Text></Box>
+        <Box><Text color={COLORS.text}>  4  Uninstall post-commit hook</Text></Box>
+        <Box><Text color={COLORS.muted}>  h  Back to home</Text></Box>
+      </Box>
+      {statusText && (
+        <Box marginTop={1}><Text color={COLORS.muted}>{statusText}</Text></Box>
       )}
     </Box>
   );
