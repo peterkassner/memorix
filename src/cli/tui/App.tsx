@@ -703,18 +703,29 @@ fi
 
   // ── Layout ─────────────────────────────────────────────────
   const termWidth = stdout?.columns || 80;
+  const termHeight = stdout?.rows || 24;
   const narrow = termWidth < 80;
+  const statusRows = statusMsg ? 1 : 0;
+  // Keep header and command bar visible during terminal resize.
+  const reservedRows = 2 + statusRows + 3;
+  const mainAreaHeight = Math.max(6, termHeight - reservedRows);
 
   return (
-    <Box flexDirection="column" height="100%">
+    <Box flexDirection="column" height={termHeight}>
       {/* Header */}
       <HeaderBar version={version} project={project} health={health} mode={mode} />
 
       {/* Main area: content + sidebar */}
-      <Box flexGrow={1} flexDirection={narrow ? 'column' : 'row'}>
+      <Box
+        flexDirection={narrow ? 'column' : 'row'}
+        height={mainAreaHeight}
+        flexGrow={0}
+        flexShrink={1}
+      >
         {/* Main content */}
         <Box
           flexGrow={1}
+          flexShrink={1}
           flexDirection="column"
           borderStyle="single"
           borderColor={COLORS.border}
@@ -734,29 +745,35 @@ fi
       </Box>
 
       {/* Status message */}
-      {statusMsg && <StatusMessage message={statusMsg.text} type={statusMsg.type} />}
+      {statusMsg && (
+        <Box flexShrink={0}>
+          <StatusMessage message={statusMsg.text} type={statusMsg.type} />
+        </Box>
+      )}
 
       {/* Command bar */}
-      <CommandBar
-        onSubmit={handleCommand}
-        onExit={() => exit()}
-        disabled={isActionView}
-        disabledHint={
-          view === 'cleanup'
-            ? 'cleanup: press 1/2/3, or h for home'
-            : view === 'ingest'
-              ? 'git > memory: press 1/2/3/4, or h for home'
-              : view === 'integrate'
-                ? 'integrate: press 1-9, or h for home'
-              : view === 'background'
-                ? background.running
-                  ? 'background: press w/1/2/3'
-                  : 'background: press 1/2'
-                : view === 'dashboard'
-                  ? 'dashboard: press 1/2'
-                  : 'action view active'
-        }
-      />
+      <Box flexShrink={0}>
+        <CommandBar
+          onSubmit={handleCommand}
+          onExit={() => exit()}
+          disabled={isActionView}
+          disabledHint={
+            view === 'cleanup'
+              ? 'cleanup: press 1/2/3, or h for home'
+              : view === 'ingest'
+                ? 'git > memory: press 1/2/3/4, or h for home'
+                : view === 'integrate'
+                  ? 'integrate: press 1-9, or h for home'
+                : view === 'background'
+                  ? background.running
+                    ? 'background: press w/1/2/3'
+                    : 'background: press 1/2'
+                  : view === 'dashboard'
+                    ? 'dashboard: press 1/2'
+                    : 'action view active'
+          }
+        />
+      </Box>
     </Box>
   );
 }

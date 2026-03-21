@@ -28,6 +28,7 @@ export function HeaderBar({ version, project, health, mode }: HeaderBarProps): R
     <Box
       flexDirection="row"
       justifyContent="space-between"
+      flexShrink={0}
       paddingX={1}
       borderStyle="single"
       borderColor={COLORS.border}
