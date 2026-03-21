@@ -13,7 +13,7 @@ import { HeaderBar } from './HeaderBar.js';
 import { Sidebar } from './Sidebar.js';
 import { CommandBar } from './CommandBar.js';
 import {
-  HomeView,
+  LandingView,
   SearchResultsView,
   DoctorView,
   ProjectView,
@@ -250,7 +250,7 @@ export function WorkbenchApp({ version, onExitForInteractive }: AppProps): React
         return <DashboardView background={background} />;
       case 'home':
       default:
-        return <HomeView recentMemories={recentMemories} highValueSignals={highValueSignals} project={project} loading={loading} />;
+        return <LandingView recentMemories={recentMemories} highValueSignals={highValueSignals} project={project} background={background} health={health} loading={loading} />;
     }
   };
 
@@ -258,25 +258,29 @@ export function WorkbenchApp({ version, onExitForInteractive }: AppProps): React
   const termWidth = stdout?.columns || 80;
   const narrow = termWidth < 80;
 
+  const showSidebar = !narrow && view !== 'home';
+
   return (
     <Box flexDirection="column" height="100%">
-      {/* Header */}
-      <HeaderBar version={version} project={project} health={health} mode={mode} />
+      {/* Header — only on non-home views (home has its own brand block) */}
+      {view !== 'home' && (
+        <HeaderBar version={version} project={project} health={health} mode={mode} />
+      )}
 
-      {/* Main area: content + sidebar */}
+      {/* Main area */}
       <Box flexGrow={1} flexDirection={narrow ? 'column' : 'row'}>
-        {/* Main content */}
+        {/* Main content — no border on home for cleaner look */}
         <Box
           flexGrow={1}
           flexDirection="column"
-          borderStyle="single"
+          borderStyle={view === 'home' ? undefined : 'single'}
           borderColor={COLORS.border}
         >
           {renderContent()}
         </Box>
 
-        {/* Sidebar */}
-        {!narrow && (
+        {/* Sidebar — contextual, only for non-home views */}
+        {showSidebar && (
           <Sidebar
             health={health}
             background={background}
