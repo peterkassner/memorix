@@ -1009,13 +1009,19 @@ function renderGraph(graph) {
     graph.entities[0]
   );
 
+  // --- Computed stats ---
+  const isolatedCount = graph.entities.filter(e => (degreeMap[e.name] || 0) === 0).length;
+  const connectedCount = graph.entities.length - isolatedCount;
+  const isSparse = isolatedCount > connectedCount;
+
   // --- State ---
   let activeTypes = new Set(Object.keys(typeCounts));
   let currentView = 'topology'; // 'topology' | 'table'
   let currentLayout = 'dagre-lr'; // 'dagre-lr' | 'dagre-tb'
   let focusEntity = topEntity.name;
   let depth = 1;
-  let showFullGraph = false;
+  let scope = 'connected'; // 'connected' | 'neighborhood' | 'full'
+  let showIsolated = false; // explicit toggle, off by default
   let selectedNodeId = null;
   let cy = null; // Cytoscape instance
 
@@ -1056,18 +1062,31 @@ function renderGraph(graph) {
   function buildElements() {
     let nodeNames, visibleEdges;
 
-    if (showFullGraph) {
+    if (scope === 'full') {
+      // Full graph: all entities matching type filter
       nodeNames = new Set(graph.entities.filter(e => activeTypes.has(e.entityType)).map(e => e.name));
+      // If showIsolated is off, still filter out zero-degree nodes even in full mode
+      if (!showIsolated) {
+        nodeNames = new Set([...nodeNames].filter(n => (degreeMap[n] || 0) > 0));
+      }
       visibleEdges = graph.relations.filter(r => nodeNames.has(r.from) && nodeNames.has(r.to));
-    } else {
+    } else if (scope === 'neighborhood') {
+      // Focused neighborhood: BFS from focusEntity
       const sub = getNeighborhood(focusEntity, depth);
       nodeNames = new Set([...sub.nodeNames].filter(n => activeTypes.has(entityMap[n]?.entityType)));
-      // Re-add focus entity even if type-filtered
       if (entityMap[focusEntity]) nodeNames.add(focusEntity);
       visibleEdges = sub.edges.filter(r => nodeNames.has(r.from) && nodeNames.has(r.to));
+    } else {
+      // DEFAULT: 'connected' — only nodes with degree > 0 (no isolated nodes)
+      nodeNames = new Set(
+        graph.entities
+          .filter(e => activeTypes.has(e.entityType) && (degreeMap[e.name] || 0) > 0)
+          .map(e => e.name)
+      );
+      visibleEdges = graph.relations.filter(r => nodeNames.has(r.from) && nodeNames.has(r.to));
     }
 
-    // Top centrality nodes for label display (top 10 by degree within visible set)
+    // Top centrality: only top 3 show labels by default (not 10)
     const visibleDegrees = {};
     nodeNames.forEach(n => { visibleDegrees[n] = 0; });
     visibleEdges.forEach(r => {
@@ -1075,14 +1094,15 @@ function renderGraph(graph) {
       if (visibleDegrees[r.to] !== undefined) visibleDegrees[r.to]++;
     });
     const topCentrality = new Set(
-      [...nodeNames].sort((a, b) => (visibleDegrees[b] || 0) - (visibleDegrees[a] || 0)).slice(0, 10)
+      [...nodeNames].sort((a, b) => (visibleDegrees[b] || 0) - (visibleDegrees[a] || 0)).slice(0, 3)
     );
 
     const nodes = [...nodeNames].map(name => {
       const e = entityMap[name];
       const deg = visibleDegrees[name] || 0;
-      const isFocus = name === focusEntity;
+      const isFocus = scope === 'neighborhood' && name === focusEntity;
       const isTop = topCentrality.has(name);
+      // Labels: only top 3 centrality nodes show labels by default
       const showLabel = isFocus || isTop;
       return {
         data: {
@@ -1371,18 +1391,30 @@ function renderGraph(graph) {
       <div class="gfp-section">
         <div class="gfp-label">Scope</div>
         <div class="gfp-radio-group">
-          <button class="gfp-radio${!showFullGraph ? ' active' : ''}" data-scope="focus">
+          <button class="gfp-radio${scope === 'connected' ? ' active' : ''}" data-scope="connected">
+            <span class="gfp-radio-dot"></span> Connected
+          </button>
+          <button class="gfp-radio${scope === 'neighborhood' ? ' active' : ''}" data-scope="neighborhood">
             <span class="gfp-radio-dot"></span> Neighborhood
           </button>
-          <button class="gfp-radio${showFullGraph ? ' active' : ''}" data-scope="full">
+          <button class="gfp-radio${scope === 'full' ? ' active' : ''}" data-scope="full">
             <span class="gfp-radio-dot"></span> Full Graph
           </button>
         </div>
+        ${isolatedCount > 0 ? `
+          <div style="margin-top:8px;">
+            <button class="gfp-check${showIsolated ? ' active' : ''}" id="gfp-show-isolated">
+              <span class="gfp-check-box">\u2713</span>
+              Show isolated (${isolatedCount})
+            </button>
+          </div>
+        ` : ''}
+        ${isSparse ? `<div style="font-size:10px;color:var(--accent-amber);margin-top:6px;line-height:1.4;">\u26A0 Sparse graph: ${isolatedCount} of ${graph.entities.length} entities have no relations. Isolated nodes hidden by default.</div>` : ''}
       </div>
     `;
 
     const depthHtml = `
-      <div class="gfp-section" id="gfp-depth-section"${showFullGraph ? ' style="display:none"' : ''}>
+      <div class="gfp-section" id="gfp-depth-section"${scope !== 'neighborhood' ? ' style="display:none"' : ''}>
         <div class="gfp-label">Depth</div>
         <div class="gfp-depth-row">
           <button class="gfp-depth-btn${depth === 1 ? ' active' : ''}" data-depth="1">1</button>
@@ -1442,10 +1474,19 @@ function renderGraph(graph) {
     // Bind scope
     panel.querySelectorAll('[data-scope]').forEach(btn => {
       btn.addEventListener('click', () => {
-        showFullGraph = btn.dataset.scope === 'full';
+        scope = btn.dataset.scope;
         rebuildGraph();
       });
     });
+
+    // Bind show isolated toggle
+    const isoBtn = document.getElementById('gfp-show-isolated');
+    if (isoBtn) {
+      isoBtn.addEventListener('click', () => {
+        showIsolated = !showIsolated;
+        rebuildGraph();
+      });
+    }
 
     // Bind depth
     panel.querySelectorAll('[data-depth]').forEach(btn => {
@@ -1510,7 +1551,7 @@ function renderGraph(graph) {
           const match = graph.entities.find(ent => ent.name.toLowerCase().includes(q));
           if (match) {
             focusEntity = match.name;
-            showFullGraph = false;
+            scope = 'neighborhood';
             rebuildGraph();
           }
         }
@@ -1536,11 +1577,14 @@ function renderGraph(graph) {
     const tc = document.getElementById('graph-table-container');
     if (!tc) return;
     let entities;
-    if (showFullGraph) {
-      entities = graph.entities.filter(e => activeTypes.has(e.entityType));
-    } else {
+    if (scope === 'full') {
+      entities = graph.entities.filter(e => activeTypes.has(e.entityType) && (showIsolated || (degreeMap[e.name] || 0) > 0));
+    } else if (scope === 'neighborhood') {
       const sub = getNeighborhood(focusEntity, depth);
       entities = [...sub.nodeNames].filter(n => activeTypes.has(entityMap[n]?.entityType)).map(n => entityMap[n]).filter(Boolean);
+    } else {
+      // connected: only degree > 0
+      entities = graph.entities.filter(e => activeTypes.has(e.entityType) && (degreeMap[e.name] || 0) > 0);
     }
     const sorted = entities.sort((a, b) => (degreeMap[b.name] || 0) - (degreeMap[a.name] || 0));
     tc.innerHTML = `
@@ -1582,7 +1626,11 @@ function renderGraph(graph) {
     if (gsNodes) gsNodes.textContent = `${nodeCount || 0} nodes`;
     if (gsEdges) gsEdges.textContent = `${edgeCount || 0} edges`;
     if (gsLayout) gsLayout.textContent = currentLayout === 'dagre-tb' ? 'TB' : 'LR';
-    if (gsScope) gsScope.textContent = showFullGraph ? 'full' : `${depth}-hop`;
+    if (gsScope) gsScope.textContent = scope === 'full' ? 'full' : scope === 'neighborhood' ? `${depth}-hop` : 'connected';
+    // Show isolated hidden count
+    if (!showIsolated && isolatedCount > 0 && scope !== 'neighborhood') {
+      if (gsScope) gsScope.textContent += ` · ${isolatedCount} isolated hidden`;
+    }
   }
 
   // --- Zoom controls ---
