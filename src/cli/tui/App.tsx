@@ -104,7 +104,7 @@ export function WorkbenchApp({ version, onExitForInteractive }: AppProps): React
 
   const refreshSummary = useCallback(async () => {
     const [recent, bg, h] = await Promise.all([
-      getRecentMemories(8),
+      getRecentMemories(8, project?.id),
       getBackgroundStatus(),
       getHealthInfo(project?.id),
     ]);
@@ -147,9 +147,9 @@ export function WorkbenchApp({ version, onExitForInteractive }: AppProps): React
     let cancelled = false;
     (async () => {
       try {
-        const [proj, recent, bg] = await Promise.all([
-          getProjectInfo(),
-          getRecentMemories(8),
+        const proj = await getProjectInfo();
+        const [recent, bg] = await Promise.all([
+          getRecentMemories(8, proj?.id),
           getBackgroundStatus(),
         ]);
         if (cancelled) return;
@@ -225,7 +225,7 @@ export function WorkbenchApp({ version, onExitForInteractive }: AppProps): React
           if (stored) {
             setStatusMsg({ text: `Stored #${stored.id}: ${stored.title}`, type: 'success' });
             // Refresh recent
-            const recent = await getRecentMemories(8);
+            const recent = await getRecentMemories(8, project?.id);
             setRecentMemories(recent);
             const h = await getHealthInfo(project?.id);
             setHealth(h);
@@ -239,7 +239,7 @@ export function WorkbenchApp({ version, onExitForInteractive }: AppProps): React
         case 'v': {
           setView('recent');
           setLoading(true);
-          const recent = await getRecentMemories(12);
+          const recent = await getRecentMemories(12, project?.id);
           setRecentMemories(recent);
           setLoading(false);
           break;
@@ -721,6 +721,7 @@ fi
   const termWidth = stdout?.columns || 80;
   const termHeight = stdout?.rows || 24;
   const narrow = termWidth < 80;
+  const veryNarrow = termWidth < 60;
   const statusRows = statusMsg ? 1 : 0;
   // Keep header and command bar visible during terminal resize.
   const reservedRows = 2 + statusRows + 3;
@@ -749,15 +750,22 @@ fi
           {renderContent()}
         </Box>
 
-        {/* Sidebar */}
-        {!narrow && (
+        {/* Sidebar: full at >=80, compact health-only at 60-79, hidden at <60 */}
+        {!narrow ? (
           <Sidebar
             health={health}
             background={background}
             onAction={handleCommand}
             activeView={view}
           />
-        )}
+        ) : !veryNarrow ? (
+          <Box flexDirection="column" width={20} borderStyle="single" borderColor={COLORS.border} paddingX={1}>
+            <Text color={COLORS.accentDim} bold>Health</Text>
+            <Box><Text color={COLORS.muted}>Mem </Text><Text color={COLORS.text}>{health.activeMemories}</Text></Box>
+            <Box><Text color={COLORS.muted}>Emb </Text><Text color={health.embeddingProvider === 'ready' ? COLORS.success : COLORS.muted}>{health.embeddingLabel}</Text></Box>
+            <Box><Text color={COLORS.muted}>Bg  </Text><Text color={background.healthy ? COLORS.success : COLORS.muted}>{background.healthy ? 'Up' : 'Down'}</Text></Box>
+          </Box>
+        ) : null}
       </Box>
 
       {/* Status message */}

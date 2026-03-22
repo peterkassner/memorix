@@ -132,8 +132,11 @@ export async function getHealthInfo(projectId?: string): Promise<HealthInfo> {
     const proj = detectProject(process.cwd());
     if (!proj) return defaults;
 
-    const dataDir = await getProjectDataDir(projectId || proj.id);
-    const obs = (await loadObservationsJson(dataDir)) as any[];
+    const effectiveProjectId = projectId || proj.id;
+    const dataDir = await getProjectDataDir(effectiveProjectId);
+    const allObs = (await loadObservationsJson(dataDir)) as any[];
+    // Filter by project — flat storage shares one observations.json across projects
+    const obs = allObs.filter((o: any) => o.projectId === effectiveProjectId);
     const active = obs.filter((o: any) => (o.status ?? 'active') === 'active');
 
     defaults.totalMemories = obs.length;
@@ -142,8 +145,10 @@ export async function getHealthInfo(projectId?: string): Promise<HealthInfo> {
     try {
       const sessionsPath = `${dataDir}/sessions.json`;
       if (fs.existsSync(sessionsPath)) {
-        const sessions = JSON.parse(fs.readFileSync(sessionsPath, 'utf-8'));
-        defaults.sessions = Array.isArray(sessions) ? sessions.length : 0;
+        const allSessions = JSON.parse(fs.readFileSync(sessionsPath, 'utf-8')) as any[];
+        defaults.sessions = Array.isArray(allSessions)
+          ? allSessions.filter((s: any) => s.projectId === effectiveProjectId).length
+          : 0;
       }
     } catch {
       // Ignore unreadable session data and keep defaults.
@@ -203,7 +208,7 @@ export async function getHealthInfo(projectId?: string): Promise<HealthInfo> {
   }
 }
 
-export async function getRecentMemories(limit = 8): Promise<MemoryItem[]> {
+export async function getRecentMemories(limit = 8, projectId?: string): Promise<MemoryItem[]> {
   try {
     const { detectProject } = await import('../../project/detector.js');
     const { getProjectDataDir, loadObservationsJson } = await import('../../store/persistence.js');
@@ -211,9 +216,12 @@ export async function getRecentMemories(limit = 8): Promise<MemoryItem[]> {
     const proj = detectProject(process.cwd());
     if (!proj) return [];
 
-    const dataDir = await getProjectDataDir(proj.id);
-    const obs = (await loadObservationsJson(dataDir)) as any[];
-    const active = obs.filter((o: any) => (o.status ?? 'active') === 'active');
+    const effectiveProjectId = projectId || proj.id;
+    const dataDir = await getProjectDataDir(effectiveProjectId);
+    const allObs = (await loadObservationsJson(dataDir)) as any[];
+    // Filter by project — flat storage shares one observations.json
+    const projectObs = allObs.filter((o: any) => o.projectId === effectiveProjectId);
+    const active = projectObs.filter((o: any) => (o.status ?? 'active') === 'active');
     const filtered = active.filter((o: any) => !/^(Ran:|Command:|Executed:)\s/i.test(o.title || ''));
 
     return filtered.slice(-limit).reverse().map((o: any) => ({

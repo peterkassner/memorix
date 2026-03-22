@@ -52,7 +52,14 @@ export function HomeView({ project, health, background }: HomeViewProps): React.
             </Box>
           </Box>
         ) : (
-          <Text color={COLORS.warning}>No project detected. Run git init first.</Text>
+          <Box flexDirection="column">
+            <Text color={COLORS.warning}>No project detected.</Text>
+            <Text color={COLORS.muted}>Get started:</Text>
+            <Text color={COLORS.textDim}>  git init          Initialize a git repo</Text>
+            <Text color={COLORS.textDim}>  /configure         Set up LLM + embedding</Text>
+            <Text color={COLORS.textDim}>  /integrate         Connect your IDE</Text>
+            <Text color={COLORS.textDim}>  /doctor            Run diagnostics</Text>
+          </Box>
         )}
       </Box>
 
@@ -179,6 +186,11 @@ export function SearchResultsView({ results, query, loading }: SearchResultsView
             <Text color={COLORS.muted}> ({(result.score * 100).toFixed(0)}%)</Text>
           </Box>
         ))
+      )}
+      {!loading && results.length > 0 && (
+        <Box marginTop={1} flexDirection="column">
+          <Text color={COLORS.muted}>Try: /search {'<'}other query{'>'} | /recent | /home</Text>
+        </Box>
       )}
     </Box>
   );

@@ -52,6 +52,7 @@ export const COLORS = {
   border: '#444444',
   highlight: '#3a3a3a',
   brand: 'cyan',
+  bg: '#1a1a1a',
 } as const;
 
 export const BOX = {

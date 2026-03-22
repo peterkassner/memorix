@@ -77,10 +77,11 @@ export function CommandBar({
       if (showPalette && filteredCommands.length > 0) {
         const selected = filteredCommands[clampedIndex];
         if (selected) {
-          const nextInput = `${selected.name} `;
-          setInput(nextInput);
-          setCursorPos(nextInput.length);
+          // Enter on palette = execute the command directly
+          setInput('');
+          setCursorPos(0);
           setPaletteIndex(0);
+          onSubmit(selected.name);
         }
       } else if (input.trim()) {
         const submitted = input;
@@ -139,7 +140,7 @@ export function CommandBar({
               {command.alias && <Text color={COLORS.textDim}> ({command.alias})</Text>}
             </Box>
           ))}
-          <Text color={COLORS.muted}>Up/Down navigate | Tab complete | Enter select</Text>
+          <Text color={COLORS.muted}>Up/Down navigate | Tab complete | Enter execute</Text>
         </Box>
       )}
 
@@ -156,9 +157,11 @@ export function CommandBar({
           </>
         ) : (
           <>
-            <Text color={COLORS.accent} bold>{'>'}</Text>
-            <Text color={COLORS.text}>{input}</Text>
-            {!input && <Text color={COLORS.muted}>search memories or /command</Text>}
+            <Text color={COLORS.accent} bold>{'> '}</Text>
+            <Text color={COLORS.text}>{input.slice(0, cursorPos)}</Text>
+            <Text backgroundColor={COLORS.accent} color={COLORS.bg}>{input[cursorPos] || ' '}</Text>
+            <Text color={COLORS.text}>{input.slice(cursorPos + 1)}</Text>
+            {!input && <Text color={COLORS.muted}> search memories or /command</Text>}
           </>
         )}
       </Box>
