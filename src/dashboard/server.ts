@@ -125,7 +125,17 @@ async function handleApi(
 
             case '/graph': {
                 const graph = await loadGraphJsonl(effectiveDataDir);
-                sendJson(res, graph);
+                // Project-scope the graph: only include entities that have observations in this project
+                const graphObs = await loadObservationsJson(effectiveDataDir) as Array<{ projectId?: string; entityName?: string; status?: string }>;
+                const projectEntityNames = new Set(
+                    graphObs
+                        .filter(o => o.projectId === effectiveProjectId && (o.status ?? 'active') === 'active' && o.entityName)
+                        .map(o => o.entityName!),
+                );
+                const entities = graph.entities.filter(e => projectEntityNames.has(e.name));
+                const entityNameSet = new Set(entities.map(e => e.name));
+                const relations = graph.relations.filter(r => entityNameSet.has(r.from) && entityNameSet.has(r.to));
+                sendJson(res, { entities, relations });
                 break;
             }
 
@@ -430,10 +440,13 @@ async function handleApi(
                 if (deleteMatch && req.method === 'DELETE') {
                     const obsId = parseInt(deleteMatch[1], 10);
                     await withFileLock(effectiveDataDir, async () => {
-                        const allObs = await loadObservationsJson(effectiveDataDir) as Array<{ id?: number;[k: string]: unknown }>;
+                        const allObs = await loadObservationsJson(effectiveDataDir) as Array<{ id?: number; projectId?: string;[k: string]: unknown }>;
                         const idx = allObs.findIndex(o => o.id === obsId);
                         if (idx === -1) {
                             sendError(res, 'Observation not found', 404);
+                        } else if (allObs[idx].projectId !== effectiveProjectId) {
+                            // Cross-project deletion guard: reject if obs belongs to a different project
+                            sendError(res, `Observation #${obsId} belongs to project "${allObs[idx].projectId}", not "${effectiveProjectId}"`, 403);
                         } else {
                             allObs.splice(idx, 1);
                             await saveObservationsJson(effectiveDataDir, allObs);
@@ -460,14 +473,23 @@ async function handleApi(
                 }
 
                 if (apiPath === '/export') {
-                    const graph = await loadGraphJsonl(effectiveDataDir);
+                    const fullGraph = await loadGraphJsonl(effectiveDataDir);
                     const allObs = await loadObservationsJson(effectiveDataDir);
-                    const observations = filterByProject(allObs as Array<{ projectId?: string }>, effectiveProjectId);
+                    const observations = filterByProject(allObs as Array<{ projectId?: string; entityName?: string; status?: string }>, effectiveProjectId);
                     const nextId = await loadIdCounter(effectiveDataDir);
+                    // Project-scope the graph: only entities referenced by this project's observations
+                    const exportEntityNames = new Set(
+                        observations
+                            .filter(o => (o.status ?? 'active') === 'active' && o.entityName)
+                            .map(o => o.entityName!),
+                    );
+                    const exportEntities = fullGraph.entities.filter(e => exportEntityNames.has(e.name));
+                    const exportEntitySet = new Set(exportEntities.map(e => e.name));
+                    const exportRelations = fullGraph.relations.filter(r => exportEntitySet.has(r.from) && exportEntitySet.has(r.to));
                     const exportData = {
                         project: { id: effectiveProjectId, name: effectiveProjectName },
                         exportedAt: new Date().toISOString(),
-                        graph,
+                        graph: { entities: exportEntities, relations: exportRelations },
                         observations,
                         nextId,
                     };

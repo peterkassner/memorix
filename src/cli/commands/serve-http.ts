@@ -807,27 +807,49 @@ export default defineCommand({
         }
 
         if (apiPath === '/config') {
+          const { projectId: configProjectId } = await resolveRequestProject(url);
           const os = await import('node:os');
           const { existsSync } = await import('node:fs');
           const { join } = await import('node:path');
           const { loadYamlConfig } = await import('../../config/yaml-loader.js');
           const { loadFileConfig, loadDotenv, getLoadedEnvFiles } = await import('../../config.js');
 
-          loadDotenv(projectRoot);
-          const yml = loadYamlConfig(projectRoot);
+          // Determine the effective project root for config resolution.
+          // For the startup project, use the known projectRoot.
+          // For other projects, we cannot reverse-lookup the fs root from a project ID,
+          // so fall back to user-level config only and flag the limitation.
+          const isStartupProject = configProjectId === defaultProject.id;
+          const effectiveRoot = isStartupProject ? projectRoot : null;
+
+          if (effectiveRoot) {
+            loadDotenv(effectiveRoot);
+          }
+          const yml = effectiveRoot ? loadYamlConfig(effectiveRoot) : loadYamlConfig();
           const legacy = loadFileConfig();
 
           const files: Record<string, { exists: boolean; path: string }> = {};
           const home = os.homedir();
-          const paths: Record<string, string> = {
-            'project memorix.yml': join(projectRoot, 'memorix.yml'),
-            'user memorix.yml': join(home, '.memorix', 'memorix.yml'),
-            'project .env': join(projectRoot, '.env'),
-            'user .env': join(home, '.memorix', '.env'),
-            'legacy config.json': join(home, '.memorix', 'config.json'),
-          };
-          for (const [key, fpath] of Object.entries(paths)) {
-            files[key] = { exists: existsSync(fpath), path: fpath };
+          if (effectiveRoot) {
+            const paths: Record<string, string> = {
+              'project memorix.yml': join(effectiveRoot, 'memorix.yml'),
+              'user memorix.yml': join(home, '.memorix', 'memorix.yml'),
+              'project .env': join(effectiveRoot, '.env'),
+              'user .env': join(home, '.memorix', '.env'),
+              'legacy config.json': join(home, '.memorix', 'config.json'),
+            };
+            for (const [key, fpath] of Object.entries(paths)) {
+              files[key] = { exists: existsSync(fpath), path: fpath };
+            }
+          } else {
+            // Non-startup project: only user-level config files are resolvable
+            const userPaths: Record<string, string> = {
+              'user memorix.yml': join(home, '.memorix', 'memorix.yml'),
+              'user .env': join(home, '.memorix', '.env'),
+              'legacy config.json': join(home, '.memorix', 'config.json'),
+            };
+            for (const [key, fpath] of Object.entries(userPaths)) {
+              files[key] = { exists: existsSync(fpath), path: fpath };
+            }
           }
 
           const values: Array<{ key: string; value: string; source: string; sensitive?: boolean }> = [];
@@ -904,7 +926,14 @@ export default defineCommand({
             source: yml.server?.dashboard !== undefined ? 'memorix.yml' : 'default',
           });
 
-          sendJson({ files, values, loadedEnvFiles: [...getLoadedEnvFiles()] });
+          sendJson({
+            projectId: configProjectId,
+            isStartupProject,
+            ...(!isStartupProject ? { note: 'Project-level config (memorix.yml, .env) is only available for the startup project. Showing user-level config only.' } : {}),
+            files,
+            values,
+            loadedEnvFiles: [...getLoadedEnvFiles()],
+          });
           return;
         }
 
