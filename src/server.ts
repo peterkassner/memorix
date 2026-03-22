@@ -1299,7 +1299,7 @@ export async function createMemorixServer(
       const safeAfter = depthAfter != null ? coerceNumber(depthAfter, 3) : undefined;
       const result = await compactTimeline(
         safeAnchor,
-        undefined,
+        project.id,
         safeBefore,
         safeAfter,
       );
@@ -1740,6 +1740,21 @@ export async function createMemorixServer(
     },
   );
 
+  /** Filter a KnowledgeGraph to only entities referenced by the current project's observations */
+  async function scopeGraphToProject(graph: { entities: any[]; relations: any[] }) {
+    const { getAllObservations } = await import('./memory/observations.js');
+    const allObs = getAllObservations();
+    const projectEntityNames = new Set(
+      allObs
+        .filter(o => o.projectId === project.id && (o.status ?? 'active') === 'active' && o.entityName)
+        .map(o => o.entityName),
+    );
+    const entities = graph.entities.filter((e: any) => projectEntityNames.has(e.name));
+    const entityNameSet = new Set(entities.map((e: any) => e.name));
+    const relations = graph.relations.filter((r: any) => entityNameSet.has(r.from) && entityNameSet.has(r.to));
+    return { entities, relations };
+  }
+
   /** read_graph — MCP Official compatible */
   server.registerTool(
     'read_graph',
@@ -1749,9 +1764,12 @@ export async function createMemorixServer(
       inputSchema: {},
     },
     async () => {
+      const unresolved = requireResolvedProject('read the knowledge graph');
+      if (unresolved) return unresolved;
       const graph = await graphManager.readGraph();
+      const scoped = await scopeGraphToProject(graph);
       return {
-        content: [{ type: 'text' as const, text: JSON.stringify(graph, null, 2) }],
+        content: [{ type: 'text' as const, text: JSON.stringify(scoped, null, 2) }],
       };
     },
   );
@@ -1767,9 +1785,12 @@ export async function createMemorixServer(
       },
     },
     async ({ query }) => {
+      const unresolved = requireResolvedProject('search nodes in the knowledge graph');
+      if (unresolved) return unresolved;
       const graph = await graphManager.searchNodes(query);
+      const scoped = await scopeGraphToProject(graph);
       return {
-        content: [{ type: 'text' as const, text: JSON.stringify(graph, null, 2) }],
+        content: [{ type: 'text' as const, text: JSON.stringify(scoped, null, 2) }],
       };
     },
   );
@@ -1785,10 +1806,13 @@ export async function createMemorixServer(
       },
     },
     async ({ names }) => {
+      const unresolved = requireResolvedProject('open nodes in the knowledge graph');
+      if (unresolved) return unresolved;
       const safeNames = coerceStringArray(names);
       const graph = await graphManager.openNodes(safeNames);
+      const scoped = await scopeGraphToProject(graph);
       return {
-        content: [{ type: 'text' as const, text: JSON.stringify(graph, null, 2) }],
+        content: [{ type: 'text' as const, text: JSON.stringify(scoped, null, 2) }],
       };
     },
   );

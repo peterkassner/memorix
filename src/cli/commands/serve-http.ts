@@ -261,10 +261,20 @@ export default defineCommand({
     }
 
     /**
-     * Send CORS headers (allow all origins for local dev)
+     * Allowed CORS origins — only localhost variants.
+     * Non-browser MCP clients (rmcp, Windsurf, curl) typically send no Origin
+     * header at all, so they bypass CORS entirely (browser-only mechanism).
      */
-    function setCorsHeaders(res: ServerResponse) {
-      res.setHeader('Access-Control-Allow-Origin', '*');
+    const ALLOWED_ORIGIN_RE = /^https?:\/\/(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$/;
+
+    function setCorsHeaders(req: IncomingMessage, res: ServerResponse) {
+      const origin = req.headers['origin'];
+      if (origin && ALLOWED_ORIGIN_RE.test(origin)) {
+        res.setHeader('Access-Control-Allow-Origin', origin);
+        res.setHeader('Vary', 'Origin');
+      }
+      // No Access-Control-Allow-Origin at all for disallowed origins —
+      // browser will block the response (fail-closed).
       res.setHeader('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS');
       res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Accept, Mcp-Session-Id, Last-Event-Id');
       res.setHeader('Access-Control-Expose-Headers', 'Mcp-Session-Id');
@@ -1007,7 +1017,7 @@ export default defineCommand({
     }
 
     const httpServer = createServer(async (req, res) => {
-      setCorsHeaders(res);
+      setCorsHeaders(req, res);
 
       // Handle CORS preflight
       if (req.method === 'OPTIONS') {

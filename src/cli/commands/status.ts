@@ -27,13 +27,18 @@ export default defineCommand({
     }
     const dataDir = await getProjectDataDir(project.id);
 
-    // Count observations
+    // Count observations for the CURRENT project only (not global total)
     let obsCount = 0;
+    let activeCount = 0;
     try {
       const obsFile = join(dataDir, 'observations.json');
       if (existsSync(obsFile)) {
-        const data = JSON.parse(readFileSync(obsFile, 'utf-8'));
-        obsCount = Array.isArray(data) ? data.length : 0;
+        const data = JSON.parse(readFileSync(obsFile, 'utf-8')) as Array<{ projectId?: string; status?: string }>;
+        if (Array.isArray(data)) {
+          const projectObs = data.filter(o => o.projectId === project.id);
+          obsCount = projectObs.length;
+          activeCount = projectObs.filter(o => (o.status ?? 'active') === 'active').length;
+        }
       }
     } catch { /* ignore */ }
 
@@ -44,7 +49,7 @@ export default defineCommand({
         `Root:         ${project.rootPath}`,
         `Git remote:   ${project.gitRemote || 'none'}`,
         `Data dir:     ${dataDir}`,
-        `Observations: ${obsCount}`,
+        `Observations: ${obsCount} (${activeCount} active)`,
       ].join('\n'),
       'Project',
     );

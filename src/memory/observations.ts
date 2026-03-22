@@ -84,16 +84,10 @@ export async function storeObservation(input: {
     }
   }
 
-  const id = nextId++;
-
-  // Auto-extract entities from narrative (inspired by MemCP RegexEntityExtractor)
+  // ── Pre-compute enrichments (pure, no side-effects) ──
   const contentForExtraction = [input.title, input.narrative, ...(input.facts ?? [])].join(' ');
   const extracted = extractEntities(contentForExtraction);
-
-  // Auto-enrich concepts with extracted entities
   const enrichedConcepts = enrichConcepts(input.concepts ?? [], extracted);
-
-  // Auto-enrich filesModified with extracted file paths
   const userFiles = new Set((input.filesModified ?? []).map((f) => f.toLowerCase()));
   const enrichedFiles = [...(input.filesModified ?? [])];
   for (const f of extracted.files) {
@@ -101,117 +95,135 @@ export async function storeObservation(input: {
       enrichedFiles.push(f);
     }
   }
-
-  // Count tokens for the full observation content
   const fullText = [
-    input.title,
-    input.narrative,
-    ...(input.facts ?? []),
-    ...enrichedFiles,
-    ...enrichedConcepts,
+    input.title, input.narrative,
+    ...(input.facts ?? []), ...enrichedFiles, ...enrichedConcepts,
   ].join(' ');
   const tokens = countTextTokens(fullText);
 
-  const observation: Observation = {
-    id,
-    entityName: input.entityName,
-    type: input.type,
-    title: input.title,
-    narrative: input.narrative,
-    facts: input.facts ?? [],
-    filesModified: enrichedFiles,
-    concepts: enrichedConcepts,
-    tokens,
-    createdAt: now,
-    projectId: input.projectId,
-    hasCausalLanguage: extracted.hasCausalLanguage,
-    topicKey: input.topicKey,
-    revisionCount: 1,
-    sessionId: input.sessionId,
-    status: 'active',
-    progress: input.progress,
-    source: input.source,
-    commitHash: input.commitHash,
-    relatedCommits: input.relatedCommits,
-    relatedEntities: input.relatedEntities,
-  };
+  // ── Atomic write: ID allocation + persist + in-memory push inside lock ──
+  // This prevents concurrent calls from getting duplicate IDs or silently
+  // losing observations due to stale in-memory state.
+  let observation!: Observation;
+  let doc!: MemorixDocument;
 
-  observations.push(observation);
+  const assignAndPersist = async () => {
+    if (projectDir) {
+      await withFileLock(projectDir, async () => {
+        // Re-read from disk to get the authoritative nextId and observation list
+        const diskObs = await loadObservationsJson(projectDir!) as Observation[];
+        const diskNextId = await loadIdCounter(projectDir!);
 
-  // Insert into Orama search index WITHOUT embedding first (non-blocking)
-  const doc: MemorixDocument = {
-    id: makeOramaObservationId(input.projectId, id),
-    observationId: id,
-    entityName: input.entityName,
-    type: input.type,
-    title: input.title,
-    narrative: input.narrative,
-    facts: (input.facts ?? []).join('\n'),
-    filesModified: enrichedFiles.join('\n'),
-    concepts: enrichedConcepts.map(c => c.replace(/-/g, ' ')).join(', '),
-    tokens,
-    createdAt: now,
-    projectId: input.projectId,
-    accessCount: 0,
-    lastAccessedAt: '',
-    status: 'active',
-    source: input.source ?? 'agent',
-  };
+        // Use the higher of in-memory vs disk counter (handles multi-process)
+        const id = Math.max(nextId, diskNextId);
 
-  await insertObservation(doc);
+        observation = {
+          id,
+          entityName: input.entityName,
+          type: input.type,
+          title: input.title,
+          narrative: input.narrative,
+          facts: input.facts ?? [],
+          filesModified: enrichedFiles,
+          concepts: enrichedConcepts,
+          tokens,
+          createdAt: now,
+          projectId: input.projectId,
+          hasCausalLanguage: extracted.hasCausalLanguage,
+          topicKey: input.topicKey,
+          revisionCount: 1,
+          sessionId: input.sessionId,
+          status: 'active',
+          progress: input.progress,
+          source: input.source,
+          commitHash: input.commitHash,
+          relatedCommits: input.relatedCommits,
+          relatedEntities: input.relatedEntities,
+        };
 
-  // Persist to disk with file lock (cross-process safe)
-  if (projectDir) {
-    await withFileLock(projectDir, async () => {
-      // Re-read from disk to merge changes from other processes
-      const diskObs = await loadObservationsJson(projectDir!) as Observation[];
-      const diskNextId = await loadIdCounter(projectDir!);
-
-      // Merge: add our new observation if not already present
-      const existingIds = new Set(diskObs.map(o => o.id));
-      if (!existingIds.has(observation.id)) {
         diskObs.push(observation);
-      }
+        nextId = id + 1;
+        observations = diskObs;
 
-      // Use the higher nextId (ours or disk's)
-      const mergedNextId = Math.max(nextId, diskNextId);
+        await saveObservationsJson(projectDir!, observations);
+        await saveIdCounter(projectDir!, nextId);
+      });
+    } else {
+      // No projectDir (e.g., tests) — just use in-memory counter
+      const id = nextId++;
+      observation = {
+        id,
+        entityName: input.entityName,
+        type: input.type,
+        title: input.title,
+        narrative: input.narrative,
+        facts: input.facts ?? [],
+        filesModified: enrichedFiles,
+        concepts: enrichedConcepts,
+        tokens,
+        createdAt: now,
+        projectId: input.projectId,
+        hasCausalLanguage: extracted.hasCausalLanguage,
+        topicKey: input.topicKey,
+        revisionCount: 1,
+        sessionId: input.sessionId,
+        status: 'active',
+        progress: input.progress,
+        source: input.source,
+        commitHash: input.commitHash,
+        relatedCommits: input.relatedCommits,
+        relatedEntities: input.relatedEntities,
+      };
+      observations.push(observation);
+    }
 
-      // Update in-memory state with merged data
-      observations = diskObs;
-      nextId = mergedNextId;
+    // Build Orama doc AFTER id is assigned
+    doc = {
+      id: makeOramaObservationId(input.projectId, observation.id),
+      observationId: observation.id,
+      entityName: input.entityName,
+      type: input.type,
+      title: input.title,
+      narrative: input.narrative,
+      facts: (input.facts ?? []).join('\n'),
+      filesModified: enrichedFiles.join('\n'),
+      concepts: enrichedConcepts.map(c => c.replace(/-/g, ' ')).join(', '),
+      tokens,
+      createdAt: now,
+      projectId: input.projectId,
+      accessCount: 0,
+      lastAccessedAt: '',
+      status: 'active',
+      source: input.source ?? 'agent',
+    };
 
-      await saveObservationsJson(projectDir!, observations);
-      await saveIdCounter(projectDir!, nextId);
-    });
-  }
+    await insertObservation(doc);
+  };
+
+  await assignAndPersist();
 
   // Generate embedding async (fire-and-forget) — never blocks MCP response
   // Track in vectorMissingIds until embedding is successfully written.
-  vectorMissingIds.add(id);
+  const obsId = observation.id;
+  vectorMissingIds.add(obsId);
   const searchableText = [input.title, input.narrative, ...(input.facts ?? [])].join(' ');
   generateEmbedding(searchableText).then(async (embedding) => {
     if (embedding) {
       try {
         const { removeObservation: removeObs } = await import('../store/orama-store.js');
-        await removeObs(makeOramaObservationId(input.projectId, id));
+        await removeObs(makeOramaObservationId(input.projectId, obsId));
         await insertObservation(Object.assign({}, doc, { embedding }));
-        vectorMissingIds.delete(id);
+        vectorMissingIds.delete(obsId);
       } catch {
-        // Embedding index update failed — observation still persisted without vector
-        console.error(`[memorix] Embedding index update failed for obs-${id} (kept in backfill queue)`);
+        console.error(`[memorix] Embedding index update failed for obs-${obsId} (kept in backfill queue)`);
       }
     } else if (isEmbeddingExplicitlyDisabled()) {
-      // Embedding is explicitly turned off — no provider will ever be available,
-      // so remove from the missing set (nothing to backfill from).
-      vectorMissingIds.delete(id);
+      vectorMissingIds.delete(obsId);
     } else {
-      // Provider returned null due to init failure / API error / missing deps.
-      // Keep in backfill queue so a future retry can generate the embedding.
-      console.error(`[memorix] Embedding provider unavailable for obs-${id} (kept in backfill queue for retry)`);
+      console.error(`[memorix] Embedding provider unavailable for obs-${obsId} (kept in backfill queue for retry)`);
     }
   }).catch((err) => {
-    console.error(`[memorix] Async embedding failed for obs-${id}: ${err instanceof Error ? err.message : err}`);
-    // Keep in vectorMissingIds for backfill retry
+    console.error(`[memorix] Async embedding failed for obs-${obsId}: ${err instanceof Error ? err.message : err}`);
   });
 
   return { observation, upserted: false };

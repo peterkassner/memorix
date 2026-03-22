@@ -614,14 +614,19 @@ export async function getObservationsByIds(
  */
 export async function getTimeline(
   anchorId: number,
-  _projectId?: string,
+  projectId?: string,
   depthBefore = 3,
   depthAfter = 3,
 ): Promise<{ before: IndexEntry[]; anchor: IndexEntry | null; after: IndexEntry[] }> {
   // Use in-memory observations for reliable lookup
   // (Orama search with empty term is unreliable — same fix as compactDetail)
   const { getAllObservations } = await import('../memory/observations.js');
-  const allObs = getAllObservations();
+  const rawObs = getAllObservations();
+
+  // Filter by project if specified — prevents cross-project context leaking
+  const allObs = projectId
+    ? rawObs.filter((o) => o.projectId === projectId)
+    : rawObs;
 
   // Sort by creation time
   const sorted = allObs.sort((a, b) => a.createdAt.localeCompare(b.createdAt));
