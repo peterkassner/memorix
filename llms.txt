@@ -1,8 +1,8 @@
 # Memorix
 
-> Local-first memory platform for AI coding agents.
+> Open-source cross-agent memory layer for coding agents via MCP.
 
-Memorix is an open-source MCP server that gives coding agents persistent, project-aware memory across IDEs and sessions. It combines three layers in one system:
+Memorix is an open-source MCP server that gives coding agents persistent, project-aware memory across IDEs and sessions. It is compatible with Cursor, Claude Code, Codex, Windsurf, Gemini CLI, GitHub Copilot, Kiro, OpenCode, Antigravity, and Trae through MCP. It combines three layers in one system:
 
 - **Git Memory** for engineering truth from commits
 - **Reasoning Memory** for why decisions were made

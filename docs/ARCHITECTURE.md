@@ -1,6 +1,6 @@
 # Memorix Architecture
 
-Memorix is a local-first memory platform for AI coding agents.
+Memorix is an open-source cross-agent memory layer for coding agents via MCP.
 
 It combines three core memory layers:
 

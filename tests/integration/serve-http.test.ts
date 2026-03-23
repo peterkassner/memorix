@@ -154,7 +154,13 @@ beforeAll(async () => {
 
   // Start test HTTP server (same logic as serve-http.ts)
   httpServer = createServer(async (req, res) => {
-    res.setHeader('Access-Control-Allow-Origin', '*');
+    // Mirror production CORS: localhost-only, not wildcard
+    const ALLOWED_ORIGIN_RE = /^https?:\/\/(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$/;
+    const origin = req.headers['origin'];
+    if (origin && ALLOWED_ORIGIN_RE.test(origin)) {
+      res.setHeader('Access-Control-Allow-Origin', origin);
+      res.setHeader('Vary', 'Origin');
+    }
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Accept, Mcp-Session-Id, Last-Event-Id');
     res.setHeader('Access-Control-Expose-Headers', 'Mcp-Session-Id');
@@ -370,7 +376,7 @@ describe('HTTP Transport', () => {
       await clientB.connect(transportB);
       await clientA.sendRootsListChanged();
       await clientB.sendRootsListChanged();
-      await new Promise(resolve => setTimeout(resolve, 100));
+      await new Promise(resolve => setTimeout(resolve, 300));
 
       const resultA = await clientA.request({
         method: 'tools/call',
@@ -705,9 +711,13 @@ describe('HTTP Transport', () => {
   });
 
   it('should handle CORS preflight', async () => {
-    const res = await fetch(`${BASE_URL}/mcp`, { method: 'OPTIONS' });
+    // Preflight with localhost origin should echo it back (localhost-only policy)
+    const res = await fetch(`${BASE_URL}/mcp`, {
+      method: 'OPTIONS',
+      headers: { 'Origin': `http://127.0.0.1:${TEST_PORT}` },
+    });
     expect(res.status).toBe(204);
-    expect(res.headers.get('access-control-allow-origin')).toBe('*');
+    expect(res.headers.get('access-control-allow-origin')).toBe(`http://127.0.0.1:${TEST_PORT}`);
     expect(res.headers.get('access-control-allow-methods')).toContain('POST');
   });
 });

@@ -1,5 +1,7 @@
 # Agent Setup Guide
 
+Memorix is an open-source cross-agent memory layer for coding agents via MCP, with first-class integrations for Cursor, Claude Code, Codex, Windsurf, Gemini CLI, GitHub Copilot, Kiro, OpenCode, Antigravity, and Trae.
+
 Memorix supports two runtime modes:
 
 - `memorix serve` for stdio MCP integrations
@@ -79,9 +81,9 @@ Recommended when:
 If you want Memorix to generate IDE-specific dot files, install them explicitly:
 
 ```bash
-memorix integrate cursor
-memorix integrate windsurf
-memorix integrate opencode
+memorix integrate --agent cursor
+memorix integrate --agent windsurf
+memorix integrate --agent opencode
 ```
 
 This keeps the default experience MCP-first and zero-write until you opt into a specific IDE integration.

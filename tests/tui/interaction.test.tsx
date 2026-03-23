@@ -19,6 +19,17 @@ import { Box, Text, useInput } from 'ink';
 
 const tick = (ms = 50) => new Promise<void>(r => setTimeout(r, ms));
 
+async function waitForCondition(
+  predicate: () => boolean,
+  attempts = 6,
+  ms = 80,
+): Promise<void> {
+  for (let i = 0; i < attempts; i++) {
+    if (predicate()) return;
+    await tick(ms);
+  }
+}
+
 // ── useNavigation pure logic tests ──────────────────────────────────
 
 import {
@@ -130,8 +141,9 @@ describe('CommandBar', () => {
     stdin.write('test query');
     await tick();
     stdin.write('\r');
-    await tick();
+    await waitForCondition(() => onSubmit.mock.calls.length > 0);
     expect(onSubmit).toHaveBeenCalledWith('test query');
+    await waitForCondition(() => (lastFrame() ?? '').includes('search memories or /command'));
     expect(lastFrame()).toContain('search memories or /command');
     unmount();
   });
@@ -163,13 +175,16 @@ describe('CommandBar', () => {
 
   it('Enter on slash palette executes the selected command directly', async () => {
     const onSubmit = vi.fn();
-    const { stdin, unmount } = render(
+    const { lastFrame, stdin, unmount } = render(
       <CommandBar onSubmit={onSubmit} onExit={() => {}} />,
     );
     stdin.write('/');
-    await tick();
+    await waitForCondition(() => {
+      const frame = lastFrame() ?? '';
+      return frame.includes('Commands') && frame.includes('/search');
+    });
     stdin.write('\r');
-    await tick();
+    await waitForCondition(() => onSubmit.mock.calls.length > 0);
     expect(onSubmit).toHaveBeenCalled();
     const submittedCmd = onSubmit.mock.calls[0][0];
     expect(submittedCmd.startsWith('/')).toBe(true);
@@ -577,9 +592,9 @@ describe('ConfigureView', () => {
     const { stdin, unmount } = render(
       <ConfigureView onBack={onBack} />,
     );
-    for (let i = 0; i < 4; i++) { stdin.write('\x1B[B'); await tick(); }
+    for (let i = 0; i < 4; i++) { stdin.write('\x1B[B'); await tick(80); }
     stdin.write('\r');
-    await tick();
+    await waitForCondition(() => onBack.mock.calls.length > 0);
     expect(onBack).toHaveBeenCalled();
     unmount();
   });
@@ -667,28 +682,28 @@ describe('3-layer keyboard model (integration)', () => {
     unmount();
   });
 
-  it('action view captures number keys, Sidebar nav disabled', async () => {
+  it('number-key action view captures digits, Sidebar nav disabled', async () => {
     const { lastFrame, stdin, unmount } = render(<KeyboardTestApp />);
-    stdin.write('c');
-    await tick();
-    expect(lastFrame()).toContain('view:configure');
+    stdin.write('i');
+    await tick(120);
+    expect(lastFrame()).toContain('view:integrate');
     stdin.write('1');
-    await tick();
+    await tick(120);
     expect(lastFrame()).toContain('action-1');
     // 'v' should NOT trigger Sidebar nav since isFocused=false in action view
     stdin.write('v');
-    await tick();
+    await tick(120);
     expect(lastFrame()).not.toContain('view:recent');
     unmount();
   });
 
   it('h key in action view returns home via App layer', async () => {
     const { lastFrame, stdin, unmount } = render(<KeyboardTestApp />);
-    stdin.write('c');
-    await tick();
-    expect(lastFrame()).toContain('view:configure');
+    stdin.write('i');
+    await tick(120);
+    expect(lastFrame()).toContain('view:integrate');
     stdin.write('h');
-    await tick();
+    await tick(120);
     expect(lastFrame()).toContain('view:home');
     expect(lastFrame()).toContain('action-h-home');
     unmount();

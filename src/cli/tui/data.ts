@@ -175,7 +175,7 @@ export async function getHealthInfo(projectId?: string): Promise<HealthInfo> {
     try {
       const { getLastSearchMode, isEmbeddingEnabled } = await import('../../store/orama-store.js');
       const vectorActive = isEmbeddingEnabled();
-      defaults.searchMode = getLastSearchMode();
+      defaults.searchMode = getLastSearchMode(effectiveProjectId);
       defaults.searchModeLabel = formatSearchModeLabel(defaults.searchMode);
 
       // Build diagnostic explanation

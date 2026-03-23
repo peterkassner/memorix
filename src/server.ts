@@ -960,7 +960,7 @@ export async function createMemorixServer(
       let text = result.formatted;
       try {
         const { getLastSearchMode } = await import('./store/orama-store.js');
-        text += `\n\n_Search mode: ${getLastSearchMode()}_`;
+        text += `\n\n_Search mode: ${getLastSearchMode(project.id)}_`;
       } catch { /* best-effort */ }
       if (!syncAdvisoryShown && syncAdvisory) {
         text += syncAdvisory;
@@ -1344,7 +1344,11 @@ export async function createMemorixServer(
       // Defensive coercion: Claude Code CLI + GLM may send "[16]" instead of [16]
       const safeIds = coerceNumberArray(ids);
       const safeRefs = coerceObservationRefs(refs);
-      const detailInput = safeRefs.length > 0 ? safeRefs : safeIds;
+      // Bare numeric IDs are scoped to the current project to prevent cross-project
+      // ambiguity. Explicit refs with projectId are respected as-is (global search).
+      const detailInput: Array<{ id: number; projectId?: string }> = safeRefs.length > 0
+        ? safeRefs
+        : safeIds.map(id => ({ id, projectId: project.id }));
       const result = await compactDetail(detailInput);
 
       return {

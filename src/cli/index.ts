@@ -679,8 +679,8 @@ async function runSearch(query: string): Promise<void> {
   s.start('Searching memories...');
   
   try {
-    const { searchObservations, getDb } = await import('../store/orama-store.js');
-    const { getProjectDataDir } = await import('../store/persistence.js');
+    const { searchObservations, getDb, hydrateIndex } = await import('../store/orama-store.js');
+    const { getProjectDataDir, loadObservationsJson } = await import('../store/persistence.js');
     const { detectProject } = await import('../project/detector.js');
     const { initObservations } = await import('../memory/observations.js');
     
@@ -689,6 +689,10 @@ async function runSearch(query: string): Promise<void> {
     const dataDir = await getProjectDataDir(project.id);
     await initObservations(dataDir);
     await getDb(); // Ensure Orama is initialized
+
+    // Hydrate Orama index from persisted observations (cold-start fix)
+    const allObs = (await loadObservationsJson(dataDir)) as any[];
+    await hydrateIndex(allObs);
     
     const results = await searchObservations({ query, limit: 10, projectId: project.id });
     s.stop('Search complete');

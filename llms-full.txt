@@ -1,10 +1,10 @@
 # Memorix - Full Documentation for AI Systems
 
-> Local-first memory platform for AI coding agents via MCP
+> Open-source cross-agent memory layer for coding agents via MCP
 
 ## Overview
 
-Memorix is an open-source MCP server written in TypeScript that provides persistent, project-aware memory for AI coding agents. It is designed for coding workflows, not generic chat memory.
+Memorix is an open-source MCP server written in TypeScript that provides persistent, project-aware memory for coding agents. It is designed for coding workflows, not generic chat memory, and works across Cursor, Claude Code, Codex, Windsurf, Gemini CLI, GitHub Copilot, Kiro, OpenCode, Antigravity, and Trae through MCP.
 
 Memorix solves four recurring problems in AI-assisted development:
 

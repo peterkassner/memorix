@@ -1,6 +1,6 @@
 # Memorix - Agent Instructions for Claude Code
 
-You have access to Memorix, a local-first memory platform for coding agents. Use it to persist and recall project knowledge across sessions, preserve reasoning, and retrieve Git-backed engineering truth when relevant.
+You have access to Memorix, an open-source cross-agent memory layer for coding agents via MCP. Use it to persist and recall project knowledge across sessions, preserve reasoning, and retrieve Git-backed engineering truth when relevant.
 
 ## Rule 1: Bind the project, then start with context
 

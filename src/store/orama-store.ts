@@ -19,8 +19,11 @@ import { maybeExpandSearchQuery } from '../search/query-expansion.js';
 let db: AnyOrama | null = null;
 let embeddingEnabled = false;
 const NON_CJK_HYBRID_SIMILARITY = 0.45;
-let lastSearchMode = 'fulltext';
-export function getLastSearchMode(): string { return lastSearchMode; }
+const lastSearchModeByProject = new Map<string, string>();
+const SEARCH_MODE_DEFAULT_KEY = '__global__';
+export function getLastSearchMode(projectId?: string): string {
+  return lastSearchModeByProject.get(projectId ?? SEARCH_MODE_DEFAULT_KEY) ?? 'fulltext';
+}
 // Hard filter: titles starting with these are command execution logs, not knowledge.
 // They are excluded from results entirely (not just demoted) unless the query is command-like.
 const COMMAND_LOG_TITLE = /^(Ran:|Command:|Executed:)\s/i;
@@ -100,6 +103,7 @@ export async function getDb(): Promise<AnyOrama> {
 export async function resetDb(): Promise<void> {
   db = null;
   embeddingEnabled = false;
+  lastSearchModeByProject.clear();
 }
 
 /**
@@ -201,7 +205,8 @@ export async function removeObservation(oramaId: string): Promise<void> {
  * Progressive Disclosure Layer 1 — adopted from claude-mem.
  */
 export async function searchObservations(options: SearchOptions): Promise<IndexEntry[]> {
-  lastSearchMode = embeddingEnabled ? 'hybrid' : 'fulltext';
+  const modeKey = options.projectId ?? SEARCH_MODE_DEFAULT_KEY;
+  lastSearchModeByProject.set(modeKey, embeddingEnabled ? 'hybrid' : 'fulltext');
   const database = await getDb();
 
   // Resolve project aliases — safety net for observations not yet migrated to canonical ID.
@@ -285,7 +290,7 @@ export async function searchObservations(options: SearchOptions): Promise<IndexE
         // Detect CJK-heavy queries: BM25 can't tokenize Chinese/Japanese/Korean well
         const cjkRatio = (originalQuery!.match(/[\u4e00-\u9fff\u3040-\u309f\u30a0-\u30ff\uac00-\ud7af]/g) || []).length / originalQuery!.length;
         const isCJKHeavy = cjkRatio > 0.3;
-        lastSearchMode = 'hybrid';
+        lastSearchModeByProject.set(modeKey, 'hybrid');
         searchParams = {
           ...searchParams,
           mode: 'hybrid',
@@ -303,7 +308,7 @@ export async function searchObservations(options: SearchOptions): Promise<IndexE
       }
     } catch (error) {
       // Fallback to fulltext if embedding fails or times out
-      lastSearchMode = 'fulltext (embedding unavailable)';
+      lastSearchModeByProject.set(modeKey, 'fulltext (embedding unavailable)');
       console.error('[memorix] Embedding failed or timed out, falling back to fulltext search');
     }
   }
@@ -324,7 +329,7 @@ export async function searchObservations(options: SearchOptions): Promise<IndexE
         },
         similarity: 0.25,
       };
-      lastSearchMode = 'vector-only (hybrid empty fallback)';
+      lastSearchModeByProject.set(modeKey, 'vector-only (hybrid empty fallback)');
       results = await search(database, vectorOnlyParams);
     } catch {
       // Keep original empty results
@@ -520,7 +525,7 @@ export async function searchObservations(options: SearchOptions): Promise<IndexE
       const { reranked, usedLLM } = await Promise.race([rerankPromise, timeoutPromise]);
       
       if (usedLLM) {
-        lastSearchMode += ' + LLM rerank';
+        lastSearchModeByProject.set(modeKey, (lastSearchModeByProject.get(modeKey) ?? 'fulltext') + ' + LLM rerank');
         // Rebuild intermediate with reranked order, preserving all original fields.
         const candidateMap = new Map(candidates.map((candidate, index) => [candidate.id, intermediate[index]]));
         const rerankedIntermediate = reranked

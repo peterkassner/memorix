@@ -5,8 +5,8 @@
 <h1 align="center">Memorix</h1>
 
 <p align="center">
-  <strong>Local-first memory platform for AI coding agents.</strong><br>
-  Git truth, reasoning memory, and cross-agent recall in one MCP server.
+  <strong>Open-source cross-agent memory layer for coding agents.</strong><br>
+  Compatible with Cursor, Claude Code, Codex, Windsurf, Gemini CLI, GitHub Copilot, Kiro, OpenCode, Antigravity, and Trae through MCP.
 </p>
 
 <p align="center">
@@ -18,14 +18,15 @@
 </p>
 
 <p align="center">
-  <strong>Git Memory</strong> · <strong>Reasoning Memory</strong> · <strong>Cross-Agent Recall</strong> · <strong>Control Plane Dashboard</strong>
+  <strong>Git Memory</strong> | <strong>Reasoning Memory</strong> | <strong>Cross-Agent Recall</strong> | <strong>Control Plane Dashboard</strong>
 </p>
 
 <p align="center">
-  <a href="README.zh-CN.md">中文文档</a> ·
-  <a href="#quick-start">Quick Start</a> ·
-  <a href="#how-it-works">How It Works</a> ·
-  <a href="#documentation">Documentation</a> ·
+  <a href="README.zh-CN.md">中文说明</a> |
+  <a href="#quick-start">Quick Start</a> |
+  <a href="#supported-clients">Supported Clients</a> |
+  <a href="#core-workflows">Core Workflows</a> |
+  <a href="#documentation">Documentation</a> |
   <a href="docs/SETUP.md">Setup Guide</a>
 </p>
 
@@ -33,14 +34,33 @@
 
 ## Why Memorix
 
-Most AI coding agents remember only the current thread. Memorix gives them a shared, persistent memory layer across IDEs, sessions, and projects.
+Most coding agents remember only the current thread. Memorix gives them a shared, persistent memory layer across IDEs, sessions, and projects.
 
 What makes Memorix different:
 
 - **Git Memory**: turn `git commit` into searchable engineering memory with noise filtering and commit provenance.
 - **Reasoning Memory**: store why a decision was made, not just what changed.
-- **Cross-Agent Local Recall**: Cursor, Windsurf, Claude Code, Codex, Copilot, Kiro, OpenCode, Gemini CLI, and more can read the same local memory base.
+- **Cross-Agent Local Recall**: multiple IDEs and agents can read the same local memory base instead of living in isolated silos.
 - **Memory Quality Pipeline**: formation, compaction, retention, and source-aware retrieval work together instead of acting like isolated tools.
+
+Memorix is built for one job: let multiple coding agents share the same durable project memory through MCP without giving up Git truth, reasoning history, or local control.
+
+## Supported Clients
+
+Memorix currently ships first-class integrations for:
+
+- Cursor
+- Claude Code
+- Codex
+- Windsurf
+- Gemini CLI
+- GitHub Copilot
+- Kiro
+- OpenCode
+- Antigravity
+- Trae
+
+If a client can speak MCP and launch a local command or HTTP endpoint, it can usually connect to Memorix even if it is not in the list above yet.
 
 ---
 
@@ -77,12 +97,12 @@ memorix serve-http --port 3211
 
 Use `serve-http` when you want the HTTP transport, collaboration features, and the dashboard on the same port.
 
-In HTTP control-plane mode, agents should call `memorix_session_start` with `projectRoot` set to the **absolute path of the current workspace or repo root** when that path is available. Git remains the source of truth for the final project identity; `projectRoot` is the detection anchor that keeps parallel sessions from drifting into the wrong project bucket.
+In HTTP control-plane mode, agents should call `memorix_session_start` with `projectRoot` set to the absolute path of the current workspace or repo root when that path is available. Git remains the source of truth for the final project identity; `projectRoot` is the detection anchor that keeps parallel sessions from drifting into the wrong project bucket.
 
 Add Memorix to your MCP client:
 
 <details open>
-<summary><strong>Cursor</strong> · <code>.cursor/mcp.json</code></summary>
+<summary><strong>Cursor</strong> | <code>.cursor/mcp.json</code></summary>
 
 ```json
 {
@@ -105,7 +125,7 @@ claude mcp add memorix -- memorix serve
 </details>
 
 <details>
-<summary><strong>Codex</strong> · <code>~/.codex/config.toml</code></summary>
+<summary><strong>Codex</strong> | <code>~/.codex/config.toml</code></summary>
 
 ```toml
 [mcp_servers.memorix]
@@ -187,7 +207,7 @@ graph TB
 - Default search is **project-scoped**
 - `scope="global"` searches across projects
 - Global hits can be opened explicitly with project-aware refs
-- Source-aware retrieval boosts Git memories for “what changed” questions and reasoning memories for “why” questions
+- Source-aware retrieval boosts Git memories for "what changed" questions and reasoning memories for "why" questions
 
 ---
 

@@ -536,7 +536,9 @@ export default defineCommand({
       const url = new URL(req.url || '/', `http://localhost:${port}`);
       const apiPath = url.pathname.replace('/api', '');
       const sendJson = (data: unknown, status = 200) => {
-        res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8', 'Access-Control-Allow-Origin': '*' });
+        // CORS headers are already set by setCorsHeaders() in the main handler —
+        // do NOT override with wildcard '*' here (security: localhost-only policy).
+        res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8' });
         res.end(JSON.stringify(data));
       };
 
@@ -714,7 +716,7 @@ export default defineCommand({
           let searchMode = 'fulltext';
           try {
             const { getLastSearchMode } = await import('../../store/orama-store.js');
-            searchMode = getLastSearchMode();
+            searchMode = getLastSearchMode(statsProjectId);
           } catch { /* best effort */ }
 
           // Embedding provider state: disabled / temporarily_unavailable / ready
@@ -834,7 +836,7 @@ export default defineCommand({
           if (effectiveRoot) {
             loadDotenv(effectiveRoot);
           }
-          const yml = effectiveRoot ? loadYamlConfig(effectiveRoot) : loadYamlConfig();
+          const yml = effectiveRoot ? loadYamlConfig(effectiveRoot) : loadYamlConfig(null);
           const legacy = loadFileConfig();
 
           const files: Record<string, { exists: boolean; path: string }> = {};

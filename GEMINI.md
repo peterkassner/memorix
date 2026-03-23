@@ -1,4 +1,6 @@
-# Memorix - Automatic Memory Rules
+# Memorix - Cross-Agent Memory Rules
+
+Memorix is an open-source cross-agent memory layer for coding agents via MCP. These rules help Gemini-family agents share project-aware memory with the rest of the Memorix ecosystem.
 
 You have access to Memorix memory tools. Follow these rules to maintain persistent, project-aware context across sessions.
 

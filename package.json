@@ -1,7 +1,7 @@
 {
   "name": "memorix",
-  "version": "1.0.4",
-  "description": "Local-first memory platform for AI coding agents with Git memory, reasoning memory, and cross-agent recall via MCP.",
+  "version": "1.0.5",
+  "description": "Open-source cross-agent memory layer for coding agents across Cursor, Claude Code, Codex, Windsurf, Gemini CLI, Copilot, Kiro, OpenCode, Antigravity, and Trae via MCP.",
   "type": "module",
   "sideEffects": false,
   "bin": {

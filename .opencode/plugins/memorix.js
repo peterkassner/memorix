@@ -1,5 +1,5 @@
 /**
- * Memorix — Cross-Agent Memory Bridge Plugin for OpenCode
+ * Memorix - Cross-Agent Memory Layer plugin for OpenCode
  *
  * Automatically captures session context and tool usage,
  * piping events to `memorix hook` for cross-agent memory persistence.
@@ -22,7 +22,7 @@ export const MemorixPlugin = async ({ project, client, $, directory, worktree })
       // cat | pipe works through .cmd wrappers; < redirect does NOT
       await $`cat ${tmpPath} | memorix hook`.quiet().nothrow();
     } catch {
-      // Silent — hooks must never break the agent
+      // Silent - hooks must never break the agent
     } finally {
       try { const { unlinkSync } = await import('node:fs'); unlinkSync(tmpPath); } catch {}
     }

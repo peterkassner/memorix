@@ -74,7 +74,9 @@ export async function storeObservation(input: {
 }): Promise<{ observation: Observation; upserted: boolean }> {
   const now = new Date().toISOString();
 
-  // Topic key upsert: check if an observation with the same topicKey+projectId exists
+  // Topic key upsert: fast-path check in-memory (optimistic, may be stale).
+  // A second authoritative check happens inside the file lock to prevent TOCTOU races
+  // where two concurrent calls with the same topicKey both miss this check.
   if (input.topicKey) {
     const existing = observations.find(
       o => o.topicKey === input.topicKey && o.projectId === input.projectId,
@@ -107,12 +109,29 @@ export async function storeObservation(input: {
   let observation!: Observation;
   let doc!: MemorixDocument;
 
+  let upsertedInsideLock = false;
   const assignAndPersist = async () => {
     if (projectDir) {
       await withFileLock(projectDir, async () => {
         // Re-read from disk to get the authoritative nextId and observation list
         const diskObs = await loadObservationsJson(projectDir!) as Observation[];
         const diskNextId = await loadIdCounter(projectDir!);
+
+        // ── Atomic topicKey re-check inside lock (prevents TOCTOU race) ──
+        // Two concurrent calls with the same topicKey may both pass the fast-path
+        // check above, but here we re-check against the authoritative disk state.
+        if (input.topicKey) {
+          const diskExisting = diskObs.find(
+            o => o.topicKey === input.topicKey && o.projectId === input.projectId,
+          );
+          if (diskExisting) {
+            // Switch to upsert path — update the existing observation in-place
+            observations = diskObs;
+            upsertedInsideLock = true;
+            observation = diskExisting as Observation;
+            return; // Exit lock — upsert will be handled after assignAndPersist
+          }
+        }
 
         // Use the higher of in-memory vs disk counter (handles multi-process)
         const id = Math.max(nextId, diskNextId);
@@ -148,6 +167,9 @@ export async function storeObservation(input: {
         await saveObservationsJson(projectDir!, observations);
         await saveIdCounter(projectDir!, nextId);
       });
+
+      // If the lock detected a topicKey duplicate, skip Orama insert — upsert handles it
+      if (upsertedInsideLock) return;
     } else {
       // No projectDir (e.g., tests) — just use in-memory counter
       const id = nextId++;
@@ -201,6 +223,11 @@ export async function storeObservation(input: {
   };
 
   await assignAndPersist();
+
+  // If the lock discovered a topicKey duplicate on disk, delegate to upsert
+  if (upsertedInsideLock) {
+    return { observation: await upsertObservation(observation, input, now), upserted: true };
+  }
 
   // Generate embedding async (fire-and-forget) — never blocks MCP response
   // Track in vectorMissingIds until embedding is successfully written.
@@ -301,12 +328,22 @@ async function upsertObservation(
     source: existing.source ?? 'agent',
   };
 
-  // Remove old doc and insert updated one
+  // Remove old doc and insert updated one (with retry for concurrent upsert race)
+  const oramaId = makeOramaObservationId(existing.projectId, existing.id);
   try {
     const { removeObservation } = await import('../store/orama-store.js');
-    await removeObservation(makeOramaObservationId(existing.projectId, existing.id));
+    await removeObservation(oramaId);
   } catch { /* may not exist in index */ }
-  await insertObservation(doc);
+  try {
+    await insertObservation(doc);
+  } catch {
+    // Concurrent upsert may have already re-inserted — retry remove+insert once
+    try {
+      const { removeObservation: removeObs } = await import('../store/orama-store.js');
+      await removeObs(oramaId);
+      await insertObservation(doc);
+    } catch { /* best effort — file persistence is the source of truth */ }
+  }
 
   // Persist
   if (projectDir) {

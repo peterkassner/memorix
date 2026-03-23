@@ -5,8 +5,8 @@
 <h1 align="center">Memorix</h1>
 
 <p align="center">
-  <strong>面向 AI 编码 Agent 的本地优先记忆平台。</strong><br>
-  将 Git 真相、推理记忆和跨 Agent 召回统一到一个 MCP 服务器中。
+  <strong>面向 Coding Agent 的开源跨 Agent Memory Layer。</strong><br>
+  通过 MCP 兼容 Cursor、Claude Code、Codex、Windsurf、Gemini CLI、GitHub Copilot、Kiro、OpenCode、Antigravity 和 Trae。
 </p>
 
 <p align="center">
@@ -18,29 +18,49 @@
 </p>
 
 <p align="center">
-  <strong>Git Memory</strong> · <strong>Reasoning Memory</strong> · <strong>跨 Agent 召回</strong> · <strong>控制台仪表盘</strong>
+  <strong>Git Memory</strong> | <strong>Reasoning Memory</strong> | <strong>跨 Agent 召回</strong> | <strong>控制面 Dashboard</strong>
 </p>
 
 <p align="center">
-  <a href="README.md">English</a> ·
-  <a href="#快速开始">快速开始</a> ·
-  <a href="#工作原理">工作原理</a> ·
-  <a href="#文档导航">文档导航</a> ·
-  <a href="docs/SETUP.md">配置指南</a>
+  <a href="README.md">English</a> |
+  <a href="#快速开始">快速开始</a> |
+  <a href="#支持的客户端">支持的客户端</a> |
+  <a href="#核心工作流">核心工作流</a> |
+  <a href="#文档导航">文档导航</a> |
+  <a href="docs/SETUP.md">安装与接入</a>
 </p>
 
 ---
 
 ## 为什么是 Memorix
 
-大多数 AI 编码 Agent 只能记住当前对话。Memorix 提供跨 IDE、跨会话、跨 Agent 的共享持久化记忆层，让工程上下文真正沉淀下来。
+大多数 Coding Agent 只能记住当前线程。Memorix 的目标是把“项目记忆”沉淀成一个共享、可检索、可跨 IDE 和 Agent 复用的本地记忆层。
 
-Memorix 的差异化主要在这几条线：
+Memorix 的差异化重点在于：
 
-- **Git Memory**：把 `git commit` 转成带来源、可检索、可过滤噪音的工程记忆。
-- **Reasoning Memory**：不仅记录“改了什么”，还能记录“为什么这样做”。
-- **跨 Agent 本地召回**：Cursor、Windsurf、Claude Code、Codex、Copilot、Kiro、OpenCode、Gemini CLI 等都可以读写同一套本地记忆。
-- **质量治理管线**：Formation、写入压缩、保留衰减、source-aware retrieval 协同工作，而不是一堆孤立工具。
+- **Git Memory**：把 `git commit` 变成可检索的工程记忆，保留提交来源、文件变化和噪音过滤。
+- **Reasoning Memory**：不仅记“改了什么”，还记“为什么这样做”。
+- **跨 Agent 本地召回**：多个 IDE 和 Agent 可以读取同一套本地记忆，而不是各自形成孤岛。
+- **记忆质量管线**：formation、压缩、保留衰减和 source-aware retrieval 协同工作，而不是一堆彼此独立的小功能。
+
+一句话说，Memorix 想解决的是：让多个 Coding Agent 通过 MCP 共享同一套耐久项目记忆，同时保留 Git 真相、推理上下文和本地控制权。
+
+## 支持的客户端
+
+当前已经做了明确适配的集成目标有：
+
+- Cursor
+- Claude Code
+- Codex
+- Windsurf
+- Gemini CLI
+- GitHub Copilot
+- Kiro
+- OpenCode
+- Antigravity
+- Trae
+
+如果某个客户端能通过 MCP 连接本地命令或 HTTP 端点，通常也可以接入 Memorix，只是暂时没有单独的适配器或引导页。
 
 ---
 
@@ -58,29 +78,31 @@ npm install -g memorix
 memorix init
 ```
 
-Memorix 采用“两类文件、两种职责”：
+Memorix 采用两个文件、两类职责：
 
-- `memorix.yml`：行为配置、项目策略
-- `.env`：密钥和敏感端点
+- `memorix.yml`：行为配置和项目级设置
+- `.env`：密钥和敏感变量
 
-选择一种运行模式：
+然后选择一种运行模式：
 
 ```bash
 memorix serve
 ```
 
-`serve` 用于标准的 stdio MCP 集成。
+`serve` 适合标准的 stdio MCP 集成。
 
 ```bash
 memorix serve-http --port 3211
 ```
 
-`serve-http` 用于 HTTP transport、团队协作，以及与之共端口的 dashboard。
+`serve-http` 适合你需要 HTTP transport、dashboard、协作和控制面的场景。
+
+在 HTTP control-plane 模式下，如果 Agent 能拿到当前工作区绝对路径，就应该在调用 `memorix_session_start` 时把它作为 `projectRoot` 传入。`projectRoot` 只是检测锚点，最终项目身份仍然以 Git 为准。
 
 把 Memorix 加入 MCP 配置：
 
 <details open>
-<summary><strong>Cursor</strong> · <code>.cursor/mcp.json</code></summary>
+<summary><strong>Cursor</strong> | <code>.cursor/mcp.json</code></summary>
 
 ```json
 {
@@ -103,7 +125,7 @@ claude mcp add memorix -- memorix serve
 </details>
 
 <details>
-<summary><strong>Codex</strong> · <code>~/.codex/config.toml</code></summary>
+<summary><strong>Codex</strong> | <code>~/.codex/config.toml</code></summary>
 
 ```toml
 [mcp_servers.memorix]
@@ -112,13 +134,13 @@ args = ["serve"]
 ```
 </details>
 
-完整 IDE 配置矩阵、Windows 注意事项和排障请看 [docs/SETUP.md](docs/SETUP.md)。
+完整的 IDE 配置矩阵、Windows 注意事项和排障说明见 [docs/SETUP.md](docs/SETUP.md)。
 
 ---
 
 ## 核心工作流
 
-### 1. 存储并检索项目记忆
+### 1. 存储与检索项目记忆
 
 常用 MCP 工具包括：
 
@@ -128,9 +150,9 @@ args = ["serve"]
 - `memorix_timeline`
 - `memorix_resolve`
 
-这条主链适合沉淀决策、踩坑、问题修复、会话交接等上下文。
+这条主链适合沉淀决策、坑点、问题修复和会话交接。
 
-### 2. 自动捕获 Git 工程真相
+### 2. 自动捕获 Git 真相
 
 安装 post-commit hook：
 
@@ -138,16 +160,16 @@ args = ["serve"]
 memorix git-hook --force
 ```
 
-也可以手动导入：
+或者手动导入：
 
 ```bash
 memorix ingest commit
 memorix ingest log --count 20
 ```
 
-Git Memory 会带上 `source='git'`、commit hash、文件列表，以及噪音过滤结果。
+Git Memory 会保留 `source='git'`、提交哈希、文件变化和噪音过滤结果。
 
-### 3. 运行控制台与协作入口
+### 3. 运行控制面与 Dashboard
 
 ```bash
 memorix serve-http --port 3211
@@ -158,7 +180,7 @@ memorix serve-http --port 3211
 - MCP HTTP 端点：`http://localhost:3211/mcp`
 - Dashboard：`http://localhost:3211`
 
-这个模式会把 dashboard、团队协作、配置诊断、项目身份健康度等能力统一到同一个入口。
+这一模式会把 dashboard、配置诊断、项目身份、团队协作和 Git Memory 视图统一到一个控制面入口里。
 
 ---
 
@@ -166,7 +188,7 @@ memorix serve-http --port 3211
 
 ```mermaid
 graph TB
-    A["git commit / agent 工具调用 / 手动存储"] --> B["Memorix Runtime"]
+    A["git commit / agent tool call / manual store"] --> B["Memorix Runtime"]
     B --> C["Observation / Reasoning / Git Memory"]
     C --> D["Formation + Indexing + Graph + Retention"]
     D --> E["Search / Detail / Timeline / Dashboard / Team"]
@@ -175,14 +197,14 @@ graph TB
 ### 三层记忆模型
 
 - **Observation Memory**：记录 what-changed、how-it-works、gotcha、problem-solution 等工程知识
-- **Reasoning Memory**：记录决策理由、备选方案、权衡、风险
-- **Git Memory**：从 commit 提取的不可变工程事实
+- **Reasoning Memory**：记录为什么这样做、比较过哪些方案、接受了什么权衡
+- **Git Memory**：从 commit 中提炼的工程真相层
 
 ### 检索模型
 
-- 默认搜索是**当前项目隔离**
-- `scope="global"` 才会跨项目搜索
-- 全局结果可通过带 `projectId` 的 refs 精确打开详情
+- 默认搜索是 **当前项目隔离**
+- `scope="global"` 才会跨项目检索
+- 全局结果可以通过带 `projectId` 的 refs 精确打开详情
 - source-aware retrieval 会根据问题类型动态提升 Git 或 reasoning memory 的权重
 
 ---
@@ -200,7 +222,7 @@ graph TB
 - [Memory Formation Pipeline](docs/MEMORY_FORMATION_PIPELINE.md)
 - [Design Decisions](docs/DESIGN_DECISIONS.md)
 
-### 参考文档
+### 参考资料
 
 - [API Reference](docs/API_REFERENCE.md)
 - [Git Memory Guide](docs/GIT_MEMORY.md)
@@ -218,7 +240,7 @@ graph TB
 
 ---
 
-## 开发
+## 本地开发
 
 ```bash
 git clone https://github.com/AVIDS2/memorix.git

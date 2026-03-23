@@ -77,12 +77,15 @@ export async function compactDetail(
 
   // Prefer in-memory observations for current-project reliability, but fall back
   // to the global Orama index so cross-project search results can still open.
+  // Security: refs WITHOUT projectId are treated as ambiguous — the in-memory
+  // lookup may return a wrong-project observation. Callers (memorix_detail tool)
+  // should always inject projectId for bare numeric IDs.
   const toRefKey = (ref: ObservationRef) => `${ref.projectId ?? ''}::${ref.id}`;
   const documentMap = new Map<string, MemorixDocument>();
   const missingRefs: ObservationRef[] = [];
   for (const ref of refs) {
     const obs = getObservation(ref.id);
-    if (obs && (!ref.projectId || obs.projectId === ref.projectId)) {
+    if (obs && (ref.projectId ? obs.projectId === ref.projectId : true)) {
       documentMap.set(toRefKey(ref), {
         id: makeOramaObservationId(obs.projectId, obs.id),
         observationId: obs.id,
