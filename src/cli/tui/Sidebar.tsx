@@ -3,7 +3,7 @@
  */
 
 import React from 'react';
-import { Box, Text } from 'ink';
+import { Box, Text, useInput } from 'ink';
 import { COLORS } from './theme.js';
 import type { HealthInfo, BackgroundInfo } from './data.js';
 import type { ViewType } from './theme.js';
@@ -13,6 +13,8 @@ interface SidebarProps {
   background: BackgroundInfo;
   onAction: (cmd: string) => void;
   activeView: ViewType;
+  /** When true, Sidebar captures shortcut keys and drives navigation. */
+  isFocused?: boolean;
 }
 
 const ACTIONS = [
@@ -44,7 +46,35 @@ function truncate(text: string, max = 16): string {
   return `${text.slice(0, max)}...`;
 }
 
-export function Sidebar({ health, background }: SidebarProps): React.ReactElement {
+// Build a key→cmd lookup from ACTIONS for O(1) dispatch
+const KEY_TO_CMD: Record<string, string> = {};
+for (const a of ACTIONS) KEY_TO_CMD[a.key] = a.cmd;
+
+export function Sidebar({ health, background, onAction, activeView, isFocused = false }: SidebarProps): React.ReactElement {
+  // ── Interactive navigation: Sidebar owns shortcut key dispatch ──
+  useInput((ch, key) => {
+    // Esc: return home from any secondary view
+    if (key.escape && activeView !== 'home') {
+      onAction('/home');
+      return;
+    }
+    const cmd = KEY_TO_CMD[ch];
+    if (cmd) {
+      onAction(cmd);
+    }
+  }, { isActive: isFocused });
+
+  // Map view types to sidebar action commands for highlight
+  const activeCmd = ACTIONS.find(a => {
+    const viewMap: Record<string, string> = {
+      '/search': 'search', '/recent': 'recent', '/doctor': 'doctor',
+      '/background': 'background', '/dashboard': 'dashboard',
+      '/project': 'project', '/configure': 'configure',
+      '/integrate': 'integrate', '/home': 'home',
+    };
+    return viewMap[a.cmd] === activeView;
+  })?.cmd;
+
   return (
     <Box
       flexDirection="column"
@@ -56,12 +86,15 @@ export function Sidebar({ health, background }: SidebarProps): React.ReactElemen
       <Box flexDirection="column" marginBottom={1}>
         <Text color={COLORS.accentDim} bold>Quick Actions</Text>
         <Text color={COLORS.border}>{separator(24)}</Text>
-        {ACTIONS.map((action) => (
-          <Box key={action.key}>
-            <Text color={COLORS.muted}>{action.key} </Text>
-            <Text color={COLORS.text}>{action.label}</Text>
-          </Box>
-        ))}
+        {ACTIONS.map((action) => {
+          const isActive = action.cmd === activeCmd;
+          return (
+            <Box key={action.key}>
+              <Text color={isActive ? COLORS.accent : COLORS.muted}>{isActive ? '>' : action.key} </Text>
+              <Text color={isActive ? COLORS.accent : COLORS.text} bold={isActive}>{action.label}</Text>
+            </Box>
+          );
+        })}
       </Box>
 
       <Box flexDirection="column">
@@ -110,7 +143,7 @@ export function Sidebar({ health, background }: SidebarProps): React.ReactElemen
       </Box>
 
       <Box marginTop={1}>
-        <Text color={COLORS.muted} italic>Type / for commands</Text>
+        <Text color={COLORS.muted} italic>Press key or type /cmd</Text>
       </Box>
     </Box>
   );

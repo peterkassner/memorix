@@ -22,8 +22,6 @@ function colorForMode(mode: string): string {
 }
 
 export function HeaderBar({ version, project, health, mode }: HeaderBarProps): React.ReactElement {
-  const projectLabel = project ? project.name : 'no project';
-
   return (
     <Box
       flexDirection="row"
@@ -43,15 +41,25 @@ export function HeaderBar({ version, project, health, mode }: HeaderBarProps): R
       </Box>
 
       <Box>
-        <Text color={COLORS.text}>{projectLabel}</Text>
+        {project ? (
+          <Text color={COLORS.text}>{project.name}</Text>
+        ) : (
+          <Text color={COLORS.warning}>no project</Text>
+        )}
       </Box>
 
       <Box gap={1}>
-        <Text color={COLORS.accentDim}>{mode.toLowerCase()}</Text>
-        <Text color={COLORS.muted}>|</Text>
-        <Text color={colorForMode(health.searchModeLabel)}>{health.searchModeLabel}</Text>
-        <Text color={COLORS.muted}>|</Text>
-        <Text color={COLORS.text}>{health.activeMemories} memories</Text>
+        {project ? (
+          <>
+            <Text color={COLORS.accentDim}>{mode.toLowerCase()}</Text>
+            <Text color={COLORS.muted}>|</Text>
+            <Text color={colorForMode(health.searchModeLabel)}>{health.searchModeLabel}</Text>
+            <Text color={COLORS.muted}>|</Text>
+            <Text color={COLORS.text}>{health.activeMemories} mem</Text>
+          </>
+        ) : (
+          <Text color={COLORS.muted}>/configure to get started</Text>
+        )}
       </Box>
     </Box>
   );

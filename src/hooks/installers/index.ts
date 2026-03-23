@@ -111,6 +111,31 @@ function generateGeminiConfig(): Record<string, unknown> {
 }
 
 /**
+ * Generate Gemini CLI hook config (standalone CLI tool).
+ * Same format as Antigravity but the command includes --agent gemini-cli
+ * so the hook normalizer can reliably identify the source agent.
+ */
+function generateGeminiCLIConfig(): Record<string, unknown> {
+  const cmd = `${resolveHookCommand()} hook --agent gemini-cli`;
+
+  function entry(name: string, desc: string) {
+    return {
+      matcher: '*',
+      hooks: [{ name, type: 'command', command: cmd, description: desc }],
+    };
+  }
+
+  return {
+    hooks: {
+      SessionStart: [entry('memorix-session-start', 'Load memorix context at session start')],
+      AfterTool: [entry('memorix-after-tool', 'Record tool usage in memorix')],
+      AfterAgent: [entry('memorix-after-agent', 'Record agent response in memorix')],
+      PreCompress: [entry('memorix-pre-compress', 'Save context before compression')],
+    },
+  };
+}
+
+/**
  * Generate Windsurf Cascade hooks config.
  */
 function generateWindsurfConfig(): Record<string, unknown> {
@@ -332,6 +357,8 @@ export function getProjectConfigPath(agent: AgentName, projectRoot: string): str
       return path.join(projectRoot, '.opencode', 'plugins', 'memorix.js');
     case 'antigravity':
       return path.join(projectRoot, '.gemini', 'settings.json');
+    case 'gemini-cli':
+      return path.join(projectRoot, '.gemini', 'settings.json');
     default:
       return path.join(projectRoot, '.memorix', 'hooks.json');
   }
@@ -351,6 +378,8 @@ export function getGlobalConfigPath(agent: AgentName): string {
     case 'cursor':
       return path.join(home, '.cursor', 'hooks.json');
     case 'antigravity':
+      return path.join(home, '.gemini', 'settings.json');
+    case 'gemini-cli':
       return path.join(home, '.gemini', 'settings.json');
     case 'opencode':
       return path.join(home, '.config', 'opencode', 'plugins', 'memorix.js');
@@ -410,11 +439,21 @@ export async function detectInstalledAgents(): Promise<AgentName[]> {
     agents.push('codex');
   } catch { /* not installed */ }
 
-  // Check for Antigravity / Gemini CLI (both share ~/.gemini/)
-  const geminiDir = path.join(home, '.gemini');
+  // Check for Antigravity (Google's AI IDE)
+  // Antigravity creates ~/.gemini/antigravity/ for its own configs (mcp_config.json, etc.)
+  const antigravityDir = path.join(home, '.gemini', 'antigravity');
   try {
-    await fs.access(geminiDir);
+    await fs.access(antigravityDir);
     agents.push('antigravity');
+  } catch { /* not installed */ }
+
+  // Check for Gemini CLI (standalone CLI tool)
+  // Detected by the presence of the `gemini` binary on PATH
+  try {
+    const { execSync } = await import('node:child_process');
+    const whereCmd = process.platform === 'win32' ? 'where gemini' : 'which gemini';
+    execSync(whereCmd, { stdio: 'ignore' });
+    agents.push('gemini-cli');
   } catch { /* not installed */ }
 
   // Check for OpenCode
@@ -463,6 +502,9 @@ export async function installHooks(
       break;
     case 'antigravity':
       generated = generateGeminiConfig();
+      break;
+    case 'gemini-cli':
+      generated = generateGeminiCLIConfig();
       break;
     case 'kiro':
       generated = 'kiro-multi'; // handled separately below
@@ -568,7 +610,7 @@ export async function installHooks(
     }
 
     // Clean up stale keys from older memorix versions
-    if (agent === 'antigravity') {
+    if (agent === 'antigravity' || agent === 'gemini-cli') {
       const h = merged.hooks as Record<string, unknown> | undefined;
       if (h && typeof h.enabled === 'boolean') delete h.enabled;
       const t = merged.tools as Record<string, unknown> | undefined;
@@ -608,6 +650,9 @@ export async function installHooks(
       events.push('session_start', 'user_prompt', 'post_edit', 'post_tool', 'pre_compact', 'session_end');
       break;
     case 'antigravity':
+      events.push('session_start', 'post_tool', 'post_response', 'pre_compact');
+      break;
+    case 'gemini-cli':
       events.push('session_start', 'post_tool', 'post_response', 'pre_compact');
       break;
     case 'kiro':
@@ -656,6 +701,10 @@ async function installAgentRules(agent: AgentName, projectRoot: string): Promise
       rulesPath = path.join(projectRoot, 'AGENTS.md');
       break;
     case 'antigravity':
+      // Antigravity reads context from GEMINI.md by default
+      rulesPath = path.join(projectRoot, 'GEMINI.md');
+      break;
+    case 'gemini-cli':
       // Gemini CLI reads context from GEMINI.md by default (like Codex reads AGENTS.md)
       // See: context.fileName defaults to ["GEMINI.md", "CONTEXT.md"]
       rulesPath = path.join(projectRoot, 'GEMINI.md');
@@ -671,7 +720,7 @@ async function installAgentRules(agent: AgentName, projectRoot: string): Promise
   try {
     await fs.mkdir(path.dirname(rulesPath), { recursive: true });
 
-    if (agent === 'codex' || agent === 'opencode' || agent === 'antigravity') {
+    if (agent === 'codex' || agent === 'opencode' || agent === 'antigravity' || agent === 'gemini-cli') {
       // For shared context files (AGENTS.md / GEMINI.md), append rather than overwrite
       try {
         const existing = await fs.readFile(rulesPath, 'utf-8');
@@ -882,7 +931,7 @@ export async function getHookStatus(
   projectRoot: string,
 ): Promise<Array<{ agent: AgentName; installed: boolean; configPath: string }>> {
   const results: Array<{ agent: AgentName; installed: boolean; configPath: string }> = [];
-  const agents: AgentName[] = ['claude', 'copilot', 'windsurf', 'cursor', 'kiro', 'codex', 'antigravity', 'opencode', 'trae'];
+  const agents: AgentName[] = ['claude', 'copilot', 'windsurf', 'cursor', 'kiro', 'codex', 'antigravity', 'gemini-cli', 'opencode', 'trae'];
 
   for (const agent of agents) {
     const projectPath = getProjectConfigPath(agent, projectRoot);

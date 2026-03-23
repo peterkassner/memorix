@@ -249,6 +249,7 @@ export type RuleSource =
   | 'codex'
   | 'windsurf'
   | 'antigravity'
+  | 'gemini-cli'
   | 'copilot'
   | 'kiro'
   | 'trae'
@@ -343,7 +344,7 @@ export const DEFAULT_CONFIG: Partial<MemorixConfig> = {
 // ============================================================
 
 /** Supported agent targets for workspace sync */
-export type AgentTarget = 'windsurf' | 'cursor' | 'claude-code' | 'codex' | 'copilot' | 'antigravity' | 'kiro' | 'opencode' | 'trae';
+export type AgentTarget = 'windsurf' | 'cursor' | 'claude-code' | 'codex' | 'copilot' | 'antigravity' | 'gemini-cli' | 'kiro' | 'opencode' | 'trae';
 
 /** A unified MCP server entry across all agent config formats */
 export interface MCPServerEntry {

@@ -2,7 +2,7 @@
  * Bottom input bar with slash-command palette.
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Box, Text, useInput } from 'ink';
 import { COLORS, SLASH_COMMANDS } from './theme.js';
 import type { SlashCommand } from './theme.js';
@@ -12,6 +12,7 @@ interface CommandBarProps {
   onExit: () => void;
   disabled?: boolean;
   disabledHint?: string;
+  onFocusChange?: (focused: boolean) => void;
 }
 
 export function CommandBar({
@@ -19,10 +20,15 @@ export function CommandBar({
   onExit,
   disabled = false,
   disabledHint = 'Action view active',
+  onFocusChange,
 }: CommandBarProps): React.ReactElement {
   const [input, setInput] = useState('');
   const [cursorPos, setCursorPos] = useState(0);
   const [paletteIndex, setPaletteIndex] = useState(0);
+
+  // Notify parent about input focus state for keyboard priority model
+  const hasFocus = !disabled && input.length > 0;
+  useEffect(() => { onFocusChange?.(hasFocus); }, [hasFocus, onFocusChange]);
 
   const showPalette = !disabled && input.startsWith('/') && !input.includes(' ');
   const filteredCommands: SlashCommand[] = showPalette
@@ -77,10 +83,11 @@ export function CommandBar({
       if (showPalette && filteredCommands.length > 0) {
         const selected = filteredCommands[clampedIndex];
         if (selected) {
-          const nextInput = `${selected.name} `;
-          setInput(nextInput);
-          setCursorPos(nextInput.length);
+          // Enter on palette = execute the command directly
+          setInput('');
+          setCursorPos(0);
           setPaletteIndex(0);
+          onSubmit(selected.name);
         }
       } else if (input.trim()) {
         const submitted = input;
@@ -139,7 +146,7 @@ export function CommandBar({
               {command.alias && <Text color={COLORS.textDim}> ({command.alias})</Text>}
             </Box>
           ))}
-          <Text color={COLORS.muted}>Up/Down navigate | Tab complete | Enter select</Text>
+          <Text color={COLORS.muted}>Up/Down navigate | Tab complete | Enter execute</Text>
         </Box>
       )}
 
@@ -156,9 +163,11 @@ export function CommandBar({
           </>
         ) : (
           <>
-            <Text color={COLORS.accent} bold>{'>'}</Text>
-            <Text color={COLORS.text}>{input}</Text>
-            {!input && <Text color={COLORS.muted}>search memories or /command</Text>}
+            <Text color={COLORS.accent} bold>{'> '}</Text>
+            <Text color={COLORS.text}>{input.slice(0, cursorPos)}</Text>
+            <Text backgroundColor={COLORS.accent} color={COLORS.bg}>{input[cursorPos] || ' '}</Text>
+            <Text color={COLORS.text}>{input.slice(cursorPos + 1)}</Text>
+            {!input && <Text color={COLORS.muted}> search memories or /command</Text>}
           </>
         )}
       </Box>

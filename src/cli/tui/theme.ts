@@ -19,7 +19,7 @@ export const SLASH_COMMANDS: SlashCommand[] = [
   { name: '/background', description: 'Control plane service',  alias: '/bg' },
   { name: '/dashboard',  description: 'Open web dashboard',     alias: '/dash' },
   { name: '/home',       description: 'Back to home',           alias: '/h' },
-  { name: '/configure',  description: 'Settings',               alias: '/config', interactive: true },
+  { name: '/configure',  description: 'Settings',               alias: '/config' },
   { name: '/integrate',  description: 'Set up an IDE',          alias: '/setup' },
   { name: '/cleanup',    description: 'Cleanup and purge' },
   { name: '/ingest',     description: 'Git to Memory' },
@@ -52,6 +52,7 @@ export const COLORS = {
   border: '#444444',
   highlight: '#3a3a3a',
   brand: 'cyan',
+  bg: '#1a1a1a',
 } as const;
 
 export const BOX = {
@@ -71,4 +72,5 @@ export type ViewType =
   | 'recent'
   | 'cleanup'
   | 'ingest'
-  | 'integrate';
+  | 'integrate'
+  | 'configure';

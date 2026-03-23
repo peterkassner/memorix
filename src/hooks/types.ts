@@ -16,7 +16,7 @@ export type HookEvent =
   | 'post_response';
 
 /** Supported agent identifiers */
-export type AgentName = 'claude' | 'copilot' | 'windsurf' | 'cursor' | 'kiro' | 'codex' | 'antigravity' | 'opencode' | 'trae';
+export type AgentName = 'claude' | 'copilot' | 'windsurf' | 'cursor' | 'kiro' | 'codex' | 'antigravity' | 'gemini-cli' | 'opencode' | 'trae';
 
 /** Normalized hook input — agent-agnostic */
 export interface NormalizedHookInput {
