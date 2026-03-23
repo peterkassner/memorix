@@ -118,7 +118,7 @@ export function WorkbenchApp({ version, onExitForInteractive }: AppProps): React
     if (isActionView) {
       if (view === 'cleanup' && /^[1-3]$/.test(ch)) { handleCleanupAction(ch); return; }
       if (view === 'ingest' && /^[1-4]$/.test(ch)) { handleIngestAction(ch); return; }
-      if (view === 'integrate' && /^[1-9]$/.test(ch)) { handleIntegrateAction(ch); return; }
+      if (view === 'integrate' && /^[0-9]$/.test(ch)) { handleIntegrateAction(ch); return; }
       if (view === 'background' && /^[1-3]$/.test(ch)) { handleBackgroundAction(ch); return; }
       if (view === 'background' && ch === 'w' && background.dashboard) { handleBackgroundAction('w'); return; }
       if (view === 'dashboard' && /^[1-2]$/.test(ch)) { handleDashboardAction(ch); return; }
@@ -587,9 +587,12 @@ fi
   }, [getProjectRoot, refreshSummary]);
 
   const handleIntegrateAction = useCallback(async (action: string) => {
-    const agents = ['claude', 'windsurf', 'cursor', 'copilot', 'kiro', 'codex', 'antigravity', 'opencode', 'trae'] as const;
-    const index = Number(action) - 1;
-    const agent = agents[index];
+    const agentKeyMap: Record<string, string> = {
+      '1': 'claude', '2': 'windsurf', '3': 'cursor', '4': 'copilot',
+      '5': 'kiro', '6': 'codex', '7': 'antigravity', '8': 'opencode',
+      '9': 'trae', '0': 'gemini-cli',
+    };
+    const agent = agentKeyMap[action];
     if (!agent) {
       setActionStatus('');
       return;
@@ -598,7 +601,7 @@ fi
     try {
       const cwd = (await getProjectRoot()) ?? process.cwd();
       const { installHooks } = await import('../../hooks/installers/index.js');
-      const result = await installHooks(agent, cwd, false);
+      const result = await installHooks(agent as import('../../hooks/types.js').AgentName, cwd, false);
       setActionStatus(`Installed ${agent} integration -> ${result.configPath}`);
     } catch (err) {
       setActionStatus(`Install failed: ${err instanceof Error ? err.message : String(err)}`);
@@ -778,7 +781,7 @@ fi
           disabledHint={
             view === 'cleanup' ? 'cleanup: 1/2/3, h or Esc'
             : view === 'ingest' ? 'ingest: 1/2/3/4, h or Esc'
-            : view === 'integrate' ? 'integrate: 1-9, h or Esc'
+            : view === 'integrate' ? 'integrate: 0-9, h or Esc'
             : view === 'configure' ? 'configure: Up/Down/Enter, Esc to back'
             : view === 'background'
               ? background.running ? 'background: w/1/2/3, h or Esc' : 'background: 1/2, h or Esc'

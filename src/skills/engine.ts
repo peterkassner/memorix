@@ -71,6 +71,7 @@ const SKILLS_DIRS: Record<AgentTarget, string[]> = {
     'claude-code': ['.claude/skills'],
     copilot: ['.github/skills', '.copilot/skills'],
     antigravity: ['.agent/skills', '.gemini/skills', '.gemini/antigravity/skills'],
+    'gemini-cli': [],
     kiro: ['.kiro/skills'],
     opencode: ['.opencode/skills'],
     trae: ['.trae/skills'],

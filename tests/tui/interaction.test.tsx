@@ -746,7 +746,7 @@ describe('HeaderBar', () => {
 
 // ── StatusMessage rendering test ────────────────────────────────────
 
-import { StatusMessage, HomeView } from '../../src/cli/tui/Panels.js';
+import { StatusMessage, HomeView, IntegrateView } from '../../src/cli/tui/Panels.js';
 
 describe('StatusMessage', () => {
   it('renders success message', () => {
@@ -835,6 +835,52 @@ describe('HomeView', () => {
     // Should NOT show empty-state guidance
     expect(frame).not.toContain('Getting Started');
     expect(frame).not.toContain('No project detected');
+    unmount();
+  });
+});
+
+// ── IntegrateView rendering tests ───────────────────────────────────
+
+describe('IntegrateView', () => {
+  it('renders all 10 integration targets including Gemini CLI', () => {
+    const { lastFrame, unmount } = render(
+      <IntegrateView statusText="" />,
+    );
+    const frame = lastFrame()!;
+    expect(frame).toContain('Claude Code');
+    expect(frame).toContain('Windsurf');
+    expect(frame).toContain('Cursor');
+    expect(frame).toContain('GitHub Copilot');
+    expect(frame).toContain('Kiro');
+    expect(frame).toContain('Codex');
+    expect(frame).toContain('Antigravity');
+    expect(frame).toContain('OpenCode');
+    expect(frame).toContain('Trae');
+    expect(frame).toContain('Gemini CLI');
+    unmount();
+  });
+
+  it('Gemini CLI is key 0, distinct from Antigravity key 7', () => {
+    const { lastFrame, unmount } = render(
+      <IntegrateView statusText="" />,
+    );
+    const frame = lastFrame()!;
+    const lines = frame.split('\n');
+    const antigravityLine = lines.find(l => l.includes('Antigravity'));
+    const geminiLine = lines.find(l => l.includes('Gemini CLI'));
+    expect(antigravityLine).toContain('7');
+    expect(geminiLine).toContain('0');
+    // They are distinct lines
+    expect(antigravityLine).not.toContain('Gemini');
+    expect(geminiLine).not.toContain('Antigravity');
+    unmount();
+  });
+
+  it('shows status text when provided', () => {
+    const { lastFrame, unmount } = render(
+      <IntegrateView statusText="Installed gemini-cli integration" />,
+    );
+    expect(lastFrame()).toContain('Installed gemini-cli integration');
     unmount();
   });
 });

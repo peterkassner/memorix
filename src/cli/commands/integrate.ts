@@ -112,6 +112,7 @@ function getAgentLabel(agent: string): string {
     kiro: 'Kiro',
     codex: 'Codex',
     antigravity: 'Antigravity',
+    'gemini-cli': 'Gemini CLI',
     trae: 'Trae',
   };
   return labels[agent] || agent;
@@ -127,6 +128,7 @@ function getAgentHint(agent: string): string {
     kiro: 'hook files + steering',
     codex: 'AGENTS.md',
     antigravity: 'settings + GEMINI.md',
+    'gemini-cli': 'settings + GEMINI.md',
     trae: 'rules',
   };
   return hints[agent] || 'integration files';

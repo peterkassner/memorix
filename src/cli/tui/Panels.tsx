@@ -514,6 +514,7 @@ export function IntegrateView({ statusText }: IntegrateViewProps): React.ReactEl
         <Box><Text color={COLORS.text}>  7  Antigravity</Text></Box>
         <Box><Text color={COLORS.text}>  8  OpenCode</Text></Box>
         <Box><Text color={COLORS.text}>  9  Trae</Text></Box>
+        <Box><Text color={COLORS.text}>  0  Gemini CLI</Text></Box>
         <Box><Text color={COLORS.muted}>  h  Back to home</Text></Box>
       </Box>
       <Box marginTop={1}>

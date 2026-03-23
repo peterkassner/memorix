@@ -465,7 +465,7 @@ export async function handleHookEvent(input: NormalizedHookInput): Promise<{
  * Main entry point: read stdin, process, write stdout.
  * Called by the CLI: `memorix hook`
  */
-export async function runHook(): Promise<void> {
+export async function runHook(agentOverride?: string): Promise<void> {
   // Read stdin with a timeout — some hosts (e.g. Gemini CLI) may not close
   // stdin promptly, causing `for await` to hang until the process is killed.
   const rawInput = await new Promise<string>((resolve) => {
@@ -495,6 +495,12 @@ export async function runHook(): Promise<void> {
   } catch {
     process.stdout.write(JSON.stringify({ continue: true }));
     return;
+  }
+
+  // Inject agent identity from CLI --agent flag into the payload
+  // so the normalizer can reliably identify the source agent.
+  if (agentOverride) {
+    payload._memorix_agent = agentOverride;
   }
 
   const input = normalizeHookInput(payload);
