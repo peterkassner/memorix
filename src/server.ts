@@ -38,8 +38,9 @@ import { runFormation, getMetricsSummary, getBeforeAfterMetrics } from './memory
 import type { FormationConfig, SearchHit, FormedMemory } from './memory/formation/types.js';
 
 // ── Timeout budgets for LLM-heavy paths ──────────────────────────
-const FORMATION_TIMEOUT_MS = 20_000;   // Formation pipeline (extract+resolve+evaluate)
-const COMPRESSION_TIMEOUT_MS = 8_000;  // Narrative compression
+const FORMATION_TIMEOUT_MS = 12_000;   // Formation pipeline (extract+resolve+evaluate)
+const COMPRESSION_TIMEOUT_MS = 5_000;  // Narrative compression
+const DEDUP_PER_PAIR_TIMEOUT_MS = 5_000; // Per-pair dedup LLM call
 
 /** Race a promise against a timeout. Rejects with a descriptive Error on timeout. */
 function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
@@ -3183,22 +3184,30 @@ export async function createMemorixServer(
             grouped.get(key)!.push(obs);
           }
           const toResolve: number[] = [];
+          // Cap total LLM dedup calls per session to avoid runaway API usage
+          const MAX_DEDUP_CALLS = 15;
+          let dedupCalls = 0;
           for (const [, group] of grouped) {
-            if (group.length < 2) continue;
+            if (group.length < 2 || dedupCalls >= MAX_DEDUP_CALLS) continue;
             group.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
-            for (let i = 0; i < group.length - 1 && i < 5; i++) {
+            for (let i = 0; i < group.length - 1 && i < 3 && dedupCalls < MAX_DEDUP_CALLS; i++) {
               try {
+                dedupCalls++;
                 const older = group[i], newer = group[i + 1];
-                const decision = await deduplicateMemory(
-                  { title: newer.title, narrative: newer.narrative, facts: newer.facts },
-                  [{ id: older.id, title: older.title, narrative: older.narrative, facts: older.facts.join('\n') }],
+                const decision = await withTimeout(
+                  deduplicateMemory(
+                    { title: newer.title, narrative: newer.narrative, facts: newer.facts },
+                    [{ id: older.id, title: older.title, narrative: older.narrative, facts: older.facts.join('\n') }],
+                  ),
+                  DEDUP_PER_PAIR_TIMEOUT_MS,
+                  `Dedup pair #${older.id}↔#${newer.id}`,
                 );
                 if (decision && (decision.action === 'UPDATE' || decision.action === 'NONE')) {
                   toResolve.push(decision.action === 'UPDATE' ? older.id : newer.id);
                 } else if (decision?.action === 'DELETE' && decision.targetId) {
                   toResolve.push(decision.targetId);
                 }
-              } catch { /* skip individual comparison errors */ }
+              } catch { /* skip individual comparison errors or timeouts */ }
             }
           }
           if (toResolve.length > 0) {

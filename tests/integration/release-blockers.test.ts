@@ -545,3 +545,59 @@ describe('P1: CLI cold-start search finds persisted memories', () => {
     expect(stdout).toContain('No memories found');
   }, 15_000);
 });
+
+// ================================================================
+// Git-missing prompt: CLI shows unified message when no git repo
+// ================================================================
+describe('Git-missing prompt: CLI shows clear guidance', () => {
+  const distCli = path.resolve('dist', 'cli', 'index.js');
+  let noGitDir: string;
+
+  beforeAll(async () => {
+    if (!existsSync(distCli)) {
+      throw new Error(`dist/cli/index.js not found. Run \`npm run build\` first.`);
+    }
+    // Directory with NO .git
+    noGitDir = await fs.mkdtemp(path.join(os.tmpdir(), 'memorix-nogit-'));
+  });
+
+  function runCli(args: string[]): Promise<{ stdout: string; stderr: string }> {
+    return new Promise((resolve) => {
+      const child = spawn(process.execPath, [distCli, ...args], {
+        cwd: noGitDir,
+        env: { ...process.env, MEMORIX_EMBEDDING: 'off', MEMORIX_LLM_API_KEY: '' },
+        stdio: ['pipe', 'pipe', 'pipe'],
+      });
+      let stdout = '';
+      let stderr = '';
+      let settled = false;
+      const finish = () => {
+        if (settled) return;
+        settled = true;
+        try { child.kill(); } catch { /* already exited */ }
+        resolve({ stdout, stderr });
+      };
+      child.stdout?.on('data', (d: Buffer) => {
+        stdout += d.toString();
+        if (stdout.includes('git repo') || stdout.includes('git init')) {
+          setTimeout(finish, 200);
+        }
+      });
+      child.stderr?.on('data', (d: Buffer) => { stderr += d.toString(); });
+      child.on('close', finish);
+      setTimeout(finish, 8_000);
+    });
+  }
+
+  it('memorix search in non-git dir shows unified git prompt', async () => {
+    const { stdout } = await runCli(['search', 'test']);
+    expect(stdout).toContain('git repo');
+    expect(stdout).toContain('git init');
+  }, 15_000);
+
+  it('memorix recent in non-git dir shows unified git prompt', async () => {
+    const { stdout } = await runCli(['recent']);
+    expect(stdout).toContain('git repo');
+    expect(stdout).toContain('git init');
+  }, 15_000);
+});

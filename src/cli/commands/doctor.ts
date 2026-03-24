@@ -41,6 +41,7 @@ export default defineCommand({
     let projectId = '';
     let projectName = '';
     let dataDir = '';
+    let projectRoot = '';
     try {
       const { detectProjectWithDiagnostics } = await import('../../project/detector.js');
       const { getProjectDataDir } = await import('../../store/persistence.js');
@@ -70,13 +71,14 @@ export default defineCommand({
         lines.push(ok(`Root: ${result.project.rootPath}`));
         lines.push(ok(`Git remote: ${result.project.gitRemote || '(none — local-only)'}`));
         lines.push(ok(`Data dir: ${dataDir}`));
+        projectRoot = result.project.rootPath;
         report.project = { id: projectId, name: projectName, root: result.project.rootPath, dataDir };
       } else {
         const reason = result.failure?.reason ?? 'unknown';
         const detail = result.failure?.detail ?? '';
         lines.push(fail(`No git project detected: [${reason}]`));
         lines.push(info(detail));
-        issues.push(`Project not detected: ${reason}. Run "git init" or navigate to a git repo.`);
+        issues.push(`Memorix requires a git repo to establish project identity. Run \`git init\` in this workspace first. (${reason})`);
         report.project = { error: reason, detail };
       }
     } catch (e) {
@@ -299,7 +301,10 @@ export default defineCommand({
     lines.push('┌─ LLM Enhanced Mode ───────────────────────────────');
 
     try {
-      const { isLLMEnabled, getLLMConfig } = await import('../../llm/provider.js');
+      const { loadDotenv } = await import('../../config.js');
+      const { isLLMEnabled, getLLMConfig, initLLM } = await import('../../llm/provider.js');
+      loadDotenv(projectRoot || process.cwd());
+      initLLM();
       if (isLLMEnabled()) {
         const config = getLLMConfig();
         lines.push(ok(`Provider: ${config?.provider}/${config?.model}`));

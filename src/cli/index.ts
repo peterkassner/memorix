@@ -19,6 +19,8 @@ import { execSync, spawn } from 'node:child_process';
 const require = createRequire(import.meta.url);
 const pkg = require('../../package.json') as { version: string };
 
+const NO_GIT_MSG = 'Memorix requires a git repo to establish project identity. Run `git init` in this workspace first.';
+
 // ============================================================
 // Workbench — Terminal-native memory control plane
 // ============================================================
@@ -36,7 +38,7 @@ async function getWorkbenchHeader(): Promise<string[]> {
   const ver = `v${pkg.version}`;
 
   // Detect project
-  let projectLabel = DIM + 'no project' + RESET;
+  let projectLabel = `${YELLOW}no git repo${RESET} ${DIM}— run \`git init\` to enable${RESET}`;
   let projectDetected = false;
   try {
     const { detectProject } = await import('../project/detector.js');
@@ -133,7 +135,7 @@ async function runRemember(text: string): Promise<void> {
     const { initObservations, storeObservation } = await import('../memory/observations.js');
 
     const proj = detectProject(process.cwd());
-    if (!proj) { s.stop('Failed'); p.log.error('No .git found. Run "git init" first.'); return; }
+    if (!proj) { s.stop('No git repo'); p.log.error(NO_GIT_MSG); return; }
     const dataDir = await getProjectDataDir(proj.id);
     await initObservations(dataDir);
 
@@ -677,24 +679,35 @@ async function runConfigure(): Promise<void> {
 async function runSearch(query: string): Promise<void> {
   const s = p.spinner();
   s.start('Searching memories...');
+  const perf = !!process.env.MEMORIX_PERF;
+  const t0 = perf ? performance.now() : 0;
+  const mark = (label: string) => { if (perf) { const now = performance.now(); process.stderr.write(`[perf] ${label}: ${(now - t0).toFixed(0)}ms\n`); } };
   
   try {
     const { searchObservations, getDb, hydrateIndex } = await import('../store/orama-store.js');
     const { getProjectDataDir, loadObservationsJson } = await import('../store/persistence.js');
     const { detectProject } = await import('../project/detector.js');
     const { initObservations } = await import('../memory/observations.js');
+    mark('imports');
     
     const project = detectProject(process.cwd());
-    if (!project) { s.stop('No .git found'); p.log.error('Not a project directory. Run "git init" first.'); return; }
+    if (!project) { s.stop('No git repo'); p.log.error(NO_GIT_MSG); return; }
     const dataDir = await getProjectDataDir(project.id);
+    mark('detectProject');
     await initObservations(dataDir);
-    await getDb(); // Ensure Orama is initialized
+    mark('initObservations');
 
-    // Hydrate Orama index from persisted observations (cold-start fix)
-    const allObs = (await loadObservationsJson(dataDir)) as any[];
+    // Parallel: getDb (embedding provider init) + loadObservationsJson (disk I/O)
+    const [, allObs] = await Promise.all([
+      getDb(),
+      loadObservationsJson(dataDir) as Promise<any[]>,
+    ]);
+    mark(`getDb+loadObs(${allObs.length})`);
     await hydrateIndex(allObs);
+    mark('hydrateIndex');
     
     const results = await searchObservations({ query, limit: 10, projectId: project.id });
+    mark('search');
     s.stop('Search complete');
     
     if (results.length === 0) {
@@ -724,7 +737,7 @@ async function runList(): Promise<void> {
     const { detectProject } = await import('../project/detector.js');
     
     const project = detectProject(process.cwd());
-    if (!project) { s.stop('No .git found'); p.log.error('Not a project directory. Run "git init" first.'); return; }
+    if (!project) { s.stop('No git repo'); p.log.error(NO_GIT_MSG); return; }
     const dataDir = await getProjectDataDir(project.id);
     const observations = await loadObservationsJson(dataDir) as Array<{
       id: number; title: string; type: string; timestamp: string; status?: string;

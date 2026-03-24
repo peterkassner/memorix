@@ -30,6 +30,9 @@ const COMMAND_LOG_TITLE = /^(Ran:|Command:|Executed:)\s/i;
 // Soft demotion: titles containing shell-specific patterns get a score penalty.
 const COMMAND_STYLE_TITLE = /(\bfindstr\b|\bSelect-String\b|\bGet-Content\b|\bnpx\s+vitest\b|\bnpx\s+tsc\b|\b2>&1\b)/i;
 const COMMAND_LIKE_QUERY = /\b(git|npm|npx|pnpm|yarn|node|bash|powershell|curl|memorix)\b/i;
+// Stricter pattern: query IS a command (tool word at start, e.g. "git status", "npm install").
+// Does NOT match natural language like "why is memorix search slow".
+const COMMAND_INTENT_QUERY = /^\s*(git|npm|npx|pnpm|yarn|node|bash|powershell|curl|memorix)\s/i;
 
 /**
  * Build a globally unique Orama document ID for an observation.
@@ -45,6 +48,40 @@ function makeEntryKey(projectId: string | undefined, observationId: number): str
 
 function isCommandLikeQuery(query: string): boolean {
   return COMMAND_LIKE_QUERY.test(query);
+}
+
+/** True when the query IS a command (tool word leads), not just mentioning a tool. */
+function isCommandIntentQuery(query: string): boolean {
+  return COMMAND_INTENT_QUERY.test(query);
+}
+
+/** @internal Exported for testing only. */
+export { classifyQueryTier as _classifyQueryTier };
+
+/**
+ * Query tier classification for performance-aware search.
+ * - 'fast':     short/exact/command queries → fulltext only, no embedding, no rerank
+ * - 'standard': normal queries → fulltext + embedding, no rerank
+ * - 'heavy':    CJK or long ambiguous queries → expansion + embedding + rerank
+ */
+type QueryTier = 'fast' | 'standard' | 'heavy';
+
+function classifyQueryTier(query: string): QueryTier {
+  if (!query || query.trim().length === 0) return 'fast';
+  // CJK-heavy queries must be checked FIRST — CJK text has no word-separating
+  // spaces, so word-count heuristics would misclassify them as "fast".
+  const cjkCount = (query.match(/[\u4e00-\u9fff\u3040-\u309f\u30a0-\u30ff\uac00-\ud7af]/g) || []).length;
+  if (cjkCount / query.length > 0.3) return 'heavy';
+  // Single-word or very short queries: fast path
+  const words = query.trim().split(/\s+/);
+  if (words.length <= 1 && query.length <= 20) return 'fast';
+  // Command-intent queries: fast path ("git status", "npm install")
+  // NOT triggered by natural language mentioning a tool ("why is memorix search slow")
+  if (isCommandIntentQuery(query)) return 'fast';
+  // Long multi-word queries: heavy path
+  if (words.length >= 5) return 'heavy';
+  // Everything else: standard
+  return 'standard';
 }
 
 function isCommandLogEntry(title: string): boolean {
@@ -205,6 +242,9 @@ export async function removeObservation(oramaId: string): Promise<void> {
  * Progressive Disclosure Layer 1 — adopted from claude-mem.
  */
 export async function searchObservations(options: SearchOptions): Promise<IndexEntry[]> {
+  const perf = !!process.env.MEMORIX_PERF;
+  const t0 = perf ? performance.now() : 0;
+  const mark = (label: string) => { if (perf) { const now = performance.now(); process.stderr.write(`  [search-perf] ${label}: ${(now - t0).toFixed(0)}ms\n`); } };
   const modeKey = options.projectId ?? SEARCH_MODE_DEFAULT_KEY;
   lastSearchModeByProject.set(modeKey, embeddingEnabled ? 'hybrid' : 'fulltext');
   const database = await getDb();
@@ -236,7 +276,12 @@ export async function searchObservations(options: SearchOptions): Promise<IndexE
   // Determine search mode: hybrid (with vector) or fulltext (default)
   const hasQuery = options.query && options.query.trim().length > 0;
   const originalQuery = options.query;
-  const expandedEmbeddingQuery = hasQuery ? await maybeExpandSearchQuery(options.query!) : options.query;
+  const tier = hasQuery ? classifyQueryTier(originalQuery!) : 'fast' as QueryTier;
+  mark(`tier=${tier}`);
+
+  // Query expansion: only for heavy-tier (CJK) queries
+  const expandedEmbeddingQuery = tier === 'heavy' ? await maybeExpandSearchQuery(options.query!) : options.query;
+  mark('queryExpansion');
 
   // ── Intent-Aware Recall ──────────────────────────────────────
   // Detect query intent (why/when/how/what/problem) and adjust
@@ -274,9 +319,10 @@ export async function searchObservations(options: SearchOptions): Promise<IndexE
     ...(hasQuery ? { tolerance: originalQuery!.length > 6 ? 2 : 1 } : {}),
   };
 
-  // If embedding provider is available and we have a query, use hybrid search
+  // If embedding provider is available and query tier warrants it, use hybrid search
+  // Fast-tier queries skip embedding entirely (fulltext is sufficient)
   let queryVector: number[] | null = null;
-  if (embeddingEnabled && hasQuery) {
+  if (embeddingEnabled && hasQuery && tier !== 'fast') {
     try {
       const provider = await getEmbeddingProvider();
       if (provider) {
@@ -287,6 +333,7 @@ export async function searchObservations(options: SearchOptions): Promise<IndexE
           setTimeout(() => reject(new Error(`Embedding timeout after ${EMBEDDING_TIMEOUT_MS}ms`)), EMBEDDING_TIMEOUT_MS)
         );
         queryVector = await Promise.race([embedPromise, timeoutPromise]);
+        mark('embedding');
         // Detect CJK-heavy queries: BM25 can't tokenize Chinese/Japanese/Korean well
         const cjkRatio = (originalQuery!.match(/[\u4e00-\u9fff\u3040-\u309f\u30a0-\u30ff\uac00-\ud7af]/g) || []).length / originalQuery!.length;
         const isCJKHeavy = cjkRatio > 0.3;
@@ -313,7 +360,9 @@ export async function searchObservations(options: SearchOptions): Promise<IndexE
     }
   }
 
+  mark('preSearch');
   let results = await search(database, searchParams);
+  mark('oramaSearch');
 
   // Fallback: if hybrid returned nothing but we have a vector, retry with vector-only
   if (results.count === 0 && queryVector && embeddingEnabled) {
@@ -491,24 +540,31 @@ export async function searchObservations(options: SearchOptions): Promise<IndexE
     intermediate = intermediate.slice(0, options.limit ?? 20);
   }
 
-  // ── LLM Reranking (premium quality) ────────────────────────────
-  // After Orama + recency + affinity scoring, use LLM to rerank by
-  // semantic relevance to the actual query context.
-  // ~40% improvement in Top-5 precision when enabled.
-  const rerankCjkRatio = hasQuery
-    ? (originalQuery!.match(/[\u4e00-\u9fff\u3040-\u309f\u30a0-\u30ff\uac00-\ud7af]/g) || []).length / originalQuery!.length
-    : 0;
+  // ── LLM Reranking (heavy-tier only) ────────────────────────────
+  // Only triggered for heavy-tier queries with ambiguous top results.
+  // Fast and standard tiers skip entirely.
+  // Ambiguity check: top-2 scores within 30% → results are uncertain.
+  const shouldRerank = tier === 'heavy'
+    && hasQuery
+    && intermediate.length > 2
+    && (() => {
+      const top = intermediate[0]?.score ?? 0;
+      const second = intermediate[1]?.score ?? 0;
+      return top > 0 && second / top > 0.7; // top-2 within 30% = ambiguous
+    })();
 
-  if (hasQuery && intermediate.length > 2 && rerankCjkRatio <= 0.3) {
+  if (shouldRerank) {
     try {
       const { rerankResults } = await import('../llm/quality.js');
-      // Build narrative snippets from original search hits for richer reranking
       const narrativeMap = new Map<string, string>();
       for (const hit of results.hits) {
         const doc = hit.document as unknown as MemorixDocument;
         narrativeMap.set(makeEntryKey(doc.projectId, doc.observationId), doc.narrative);
       }
-      const candidates = intermediate.map((e, index) => ({
+      // Rerank only top-5 (was 10) to save LLM tokens and latency
+      const RERANK_TOP_K = 5;
+      const toRerank = intermediate.slice(0, RERANK_TOP_K);
+      const candidates = toRerank.map((e, index) => ({
         id: `r${index + 1}`,
         title: e.title,
         type: e.type,
@@ -516,29 +572,31 @@ export async function searchObservations(options: SearchOptions): Promise<IndexE
         narrative: narrativeMap.get(makeEntryKey(e.projectId, e.id)),
       }));
       
-      // LLM rerank timeout: 10 seconds
-      const RERANK_TIMEOUT_MS = 10000;
+      // LLM rerank timeout: 5 seconds (was 10s)
+      const RERANK_TIMEOUT_MS = 5000;
       const rerankPromise = rerankResults(originalQuery!, candidates);
       const timeoutPromise = new Promise<never>((_, reject) =>
         setTimeout(() => reject(new Error(`LLM rerank timeout after ${RERANK_TIMEOUT_MS}ms`)), RERANK_TIMEOUT_MS)
       );
       const { reranked, usedLLM } = await Promise.race([rerankPromise, timeoutPromise]);
+      mark(`rerank(usedLLM=${usedLLM})`);
       
       if (usedLLM) {
         lastSearchModeByProject.set(modeKey, (lastSearchModeByProject.get(modeKey) ?? 'fulltext') + ' + LLM rerank');
-        // Rebuild intermediate with reranked order, preserving all original fields.
-        const candidateMap = new Map(candidates.map((candidate, index) => [candidate.id, intermediate[index]]));
-        const rerankedIntermediate = reranked
+        const candidateMap = new Map(candidates.map((candidate, index) => [candidate.id, toRerank[index]]));
+        const rerankedTop = reranked
           .map(r => candidateMap.get(r.id))
           .filter((e): e is NonNullable<typeof e> => e != null);
-        if (rerankedIntermediate.length > 0) {
-          intermediate = rerankedIntermediate;
+        if (rerankedTop.length > 0) {
+          intermediate = [...rerankedTop, ...intermediate.slice(RERANK_TOP_K)];
         }
       }
     } catch (error) {
       // Reranking is best-effort: fall back to original order on timeout or error
       console.error('[memorix] LLM rerank failed or timed out, using original order');
     }
+  } else {
+    mark(`rerank(skipped,tier=${tier})`);
   }
 
   // Build IndexEntry with optional match explanation

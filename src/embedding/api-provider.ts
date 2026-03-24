@@ -13,11 +13,14 @@ import type { EmbeddingProvider } from './provider.js';
 
 const CACHE_DIR = process.env.MEMORIX_DATA_DIR || join(homedir(), '.memorix', 'data');
 const CACHE_FILE = join(CACHE_DIR, '.embedding-api-cache.json');
+const DIMS_CACHE_FILE = join(CACHE_DIR, '.embedding-dims-cache.json');
 
 const cache = new Map<string, number[]>();
 const MAX_CACHE_SIZE = 10000;
 let diskCacheDirty = false;
 let diskSaveTimer: ReturnType<typeof setTimeout> | null = null;
+let diskCacheLoaded = false;
+let diskCacheLoadPromise: Promise<void> | null = null;
 
 const MAX_INPUT_CHARS = 32000;
 const MAX_CONCURRENCY = 4;
@@ -37,6 +40,7 @@ function textHash(text: string): string {
 }
 
 async function loadDiskCache(): Promise<void> {
+  if (diskCacheLoaded) return;
   try {
     const raw = await readFile(CACHE_FILE, 'utf-8');
     const entries: [string, number[]][] = JSON.parse(raw);
@@ -45,6 +49,40 @@ async function loadDiskCache(): Promise<void> {
   } catch {
     // No cache file or corrupt cache; start fresh.
   }
+  diskCacheLoaded = true;
+}
+
+/** Start loading disk cache in background (non-blocking). */
+function startDiskCacheLoad(): void {
+  if (diskCacheLoaded || diskCacheLoadPromise) return;
+  diskCacheLoadPromise = loadDiskCache().catch(() => {});
+}
+
+/** Ensure disk cache is loaded (await if still in progress). */
+async function ensureDiskCacheLoaded(): Promise<void> {
+  if (diskCacheLoaded) return;
+  if (diskCacheLoadPromise) { await diskCacheLoadPromise; return; }
+  await loadDiskCache();
+}
+
+/** Load cached probe dimensions from disk. Returns null if not cached. */
+async function loadCachedDims(model: string, baseUrl: string): Promise<number | null> {
+  try {
+    const raw = await readFile(DIMS_CACHE_FILE, 'utf-8');
+    const data = JSON.parse(raw);
+    if (data.model === model && data.baseUrl === baseUrl && typeof data.dimensions === 'number') {
+      return data.dimensions;
+    }
+  } catch { /* no cache or corrupt */ }
+  return null;
+}
+
+/** Persist probe dimensions for fast subsequent starts. */
+async function saveCachedDims(model: string, baseUrl: string, dimensions: number): Promise<void> {
+  try {
+    await mkdir(CACHE_DIR, { recursive: true });
+    await writeFile(DIMS_CACHE_FILE, JSON.stringify({ model, baseUrl, dimensions, ts: Date.now() }));
+  } catch { /* best-effort */ }
 }
 
 async function saveDiskCacheNow(): Promise<void> {
@@ -135,11 +173,20 @@ export class APIEmbeddingProvider implements EmbeddingProvider {
   static async create(): Promise<APIEmbeddingProvider> {
     const config = APIEmbeddingProvider.resolveConfig();
 
-    await loadDiskCache();
+    // Start loading the 45MB+ embedding cache in the background (non-blocking).
+    // It will be awaited on first embed() call if not yet ready.
+    startDiskCacheLoad();
 
-    const probeDimensions = await APIEmbeddingProvider.probeAPI(config);
-
-    console.error(`[memorix] API embedding: ${config.model} @ ${config.baseUrl} (${probeDimensions}d)`);
+    // Try cached dimensions first to avoid a network probe on cold start
+    let probeDimensions = await loadCachedDims(config.model, config.baseUrl);
+    if (probeDimensions !== null) {
+      console.error(`[memorix] API embedding: ${config.model} @ ${config.baseUrl} (${probeDimensions}d) [cached dims]`);
+    } else {
+      probeDimensions = await APIEmbeddingProvider.probeAPI(config);
+      console.error(`[memorix] API embedding: ${config.model} @ ${config.baseUrl} (${probeDimensions}d)`);
+      // Persist for next cold start
+      saveCachedDims(config.model, config.baseUrl, probeDimensions).catch(() => {});
+    }
     if (config.requestedDimensions) {
       console.error(`[memorix] Dimension shortening: ${config.requestedDimensions}d requested`);
     }
@@ -210,35 +257,74 @@ export class APIEmbeddingProvider implements EmbeddingProvider {
   async embed(text: string): Promise<number[]> {
     const normalized = normalizeText(text);
     const hash = textHash(normalized);
-    const cached = cache.get(hash);
-    if (cached) return cached;
 
-    const body: Record<string, unknown> = {
-      model: this.config.model,
-      input: normalized,
+    // Fast path: cache already loaded (warm process) — instant lookup
+    if (diskCacheLoaded) {
+      const cached = cache.get(hash);
+      if (cached) return cached;
+    }
+
+    // Cold-start path: cache is still loading in background.
+    // Race the cache completion (may have a hit) against the API call.
+    // Whichever resolves first with a valid embedding wins.
+    const apiCall = async (): Promise<number[]> => {
+      const body: Record<string, unknown> = {
+        model: this.config.model,
+        input: normalized,
+      };
+      if (this.config.requestedDimensions) {
+        body.dimensions = this.config.requestedDimensions;
+      }
+      const response = await fetchWithRetry(
+        `${this.config.baseUrl}/embeddings`,
+        this.config.apiKey,
+        body,
+      );
+      const embedding = response.data[0].embedding;
+      if (embedding.length !== this.dimensions) {
+        throw new Error(`Expected ${this.dimensions}d, got ${embedding.length}d; dimension mismatch`);
+      }
+      this.trackUsage(response);
+      return embedding;
     };
-    if (this.config.requestedDimensions) {
-      body.dimensions = this.config.requestedDimensions;
+
+    let embedding: number[];
+
+    if (!diskCacheLoaded && diskCacheLoadPromise) {
+      // Race: cache load + lookup vs API call
+      const cacheRace = diskCacheLoadPromise.then(() => {
+        const cached = cache.get(hash);
+        if (cached) return cached;
+        return null; // miss — let API win
+      });
+
+      const result = await Promise.race([
+        cacheRace,
+        apiCall().then(v => ({ __api: true, v } as const)),
+      ]);
+
+      if (result && typeof result === 'object' && '__api' in result) {
+        // API finished first
+        embedding = result.v;
+      } else if (result) {
+        // Cache hit won the race
+        return result as number[];
+      } else {
+        // Cache loaded but missed — await the API call
+        embedding = await apiCall();
+      }
+    } else {
+      // No cache loading — just call API
+      embedding = await apiCall();
     }
 
-    const response = await fetchWithRetry(
-      `${this.config.baseUrl}/embeddings`,
-      this.config.apiKey,
-      body,
-    );
-
-    const embedding = response.data[0].embedding;
-    if (embedding.length !== this.dimensions) {
-      throw new Error(`Expected ${this.dimensions}d, got ${embedding.length}d; dimension mismatch`);
-    }
-
-    this.trackUsage(response);
     cacheSet(hash, embedding);
     scheduleDiskSave();
     return embedding;
   }
 
   async embedBatch(texts: string[]): Promise<number[][]> {
+    await ensureDiskCacheLoaded();
     const normalizedTexts = texts.map(normalizeText);
     const results: number[][] = new Array(texts.length);
     const uncachedIndices: number[] = [];
