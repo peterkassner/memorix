@@ -22,7 +22,7 @@
 </p>
 
 <p align="center">
-  <a href="README.zh-CN.md">中文说明</a> |
+  <a href="README.zh-CN.md">简体中文</a> |
   <a href="#quick-start">Quick Start</a> |
   <a href="#supported-clients">Supported Clients</a> |
   <a href="#core-workflows">Core Workflows</a> |

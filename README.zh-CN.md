@@ -32,6 +32,19 @@
 
 ---
 
+## 给 Coding Agent 的说明
+
+如果你在用 AI coding agent 帮用户安装、配置或排障 Memorix，请先阅读 [Agent Operator Playbook](docs/AGENT_OPERATOR_PLAYBOOK.md)。
+
+这份文档是给 Agent 的正式操作手册，重点说明：
+
+- 安装与运行模式选择
+- Git 与项目身份绑定规则
+- stdio 与 HTTP control plane 的取舍
+- 各 Agent / IDE 的集成与 hooks
+- dot 目录生成策略
+- 排障顺序和安全操作边界
+
 ## 为什么是 Memorix
 
 大多数 Coding Agent 只能记住当前线程。Memorix 提供的是一层共享、持久、可检索的项目记忆，让不同 IDE、不同 Agent、不同会话都能在同一套本地记忆库上继续工作。
@@ -39,11 +52,11 @@
 Memorix 的几个关键差异点：
 
 - **Git Memory**：把 `git commit` 变成可检索的工程记忆，保留提交来源、变更文件和噪音过滤结果。
-- **Reasoning Memory**：不仅记录“改了什么”，还记录“为什么这么做”。
+- **Reasoning Memory**：不只记录“改了什么”，还记录“为什么这么做”。
 - **跨 Agent 本地召回**：多个 IDE 和 Agent 可以读取同一套本地记忆，而不是各自形成孤岛。
 - **记忆质量管线**：formation、压缩、保留衰减和 source-aware retrieval 协同工作，而不是一堆彼此独立的小功能。
 
-一句话说，Memorix 想解决的是：让多个 Coding Agent 通过 MCP 共享同一套耐久项目记忆，同时保留 Git 真相、推理上下文和本地控制权。
+一句话说，Memorix 解决的是：让多个 Coding Agent 通过 MCP 共享同一套耐久项目记忆，同时保留 Git 真相、推理上下文和本地控制权。
 
 ## 支持的客户端
 
@@ -187,16 +200,76 @@ memorix serve-http --port 3211
 ## 工作原理
 
 ```mermaid
-graph TB
-    A["git commit / agent tool call / manual store"] --> B["Memorix Runtime"]
-    B --> C["Observation / Reasoning / Git Memory"]
-    C --> D["Formation + Indexing + Graph + Retention"]
-    D --> E["Search / Detail / Timeline / Dashboard / Team"]
+flowchart LR
+    subgraph Ingress["入口层"]
+        A1["Git hooks / ingest"]
+        A2["MCP tools"]
+        A3["CLI / TUI"]
+        A4["HTTP dashboard"]
+    end
+
+    subgraph Runtime["Memorix Runtime"]
+        B1["stdio MCP server"]
+        B2["HTTP control plane"]
+        B3["project binding + config"]
+    end
+
+    subgraph Memory["记忆基底"]
+        C1["Observation memory"]
+        C2["Reasoning memory"]
+        C3["Git memory"]
+        C4["Session + team state"]
+    end
+
+    subgraph Processing["异步处理"]
+        D1["Formation pipeline"]
+        D2["Embedding + indexing"]
+        D3["Graph linking"]
+        D4["Dedup + retention"]
+    end
+
+    subgraph Consumption["消费面"]
+        E1["Search / detail / timeline"]
+        E2["Dashboard / team views"]
+        E3["Agent recall / handoff"]
+    end
+
+    A1 --> B1
+    A2 --> B1
+    A2 --> B2
+    A3 --> B1
+    A3 --> B2
+    A4 --> B2
+
+    B1 --> B3
+    B2 --> B3
+
+    B3 --> C1
+    B3 --> C2
+    B3 --> C3
+    B3 --> C4
+
+    C1 --> D1
+    C1 --> D2
+    C1 --> D3
+    C1 --> D4
+    C2 --> D1
+    C2 --> D3
+    C3 --> D2
+    C4 --> D3
+
+    D1 --> E1
+    D2 --> E1
+    D3 --> E2
+    D4 --> E3
+    C4 --> E3
 ```
+
+Memorix 不是一条单线 pipeline。它有多种写入入口、多层记忆基底、多条异步处理支路，以及不同的检索和协作消费面。
 
 ### 三层记忆模型
 
-- **Observation Memory**：记录 what-changed、how-it-works、gotcha、problem-solution 等工程知识。
+- **Observation Memory**：记录 `what-changed`、`how-it-works`、`gotcha`、`problem-solution` 等工程知识。
 - **Reasoning Memory**：记录为什么这样做、比较过哪些方案、接受了什么权衡。
 - **Git Memory**：从 commit 中提炼的工程真相层。
 
@@ -235,6 +308,7 @@ graph TB
 
 ### 面向 AI 的项目文档
 
+- [Agent Operator Playbook](docs/AGENT_OPERATOR_PLAYBOOK.md)
 - [`llms.txt`](llms.txt)
 - [`llms-full.txt`](llms-full.txt)
 
