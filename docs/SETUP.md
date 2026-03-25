@@ -2,7 +2,13 @@
 
 Memorix is an open-source cross-agent memory layer for coding agents via MCP, with first-class integrations for Cursor, Claude Code, Codex, Windsurf, Gemini CLI, GitHub Copilot, Kiro, OpenCode, Antigravity, and Trae.
 
-Memorix supports two runtime modes:
+Memorix has three common operator entry points:
+
+- `memorix` for the interactive local workbench in a TTY
+- `memorix serve` for stdio MCP integrations
+- `memorix serve-http --port 3211` for HTTP MCP, the dashboard, and collaboration features on one port
+
+The two server runtime modes are:
 
 - `memorix serve` for stdio MCP integrations
 - `memorix serve-http --port 3211` for HTTP MCP, the dashboard, and collaboration features on one port
@@ -61,6 +67,12 @@ This mode gives you:
 - dashboard at `http://localhost:3211`
 - Team and collaboration features
 - a single long-lived Memorix process shared by multiple agents
+
+Startup note:
+
+- `serve-http` seeds its default project root from `--cwd` -> `MEMORIX_PROJECT_ROOT` -> `~/.memorix/last-project-root` -> `process.cwd()`
+- this helps the dashboard and control plane start in a sensible project even before any agent binds explicitly
+- in multi-session workflows, agents should still call `memorix_session_start(projectRoot=...)` to avoid cross-project drift
 
 Important for multi-project usage:
 

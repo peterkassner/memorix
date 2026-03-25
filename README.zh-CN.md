@@ -85,11 +85,13 @@ Memorix 的几个关键差异点：
 npm install -g memorix
 ```
 
-初始化项目配置：
+初始化 Memorix 配置：
 
 ```bash
 memorix init
 ```
+
+`memorix init` 会让你在 `Global defaults` 和 `Project config` 之间做作用域选择。
 
 Memorix 使用两个文件、两类职责：
 
@@ -97,6 +99,12 @@ Memorix 使用两个文件、两类职责：
 - `.env`：密钥和敏感变量
 
 然后选择一种运行模式：
+
+```bash
+memorix
+```
+
+如果你在 TTY 中想直接使用交互式本地工作台，运行裸命令 `memorix`。
 
 ```bash
 memorix serve
@@ -109,6 +117,13 @@ memorix serve-http --port 3211
 ```
 
 `serve-http` 适合你需要 HTTP transport、dashboard、协作和控制面的场景。
+
+`serve-http` 启动时会按下面的顺序为默认项目根做初始选取：
+
+1. `--cwd`
+2. `MEMORIX_PROJECT_ROOT`
+3. `~/.memorix/last-project-root`
+4. `process.cwd()`
 
 在 HTTP control-plane 模式下，如果 Agent 能拿到当前工作区绝对路径，就应该在调用 `memorix_session_start` 时把它作为 `projectRoot` 传入。`projectRoot` 只是检测锚点，最终项目身份仍然以 Git 为准。
 
@@ -194,6 +209,8 @@ memorix serve-http --port 3211
 - Dashboard：`http://localhost:3211`
 
 这一模式会把 dashboard、配置诊断、项目身份、团队协作和 Git Memory 视图统一到一个控制面入口里。
+
+当多个 HTTP session 同时存在时，每个 session 都应先用 `memorix_session_start(projectRoot=...)` 显式绑定当前工作区，再去调用项目级记忆工具。
 
 ---
 
@@ -309,6 +326,7 @@ Memorix 不是一条单线 pipeline。它有多种写入入口、多层记忆基
 ### 面向 AI 的项目文档
 
 - [Agent Operator Playbook](docs/AGENT_OPERATOR_PLAYBOOK.md)
+- [AI Context Note](docs/AI_CONTEXT.md)
 - [`llms.txt`](llms.txt)
 - [`llms-full.txt`](llms-full.txt)
 

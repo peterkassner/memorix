@@ -85,11 +85,13 @@ Install globally:
 npm install -g memorix
 ```
 
-Initialize project config:
+Initialize Memorix config:
 
 ```bash
 memorix init
 ```
+
+`memorix init` lets you choose between `Global defaults` and `Project config`.
 
 Memorix uses two files with two roles:
 
@@ -97,6 +99,12 @@ Memorix uses two files with two roles:
 - `.env` for secrets such as API keys
 
 Choose one runtime mode:
+
+```bash
+memorix
+```
+
+Use bare `memorix` to launch the interactive workbench when you are in a TTY and want the local UI.
 
 ```bash
 memorix serve
@@ -109,6 +117,13 @@ memorix serve-http --port 3211
 ```
 
 Use `serve-http` when you want the HTTP transport, collaboration features, and the dashboard on the same port.
+
+At startup, `serve-http` seeds its default project root from:
+
+1. `--cwd`
+2. `MEMORIX_PROJECT_ROOT`
+3. `~/.memorix/last-project-root`
+4. `process.cwd()`
 
 In HTTP control-plane mode, agents should call `memorix_session_start` with `projectRoot` set to the absolute path of the current workspace or repo root when that path is available. Git remains the source of truth for the final project identity; `projectRoot` is the detection anchor that keeps parallel sessions from drifting into the wrong project bucket.
 
@@ -311,6 +326,7 @@ Memorix is not a single linear pipeline. It accepts memory from multiple ingress
 ### AI-Facing Project Docs
 
 - [Agent Operator Playbook](docs/AGENT_OPERATOR_PLAYBOOK.md)
+- [AI Context Note](docs/AI_CONTEXT.md)
 - [`llms.txt`](llms.txt)
 - [`llms-full.txt`](llms-full.txt)
 

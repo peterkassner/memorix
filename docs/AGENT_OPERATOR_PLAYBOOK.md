@@ -50,6 +50,14 @@ Do not assume a plain folder path is enough.
 
 ### Choose one runtime model intentionally
 
+There are three practical operator entry points:
+
+- `memorix` for the interactive local workbench in a TTY
+- `memorix serve` for stdio MCP hosts
+- `memorix serve-http --port 3211` for the HTTP control plane
+
+The two server runtime modes are:
+
 Use:
 
 ```bash
@@ -122,12 +130,25 @@ git init
 memorix init
 ```
 
+`memorix init` is a scope selector, not just a project-local generator. It lets the user choose between:
+
+- `Global defaults`
+- `Project config`
+
 Memorix uses:
 
 - `memorix.yml` for behavior and project settings
 - `.env` for secrets such as API keys
 
 ### Step 4. Start stdio MCP mode
+
+If the user wants the local interactive workbench first, they can also run:
+
+```bash
+memorix
+```
+
+Use that for local browsing, commands, and quick validation in a TTY.
 
 ```bash
 memorix serve
@@ -186,6 +207,15 @@ Main URLs:
 
 - MCP endpoint: `http://localhost:3211/mcp`
 - dashboard: `http://localhost:3211`
+
+At startup, `serve-http` seeds its default project root from:
+
+1. `--cwd`
+2. `MEMORIX_PROJECT_ROOT`
+3. `~/.memorix/last-project-root`
+4. `process.cwd()`
+
+That startup root is useful for dashboard and server boot, but it does not replace explicit session binding.
 
 ### Step 4. Bind each HTTP session explicitly
 
