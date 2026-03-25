@@ -32,6 +32,19 @@
 
 ---
 
+## For Coding Agents
+
+If you are using an AI coding agent to install or operate Memorix, have it read the [Agent Operator Playbook](docs/AGENT_OPERATOR_PLAYBOOK.md) first.
+
+That playbook is the canonical AI-facing guide for:
+
+- installation and runtime-mode selection
+- Git/project binding rules
+- stdio vs HTTP control-plane setup
+- per-agent integration and hooks
+- generated dot-directory behavior
+- troubleshooting and safe operating rules
+
 ## Why Memorix
 
 Most coding agents remember only the current thread. Memorix gives them a shared, persistent memory layer across IDEs, sessions, and projects.
@@ -297,6 +310,7 @@ Memorix is not a single linear pipeline. It accepts memory from multiple ingress
 
 ### AI-Facing Project Docs
 
+- [Agent Operator Playbook](docs/AGENT_OPERATOR_PLAYBOOK.md)
 - [`llms.txt`](llms.txt)
 - [`llms-full.txt`](llms-full.txt)
 

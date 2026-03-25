@@ -38,6 +38,7 @@ In HTTP control-plane mode, agents should call `memorix_session_start` with `pro
 
 ## Core Links
 
+- Primary AI operator guide: [docs/AGENT_OPERATOR_PLAYBOOK.md](https://github.com/AVIDS2/memorix/blob/main/docs/AGENT_OPERATOR_PLAYBOOK.md)
 - GitHub: [AVIDS2/memorix](https://github.com/AVIDS2/memorix)
 - npm: [memorix](https://www.npmjs.com/package/memorix)
 - Full AI-facing docs: [llms-full.txt](https://github.com/AVIDS2/memorix/blob/main/llms-full.txt)

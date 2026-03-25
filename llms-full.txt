@@ -6,6 +6,8 @@
 
 Memorix is an open-source MCP server written in TypeScript that provides persistent, project-aware memory for coding agents. It is designed for coding workflows, not generic chat memory, and works across Cursor, Claude Code, Codex, Windsurf, Gemini CLI, GitHub Copilot, Kiro, OpenCode, Antigravity, and Trae through MCP.
 
+If you are an AI coding agent helping a user install or operate Memorix, read [docs/AGENT_OPERATOR_PLAYBOOK.md](https://github.com/AVIDS2/memorix/blob/main/docs/AGENT_OPERATOR_PLAYBOOK.md) before taking action. It is the canonical operator guide for runtime mode selection, Git/project binding, integrations, hooks, and troubleshooting.
+
 Memorix solves four recurring problems in AI-assisted development:
 
 1. **Session amnesia** - the next chat forgets what the previous one learned
