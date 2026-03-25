@@ -73,7 +73,7 @@ npm run test:watch
 
 ```bash
 memorix serve
-memorix serve-http --port 3211
+memorix background start
 memorix status
 ```
 
@@ -159,7 +159,7 @@ Use this to validate:
 ### HTTP MCP + dashboard
 
 ```bash
-memorix serve-http --port 3211
+memorix background start
 ```
 
 Use this to validate:
@@ -169,13 +169,15 @@ Use this to validate:
 - dashboard API parity
 - dashboard UX
 
+Use `memorix serve-http --port 3211` when you want the same stack in the foreground for debugging, manual supervision, or custom ports.
+
 ### Dashboard-only mode
 
 ```bash
 memorix dashboard
 ```
 
-Useful for local UI checks, but the main product dashboard is the one embedded in `serve-http`.
+Useful for local UI checks, but the main product dashboard is the one embedded in the HTTP control plane.
 
 ---
 

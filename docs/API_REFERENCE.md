@@ -239,6 +239,7 @@ Start a new coding session and load recent context.
 Important inputs:
 
 - optional `agent`
+- optional `projectRoot`
 - optional `sessionId`
 
 Behavior:
@@ -246,6 +247,8 @@ Behavior:
 - opens a session for the current project
 - can auto-close any previous active session for that project
 - returns recent session context and relevant memories
+
+In HTTP control-plane mode, pass `projectRoot` as the absolute workspace or repo root whenever the client knows it. `projectRoot` is the detection anchor; Git remains the source of truth for the final project identity.
 
 ### `memorix_session_end`
 
@@ -422,8 +425,10 @@ Typical actions:
 These tools are most meaningful in HTTP transport mode:
 
 ```bash
-memorix serve-http --port 3211
+memorix background start
 ```
+
+Use `memorix serve-http --port 3211` when you want the same HTTP control plane in the foreground for debugging or manual supervision.
 
 ### `team_manage`
 

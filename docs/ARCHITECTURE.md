@@ -373,9 +373,9 @@ Use this for:
 - Windsurf
 - other stdio MCP clients
 
-### `memorix serve-http --port 3211`
+### `memorix background start`
 
-Starts the HTTP MCP server and the main dashboard.
+Starts the recommended long-lived HTTP control plane and dashboard in the background.
 
 Use this when you want:
 
@@ -383,6 +383,23 @@ Use this when you want:
 - one shared Memorix process for multiple agents
 - Team features
 - the control plane dashboard
+
+Companion commands:
+
+- `memorix background status`
+- `memorix background logs`
+- `memorix background stop`
+
+### `memorix serve-http --port 3211`
+
+Starts the same HTTP MCP server and dashboard in the foreground.
+
+Use this when you want:
+
+- foreground logs
+- manual supervision
+- a custom port
+- custom launch control
 
 Main URLs:
 
@@ -393,7 +410,7 @@ Main URLs:
 
 Standalone dashboard mode.
 
-Useful for local inspection and debugging, but the main product mode is the dashboard embedded in `serve-http`.
+Useful for local inspection and debugging, but the main product mode is the dashboard embedded in the HTTP control plane.
 
 ---
 
