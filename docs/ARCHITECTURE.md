@@ -14,15 +14,72 @@ These layers are exposed through MCP tools, CLI workflows, and an HTTP control p
 
 ## 1. System Shape
 
-Memorix is best understood as a four-layer system:
+Memorix is better understood as a container-style architecture with multiple ingress surfaces, a shared runtime/control plane, several memory substrates, and parallel processing/retrieval branches.
 
 ```mermaid
-graph TB
-    A["Agents / IDEs / CLI"] --> B["Access and Runtime Layer"]
-    B --> C["Memory Core"]
-    C --> D["Intelligence and Quality Layer"]
-    D --> E["Platform and Ecosystem Layer"]
-    E --> F["Local Data and Search Index"]
+flowchart LR
+    subgraph Clients["Clients and Surfaces"]
+        A1["IDEs / coding agents"]
+        A2["CLI / TUI"]
+        A3["Dashboard / browser"]
+        A4["Git hooks / ingest"]
+    end
+
+    subgraph Runtime["Runtime and Control Plane"]
+        B1["stdio MCP runtime"]
+        B2["HTTP control plane"]
+        B3["project binding + config provenance"]
+    end
+
+    subgraph Core["Memory Core"]
+        C1["Observation store"]
+        C2["Reasoning store"]
+        C3["Git memory store"]
+        C4["Session / team registry"]
+    end
+
+    subgraph Intelligence["Intelligence and Quality"]
+        D1["Formation + enrichment"]
+        D2["Embedding + search index"]
+        D3["Graph + relations"]
+        D4["Dedup + retention + archive"]
+    end
+
+    subgraph Experience["Retrieval and Experience"]
+        E1["Search / detail / timeline"]
+        E2["Dashboard / team / health"]
+        E3["Session handoff / agent recall"]
+    end
+
+    A1 --> B1
+    A1 --> B2
+    A2 --> B1
+    A2 --> B2
+    A3 --> B2
+    A4 --> B1
+
+    B1 --> B3
+    B2 --> B3
+
+    B3 --> C1
+    B3 --> C2
+    B3 --> C3
+    B3 --> C4
+
+    C1 --> D1
+    C1 --> D2
+    C1 --> D3
+    C1 --> D4
+    C2 --> D1
+    C2 --> D3
+    C3 --> D2
+    C4 --> D3
+
+    D1 --> E1
+    D2 --> E1
+    D3 --> E2
+    D4 --> E3
+    C4 --> E3
 ```
 
 ### Access and Runtime Layer
@@ -159,54 +216,69 @@ This creates an engineering truth layer that complements human- or agent-authore
 
 ## 3. Main Data Flows
 
+The core operational model is not a single straight line. Memorix has multiple write paths that converge into shared memory substrates, then fan out again into indexing, quality, and retrieval surfaces.
+
+```mermaid
+flowchart TB
+    W1["Manual store / MCP tools"]
+    W2["Git commit / git-hook / ingest"]
+    W3["IDE hook event"]
+    W4["Session start / team activity"]
+
+    W1 --> R["Runtime validation + project binding"]
+    W2 --> R
+    W3 --> R
+    W4 --> R
+
+    R --> S1["Observation persistence"]
+    R --> S2["Reasoning persistence"]
+    R --> S3["Git memory extraction"]
+    R --> S4["Session + team state"]
+
+    S1 --> P1["Formation / enrichment"]
+    S1 --> P2["Embedding / BM25 index"]
+    S1 --> P3["Graph relation update"]
+    S1 --> P4["Dedup / retention"]
+    S2 --> P1
+    S2 --> P3
+    S3 --> P2
+    S4 --> P3
+
+    P1 --> Q1["Search results"]
+    P2 --> Q1
+    P3 --> Q2["Dashboard / graph / team"]
+    P4 --> Q3["Handoff / archive / cleanup"]
+    S4 --> Q3
+```
+
 ### Explicit store flow
 
-```text
-Agent or user
-  -> memorix_store / memorix_store_reasoning
-  -> validation and enrichment
-  -> observation persistence
-  -> search index update
-  -> graph update
-```
+- `memorix_store` / `memorix_store_reasoning`
+- runtime validation and project binding
+- persistence into observation/reasoning memory
+- async quality/indexing branches
+- retrieval through search/detail/timeline or dashboard surfaces
 
 ### Git Memory flow
 
-```text
-git commit
-  -> post-commit hook
-  -> memorix ingest commit --auto
-  -> git extractor + noise filter
-  -> observation persistence
-  -> search index update
-```
+- `git commit`
+- post-commit hook or manual `memorix ingest commit --auto`
+- git extractor + noise filter
+- persistence as Git Memory with provenance
+- indexing and retrieval through normal search surfaces
 
 ### Hook capture flow
 
-```text
-IDE hook event
-  -> normalize
-  -> detect pattern and significance
-  -> optional memory write
-  -> session-aware context update
-```
+- IDE hook event
+- normalize and significance detection
+- optional memory write
+- session-aware context update
 
 ### Retrieval flow
 
-```text
-memorix_search
-  -> project-scoped search by default
-  -> BM25 or hybrid retrieval
-  -> source-aware reranking
-  -> compact result formatting
-
-memorix_detail
-  -> full observation lookup
-  -> optional project-aware refs for global hits
-
-memorix_timeline
-  -> surrounding chronological context
-```
+- `memorix_search` -> project-scoped search by default -> BM25 or hybrid retrieval -> source-aware ranking -> compact formatting
+- `memorix_detail` -> full observation lookup with project-aware refs for global hits
+- `memorix_timeline` -> chronological context around an anchor observation
 
 ---
 
@@ -325,7 +397,42 @@ Useful for local inspection and debugging, but the main product mode is the dash
 
 ---
 
-## 8. Dashboard as Control Plane
+## 8. Session and Control-Plane Collaboration
+
+The HTTP control plane is not just a transport wrapper. It is the coordination layer that keeps multiple agents, multiple projects, and multiple UX surfaces from drifting apart.
+
+```mermaid
+flowchart LR
+    A1["Agent / IDE session"] --> B1["HTTP MCP initialize"]
+    B1 --> B2["memorix_session_start(projectRoot)"]
+    B2 --> C1["Project binding"]
+    C1 --> C2["Session context"]
+    C1 --> C3["Config provenance"]
+    C1 --> C4["Team / task registry"]
+
+    C2 --> D1["Recent Handoff"]
+    C2 --> D2["Key Project Memories"]
+    C2 --> D3["Recent Session History"]
+
+    C3 --> E1["doctor / status"]
+    C3 --> E2["dashboard config + health"]
+
+    C4 --> F1["team status"]
+    C4 --> F2["tasks / messages / locks"]
+    C4 --> F3["dashboard team view"]
+```
+
+This is the layer that gives Memorix its cross-agent behavior:
+
+- explicit `projectRoot` binding for HTTP sessions
+- Git-backed project identity
+- shared team/task/message state
+- session handoff context that survives across clients and runs
+- dashboard and CLI surfaces reading the same underlying runtime state
+
+---
+
+## 9. Dashboard as Control Plane
 
 The dashboard is no longer just an observation browser.
 
@@ -343,7 +450,7 @@ This is part of Memorix's shift from a single MCP server to a broader local memo
 
 ---
 
-## 9. Design Goals
+## 10. Design Goals
 
 Memorix is designed around a few guiding ideas:
 
