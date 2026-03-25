@@ -8,11 +8,13 @@ All notable changes to this project will be documented in this file.
 - **TUI workbench matured into a product-grade terminal UI** - Added an Ink-native `/configure` flow, interactive sidebar navigation, unified keyboard model, better no-project empty state, compact responsive layouts, and broader TUI interaction coverage.
 - **Gemini CLI as a first-class integration target** - Added a dedicated Gemini CLI target across TUI integrate flows, workspace adapters, rules sync, hook normalization, and MCP config generation.
 - **Release-blocker regression suite** - Added real embedded `serve-http` route tests for CORS and `/api/config`, plus cold-start CLI search regression coverage against persisted observations.
+- **Silent auto-update wiring** - Wired the existing updater into real runtime entry points so TUI and HTTP control-plane starts can background-check and silently install newer npm releases without blocking startup.
 
 ### Changed
 - **Control plane stability and scope semantics** - Hardened HTTP project binding, dashboard API behavior, project-scoped health/search diagnostics, and release-readiness around multi-project sessions.
 - **Product positioning and integration messaging** - Updated README, AI-facing docs, and agent/rules entry docs to foreground Memorix as an open-source cross-agent memory layer compatible with ten major coding IDEs and MCP hosts.
 - **Search and retrieval transparency** - Search mode reporting is now project-scoped end-to-end, including TUI, embedded stats, and MCP search responses.
+- **Session handoff semantics** - `memorix_session_start` now separates `Recent Handoff`, `Key Project Memories`, and `Recent Session History` so recency-first handoff context is no longer mixed with long-term importance-ranked memories.
 
 ### Fixed
 - **Embedded dashboard security and config isolation** - Fixed localhost-only CORS behavior for embedded dashboard JSON APIs and closed the `/api/config?project=...` startup-project YAML leak.
@@ -20,13 +22,15 @@ All notable changes to this project will be documented in this file.
 - **Concurrent memory write consistency** - Fixed `topicKey` upsert races by rechecking authoritative disk state under the file lock before deciding whether to create or update.
 - **CLI cold-start search regression** - Fixed `memorix search` so persisted observations are hydrated into the Orama index on a fresh process before searching.
 - **Embedding provider resilience** - Fixed API embedding batch-limit handling with provider-aware chunking, automatic split-and-retry on oversized batches, and retry handling for transient 429/5xx errors.
+- **OpenCode stale plugin detection** - Added generated-version markers and hook-status detection so outdated OpenCode plugin installs are surfaced and can be reinstalled before they corrupt the TUI experience.
+- **Documentation encoding regressions** - Restored clean UTF-8 copy for Chinese README content and agent/rules entry docs so release docs match the current product shape.
 
 ### Known Limitations
 - **Gemini CLI / Antigravity shared `.gemini/*` ecosystem** - This follows the official Gemini ecosystem design. Integrations are independent at the target/adapter level, but hook runtime identity can still behave as "last installer wins" because both share the same official hook config surface.
 
 ### Stats
-- **Tests:** 1057/1059 passing (`81` files, `2` skipped)
-- **Runtime surfaces covered before release:** stdio MCP, HTTP control plane, dashboard, TUI workbench, Gemini CLI integration, git-hook ingest, and cold-start CLI search
+- **Tests:** 1099/1101 passing (`82` files, `2` skipped)
+- **Runtime surfaces covered before release:** stdio MCP, HTTP control plane, dashboard, TUI workbench, silent auto-update, Gemini CLI integration, git-hook ingest, and cold-start CLI search
 
 ---
 
