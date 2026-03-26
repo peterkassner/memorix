@@ -36,6 +36,32 @@ memorix background start
 
 Use `memorix serve-http --port 3211` only when you want the same HTTP control plane in the foreground for debugging, manual supervision, or a custom port.
 
+Generic stdio MCP config:
+
+```json
+{
+  "mcpServers": {
+    "memorix": {
+      "command": "memorix",
+      "args": ["serve"]
+    }
+  }
+}
+```
+
+Generic HTTP MCP config:
+
+```json
+{
+  "mcpServers": {
+    "memorix": {
+      "transport": "http",
+      "url": "http://localhost:3211/mcp"
+    }
+  }
+}
+```
+
 In HTTP control-plane mode, agents should call `memorix_session_start` with `projectRoot` set to the **absolute path of the current workspace or repo root** when that path is available. Git remains the source of truth for the final project identity; `projectRoot` is the detection anchor that prevents cross-project drift.
 
 ## Core Links

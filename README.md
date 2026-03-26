@@ -139,6 +139,34 @@ The deeper details around startup root selection, project binding, config preced
 
 Add Memorix to your MCP client:
 
+### Generic stdio MCP config
+
+```json
+{
+  "mcpServers": {
+    "memorix": {
+      "command": "memorix",
+      "args": ["serve"]
+    }
+  }
+}
+```
+
+### Generic HTTP MCP config
+
+```json
+{
+  "mcpServers": {
+    "memorix": {
+      "transport": "http",
+      "url": "http://localhost:3211/mcp"
+    }
+  }
+}
+```
+
+If you use the HTTP control plane across multiple workspaces or agents, the client or agent should also call `memorix_session_start(projectRoot=ABSOLUTE_WORKSPACE_PATH)` at the beginning of each project session.
+
 <details open>
 <summary><strong>Cursor</strong> | <code>.cursor/mcp.json</code></summary>
 

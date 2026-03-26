@@ -167,7 +167,7 @@ memorix serve
 
 ### Step 5. Add MCP config to the target client
 
-Example:
+Generic stdio MCP example:
 
 ```json
 {
@@ -179,6 +179,21 @@ Example:
   }
 }
 ```
+
+Generic HTTP MCP example:
+
+```json
+{
+  "mcpServers": {
+    "memorix": {
+      "transport": "http",
+      "url": "http://localhost:3211/mcp"
+    }
+  }
+}
+```
+
+If you choose HTTP mode, do not stop at the URL. The agent must also bind each project session with `memorix_session_start(projectRoot=ABSOLUTE_WORKSPACE_PATH)` when the workspace path is available.
 
 This is the best path for:
 

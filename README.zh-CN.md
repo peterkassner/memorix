@@ -34,20 +34,20 @@
 
 ## 给 Coding Agent 的说明
 
-如果你在用 AI coding agent 帮用户安装、配置或排障 Memorix，请先阅读 [Agent Operator Playbook](docs/AGENT_OPERATOR_PLAYBOOK.md)。
+如果你在用 AI coding agent 帮用户安装、配置或排障 Memorix，请先读 [Agent Operator Playbook](docs/AGENT_OPERATOR_PLAYBOOK.md)。
 
-这份文档是给 Agent 的正式操作手册，重点说明：
+这份文档是给 agent 的正式操作手册，重点说明：
 
 - 安装与运行模式选择
-- Git 与项目身份绑定规则
-- stdio 与 HTTP control plane 的取舍
-- 各 Agent / IDE 的集成与 hooks
-- dot 目录生成策略
+- Git 与项目绑定规则
+- stdio 与 HTTP control plane 的区别
+- 各 IDE / Agent 的集成和 hooks
+- dot 目录按需生成策略
 - 排障顺序和安全操作边界
 
 ## 为什么是 Memorix
 
-大多数 Coding Agent 只能记住当前线程。Memorix 提供的是一层共享、持久、可检索的项目记忆，让不同 IDE、不同 Agent、不同会话都能在同一套本地记忆库上继续工作。
+大多数 Coding Agent 只记得当前线程。Memorix 提供的是一层共享、持久、可检索的项目记忆，让不同 IDE、不同 Agent、不同会话都能在同一套本地记忆库上继续工作。
 
 Memorix 的几个关键差异点：
 
@@ -91,19 +91,19 @@ npm install -g memorix
 memorix init
 ```
 
-`memorix init` 会让你在 `Global defaults` 和 `Project config` 之间做作用域选择。
+`memorix init` 会让你在 `Global defaults` 和 `Project config` 之间选择作用域。
 
-Memorix 使用两个文件、两类职责：
+Memorix 使用两类文件：
 
-- `memorix.yml`：行为配置和项目级设置
-- `.env`：密钥和敏感变量
+- `memorix.yml`：行为配置和项目设置
+- `.env`：API key 等 secrets
 
 然后按你的目标选择一条最顺手的路径：
 
 | 你想做什么 | 运行命令 | 适合场景 |
 | --- | --- | --- |
 | 先把 Memorix 快速接到一个 IDE 里 | `memorix serve` | Cursor、Claude Code、Codex、Windsurf、Gemini CLI 等 stdio MCP 客户端 |
-| 在后台长期运行 HTTP MCP + Dashboard | `memorix background start` | 日常使用、多个 Agent、协作、dashboard |
+| 在后台长期运行 HTTP MCP + Dashboard | `memorix background start` | 日常使用、多 Agent、协作、dashboard |
 | 把 HTTP 模式放在前台调试或自定义端口 | `memorix serve-http --port 3211` | 调试、手动观察日志、自定义启动方式 |
 
 对大多数用户来说，先从下面两条里选一条就够了：
@@ -137,7 +137,35 @@ memorix serve-http --port 3211
 
 更细的启动根路径选择、项目绑定、配置优先级和 agent 操作说明，放在 [docs/SETUP.md](docs/SETUP.md) 和 [Agent Operator Playbook](docs/AGENT_OPERATOR_PLAYBOOK.md) 里。
 
-把 Memorix 加入 MCP 配置：
+把 Memorix 加进你的 MCP 客户端：
+
+### 通用 stdio MCP 配置
+
+```json
+{
+  "mcpServers": {
+    "memorix": {
+      "command": "memorix",
+      "args": ["serve"]
+    }
+  }
+}
+```
+
+### 通用 HTTP MCP 配置
+
+```json
+{
+  "mcpServers": {
+    "memorix": {
+      "transport": "http",
+      "url": "http://localhost:3211/mcp"
+    }
+  }
+}
+```
+
+如果你用的是 HTTP control plane，并且会跨多个工作区或多个 Agent 共享，请确保客户端或 agent 在每个项目 session 开始时调用 `memorix_session_start(projectRoot=绝对工作区路径)`。
 
 <details open>
 <summary><strong>Cursor</strong> | <code>.cursor/mcp.json</code></summary>
@@ -205,7 +233,7 @@ memorix ingest commit
 memorix ingest log --count 20
 ```
 
-Git Memory 会保留 `source='git'`、提交哈希、文件变化和噪音过滤结果。
+Git Memory 会保留 `source='git'`、提交哈希、文件变更和噪音过滤结果。
 
 ### 3. 运行控制面与 Dashboard
 
@@ -301,30 +329,99 @@ flowchart LR
 
     D1 --> E1
     D2 --> E1
-    D2 --> E2
     D3 --> E2
-    D3 --> E3
-    D4 --> E1
+    D4 --> E3
+    C4 --> E3
 ```
 
-Memorix 不是一条单线的“写入 -> 处理 -> 查询”管线。它更像是一个 fan-in / fan-out 的记忆系统：
+Memorix 不是一条单线流水线。它从多个入口接收记忆，把内容落到多种记忆基底上，经过异步质量与索引处理，再通过不同的检索和协作界面提供给用户与 agent。
 
-- 多个入口同时写入
-- 一套运行时和多种记忆基底
-- 发生在后台的异步处理支路
-- 向搜索、dashboard、team、会话交接同时提供消费面
+### 记忆层
 
-这就是为什么它能同时支持 Git Truth、Reasoning Memory、Cross-Agent Recall 和 Control Plane 协作，而不是只做一个单点记忆工具。
+- **Observation Memory**：记录“改了什么 / 系统怎么工作 / 踩过什么坑”
+- **Reasoning Memory**：记录“为什么这么做 / 替代方案 / 权衡 / 风险”
+- **Git Memory**：记录从提交中提炼出的工程事实
+
+### 检索模型
+
+- 默认搜索是**当前项目作用域**
+- `scope="global"` 可以跨项目搜索
+- 全局结果可通过带项目信息的 ref 再展开
+- source-aware retrieval 会对“发生了什么”问题偏向 Git Memory，对“为什么”问题偏向 reasoning memory
 
 ---
 
 ## 文档导航
 
-- [安装与接入说明](docs/SETUP.md)
-- [配置模型](docs/CONFIGURATION.md)
-- [Git Memory 指南](docs/GIT_MEMORY.md)
-- [架构设计](docs/ARCHITECTURE.md)
-- [Agent 操作手册](docs/AGENT_OPERATOR_PLAYBOOK.md)
+### 入门
+
+- [Setup Guide](docs/SETUP.md)
+- [Configuration Guide](docs/CONFIGURATION.md)
+
+### 产品与架构
+
+- [Architecture](docs/ARCHITECTURE.md)
+- [Memory Formation Pipeline](docs/MEMORY_FORMATION_PIPELINE.md)
+- [Design Decisions](docs/DESIGN_DECISIONS.md)
+
+### 参考资料
+
+- [API Reference](docs/API_REFERENCE.md)
+- [Git Memory Guide](docs/GIT_MEMORY.md)
+- [Modules](docs/MODULES.md)
+
+### 开发
+
+- [Development Guide](docs/DEVELOPMENT.md)
+- [Known Issues and Roadmap](docs/KNOWN_ISSUES_AND_ROADMAP.md)
+
+### AI / Agent 文档
+
+- [Agent Operator Playbook](docs/AGENT_OPERATOR_PLAYBOOK.md)
 - [AI Context Note](docs/AI_CONTEXT.md)
-- [面向 AI 的项目索引（短版）](llms.txt)
-- [面向 AI 的项目索引（完整版）](llms-full.txt)
+- [`llms.txt`](llms.txt)
+- [`llms-full.txt`](llms-full.txt)
+
+---
+
+## 开发
+
+```bash
+git clone https://github.com/AVIDS2/memorix.git
+cd memorix
+npm install
+
+npm run dev
+npm test
+npm run build
+```
+
+常用本地命令：
+
+```bash
+memorix status
+memorix dashboard
+memorix background start
+memorix serve-http --port 3211
+memorix git-hook --force
+```
+
+---
+
+## 鸣谢
+
+Memorix 借鉴了 [mcp-memory-service](https://github.com/doobidoo/mcp-memory-service)、[MemCP](https://github.com/maydali28/memcp)、[claude-mem](https://github.com/anthropics/claude-code)、[Mem0](https://github.com/mem0ai/mem0) 和整个 MCP 生态中的许多思路。
+
+## Star 历史
+
+<a href="https://star-history.com/#AVIDS2/memorix&Date">
+ <picture>
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=AVIDS2/memorix&type=Date&theme=dark" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=AVIDS2/memorix&type=Date" />
+   <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=AVIDS2/memorix&type=Date" width="600" />
+ </picture>
+</a>
+
+## License
+
+[Apache 2.0](LICENSE)

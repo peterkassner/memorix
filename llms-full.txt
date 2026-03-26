@@ -146,6 +146,19 @@ Use this for normal MCP clients that expect stdio transport.
 
 This is the best fit for quick, single-project usage where the client already launches Memorix from the correct workspace root.
 
+Generic stdio MCP config:
+
+```json
+{
+  "mcpServers": {
+    "memorix": {
+      "command": "memorix",
+      "args": ["serve"]
+    }
+  }
+}
+```
+
 ### HTTP MCP + Dashboard
 
 ```bash
@@ -171,6 +184,19 @@ Typical endpoints:
 
 - MCP endpoint: `http://localhost:3211/mcp`
 - Dashboard: `http://localhost:3211`
+
+Generic HTTP MCP config:
+
+```json
+{
+  "mcpServers": {
+    "memorix": {
+      "transport": "http",
+      "url": "http://localhost:3211/mcp"
+    }
+  }
+}
+```
 
 ## Supported Environments
 

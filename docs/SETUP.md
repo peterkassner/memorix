@@ -56,6 +56,19 @@ memorix serve
 
 Use this when your IDE launches Memorix as a local stdio MCP server.
 
+Generic stdio MCP config:
+
+```json
+{
+  "mcpServers": {
+    "memorix": {
+      "command": "memorix",
+      "args": ["serve"]
+    }
+  }
+}
+```
+
 ### Option B: HTTP MCP + Dashboard
 
 ```bash
@@ -96,6 +109,21 @@ Recommended when:
 - you want to use the dashboard regularly
 - you want Team tools to work
 - you want multiple IDEs or agents to talk to one Memorix instance
+
+Generic HTTP MCP config:
+
+```json
+{
+  "mcpServers": {
+    "memorix": {
+      "transport": "http",
+      "url": "http://localhost:3211/mcp"
+    }
+  }
+}
+```
+
+Some clients use a different key than `transport`. The per-client examples below show the exact shape where that differs.
 
 ---
 
