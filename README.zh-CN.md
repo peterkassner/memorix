@@ -167,6 +167,8 @@ memorix serve-http --port 3211
 
 如果你用的是 HTTP control plane，并且会跨多个工作区或多个 Agent 共享，请确保客户端或 agent 在每个项目 session 开始时调用 `memorix_session_start(projectRoot=绝对工作区路径)`。
 
+下面这些客户端示例展示的是最简单的 stdio 形态。如果你更想使用共享的 HTTP control plane，请沿用上面的通用 HTTP 配置块，并到 [docs/SETUP.md](docs/SETUP.md) 查看各客户端字段差异。
+
 <details open>
 <summary><strong>Cursor</strong> | <code>.cursor/mcp.json</code></summary>
 

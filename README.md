@@ -167,6 +167,8 @@ Add Memorix to your MCP client:
 
 If you use the HTTP control plane across multiple workspaces or agents, the client or agent should also call `memorix_session_start(projectRoot=ABSOLUTE_WORKSPACE_PATH)` at the beginning of each project session.
 
+The per-client examples below show the simplest stdio shape. If you prefer the shared HTTP control plane, keep the generic HTTP block above and use the client-specific variants in [docs/SETUP.md](docs/SETUP.md).
+
 <details open>
 <summary><strong>Cursor</strong> | <code>.cursor/mcp.json</code></summary>
 
