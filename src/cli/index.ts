@@ -146,6 +146,7 @@ async function runRemember(text: string): Promise<void> {
       narrative: text,
       facts: [],
       projectId: proj.id,
+      sourceDetail: 'explicit',
     });
 
     s.stop('Stored');

@@ -510,6 +510,7 @@ export async function createMemorixServer(
               projectId: project.id,
               topicKey: targetObs.topicKey,
               progress: progress as import('./types.js').ProgressInfo | undefined,
+              sourceDetail: 'explicit',
             });
             return {
               content: [{
@@ -534,6 +535,7 @@ export async function createMemorixServer(
               projectId: project.id,
               topicKey: targetObs.topicKey,
               progress: progress as import('./types.js').ProgressInfo | undefined,
+              sourceDetail: 'explicit',
             });
             return {
               content: [{
@@ -605,6 +607,7 @@ export async function createMemorixServer(
                   projectId: project.id,
                   topicKey: targetObs.topicKey,
                   progress: progress as import('./types.js').ProgressInfo | undefined,
+                  sourceDetail: 'explicit',
                 });
                 compactAction = `🔄 Compact UPDATE: merged into #${decision.targetId} (${decision.reason})`;
                 compactMerged = true;
@@ -715,6 +718,8 @@ export async function createMemorixServer(
         progress: progress as import('./types.js').ProgressInfo | undefined,
         relatedCommits,
         relatedEntities,
+        sourceDetail: 'explicit',
+        valueCategory: formationResult?.evaluation.category,
       });
 
       // Add a reference to the entity's observations
@@ -1094,6 +1099,7 @@ export async function createMemorixServer(
         source: 'agent',
         relatedCommits,
         relatedEntities,
+        sourceDetail: 'explicit',
       });
 
       await graphManager.addObservations([
@@ -1429,6 +1435,8 @@ export async function createMemorixServer(
         lastAccessedAt: '',
         status: obs.status ?? 'active',
         source: obs.source ?? 'agent',
+        sourceDetail: obs.sourceDetail ?? '',
+        valueCategory: obs.valueCategory ?? '',
       }));
 
       if (docs.length === 0) {

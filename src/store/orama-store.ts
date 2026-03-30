@@ -128,6 +128,8 @@ export async function getDb(): Promise<AnyOrama> {
     lastAccessedAt: 'string' as const,
     status: 'string' as const,
     source: 'string' as const,
+    sourceDetail: 'string' as const,
+    valueCategory: 'string' as const,
   };
 
   // Dynamic vector dimensions based on provider (384 for local, 1024+ for API)
@@ -433,6 +435,8 @@ export async function searchObservations(options: SearchOptions): Promise<IndexE
         score: (hit.score ?? 1) * recencyBoost,
         projectId: doc.projectId,
         source: (doc.source || 'agent') as 'agent' | 'git' | 'manual',
+        sourceDetail: (doc.sourceDetail || undefined) as 'explicit' | 'hook' | 'git-ingest' | undefined,
+        valueCategory: (doc.valueCategory || undefined) as 'core' | 'contextual' | 'ephemeral' | undefined,
         _isCommandLog: isCommandLogEntry(doc.title),
       };
     });

@@ -152,7 +152,7 @@ function isSystemSelfObservation(obs: Observation): boolean {
   return SYSTEM_SELF_PATTERNS.some((pattern) => pattern.test(text));
 }
 
-function scoreObservationForSessionContext(obs: Observation, projectTokens: string[], now = Date.now()): number {
+export function scoreObservationForSessionContext(obs: Observation, projectTokens: string[], now = Date.now()): number {
   let score = TYPE_WEIGHTS[obs.type] ?? 1;
   const text = stringifyObservation(obs);
   const ageDays = Math.max(0, (now - new Date(obs.createdAt).getTime()) / (1000 * 60 * 60 * 24));
@@ -184,6 +184,20 @@ function scoreObservationForSessionContext(obs: Observation, projectTokens: stri
   // These should almost never surface in unrelated project sessions.
   if (isSystemSelfObservation(obs)) {
     score -= 15;
+  }
+
+  // Source-aware adjustments (neutral when sourceDetail/valueCategory absent — backward-compatible)
+  if (obs.sourceDetail === 'hook') {
+    // Hook auto-captures are L1 routing signals, not L2 working context
+    score -= 3;
+    if (obs.valueCategory === 'ephemeral') {
+      // Hook + ephemeral = high-noise auto-capture with no lasting value
+      score -= 5;
+    }
+  }
+  if (obs.valueCategory === 'core') {
+    // Formation-classified core memory: high-value, prefer in working context
+    score += 2;
   }
 
   return score;

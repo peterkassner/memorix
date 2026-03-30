@@ -497,8 +497,9 @@ describe('P1: CLI cold-start search finds persisted memories', () => {
       };
       child.stdout?.on('data', (d: Buffer) => {
         stdout += d.toString();
-        // Resolve early once search output is complete
-        if (stdout.includes('Search complete') || stdout.includes('No memories found')) {
+        // Resolve early only once user-visible terminal output has actually arrived.
+        // "Search complete" is emitted by the spinner before result lines flush.
+        if (stdout.includes('Found ') || stdout.includes('No memories found')) {
           setTimeout(finish, 200); // small grace period for trailing output
         }
       });

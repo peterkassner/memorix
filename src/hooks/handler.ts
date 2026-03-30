@@ -523,7 +523,7 @@ export async function runHook(agentOverride?: string): Promise<void> {
       const projectId = canonicalId;
       
       await initObservations(dataDir);
-      await storeObservation({ ...observation, projectId });
+      await storeObservation({ ...observation, projectId, sourceDetail: 'hook' });
 
       // Shadow mode: Formation Pipeline metrics (fire-and-forget, never blocks)
       try {
