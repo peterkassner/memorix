@@ -299,6 +299,7 @@ export async function storeQuickMemory(text: string): Promise<{ id: number; titl
       narrative: text,
       facts: [],
       projectId: proj.id,
+      sourceDetail: 'explicit',
     });
 
     return { id: result.observation.id, title: text.slice(0, 100) };

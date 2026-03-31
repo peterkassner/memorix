@@ -103,6 +103,8 @@ export async function compactDetail(
         lastAccessedAt: '',
         status: obs.status ?? 'active',
         source: obs.source ?? 'agent',
+        sourceDetail: obs.sourceDetail ?? '',
+        valueCategory: obs.valueCategory ?? '',
       });
     } else {
       missingRefs.push(ref);

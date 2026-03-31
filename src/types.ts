@@ -125,6 +125,10 @@ export interface Observation {
   relatedCommits?: string[];
   /** Related entity names — explicit cross-references to other memory entities */
   relatedEntities?: string[];
+  /** Provenance detail: how this observation entered the system */
+  sourceDetail?: 'explicit' | 'hook' | 'git-ingest';
+  /** Value category from formation pipeline evaluation */
+  valueCategory?: 'core' | 'contextual' | 'ephemeral';
 }
 
 // ============================================================
@@ -161,6 +165,10 @@ export interface IndexEntry {
   projectId?: string;
   /** Origin of the memory for source-aware retrieval and display. */
   source?: 'agent' | 'git' | 'manual';
+  /** Provenance detail for source-aware display */
+  sourceDetail?: 'explicit' | 'hook' | 'git-ingest';
+  /** Value category for source-aware ranking */
+  valueCategory?: 'core' | 'contextual' | 'ephemeral';
   /** Explainable recall: why this result matched. */
   matchedFields?: string[];
 }
@@ -231,6 +239,10 @@ export interface MemorixDocument {
   status: string;
   /** Origin: agent, git, manual */
   source: string;
+  /** Provenance detail: explicit, hook, or git-ingest */
+  sourceDetail?: string;
+  /** Value category from formation evaluation */
+  valueCategory?: string;
   /** Optional vector embedding for semantic/hybrid retrieval */
   embedding?: number[];
 }

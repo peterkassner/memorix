@@ -78,6 +78,8 @@ export async function storeObservation(input: {
   commitHash?: string;
   relatedCommits?: string[];
   relatedEntities?: string[];
+  sourceDetail?: 'explicit' | 'hook' | 'git-ingest';
+  valueCategory?: 'core' | 'contextual' | 'ephemeral';
 }): Promise<{ observation: Observation; upserted: boolean }> {
   const now = new Date().toISOString();
 
@@ -165,6 +167,8 @@ export async function storeObservation(input: {
           commitHash: input.commitHash,
           relatedCommits: input.relatedCommits,
           relatedEntities: input.relatedEntities,
+          sourceDetail: input.sourceDetail,
+          valueCategory: input.valueCategory,
         };
 
         diskObs.push(observation);
@@ -202,6 +206,8 @@ export async function storeObservation(input: {
         commitHash: input.commitHash,
         relatedCommits: input.relatedCommits,
         relatedEntities: input.relatedEntities,
+        sourceDetail: input.sourceDetail,
+        valueCategory: input.valueCategory,
       };
       observations.push(observation);
     }
@@ -224,6 +230,8 @@ export async function storeObservation(input: {
       lastAccessedAt: '',
       status: 'active',
       source: input.source ?? 'agent',
+      sourceDetail: input.sourceDetail ?? '',
+      valueCategory: input.valueCategory ?? '',
     };
 
     await insertObservation(doc);
@@ -288,6 +296,8 @@ async function upsertObservation(
     topicKey?: string;
     sessionId?: string;
     progress?: ProgressInfo;
+    sourceDetail?: 'explicit' | 'hook' | 'git-ingest';
+    valueCategory?: 'core' | 'contextual' | 'ephemeral';
   },
   now: string,
 ): Promise<Observation> {
@@ -321,6 +331,8 @@ async function upsertObservation(
   existing.status = 'active';
   if (input.sessionId) existing.sessionId = input.sessionId;
   if (input.progress) existing.progress = input.progress;
+  if (input.sourceDetail !== undefined) existing.sourceDetail = input.sourceDetail;
+  if (input.valueCategory !== undefined) existing.valueCategory = input.valueCategory;
 
   // Re-index in Orama WITHOUT embedding first (non-blocking)
   const doc: MemorixDocument = {
@@ -340,6 +352,8 @@ async function upsertObservation(
     lastAccessedAt: '',
     status: 'active',
     source: existing.source ?? 'agent',
+    sourceDetail: existing.sourceDetail ?? '',
+    valueCategory: existing.valueCategory ?? '',
   };
 
   // Remove old doc and insert updated one (with retry for concurrent upsert race)
@@ -447,6 +461,8 @@ export async function resolveObservations(
         lastAccessedAt: '',
         status,
         source: obs.source ?? 'agent',
+        sourceDetail: obs.sourceDetail ?? '',
+        valueCategory: obs.valueCategory ?? '',
       };
       await insertObservation(doc);
       // Async embedding update (fire-and-forget)
@@ -627,6 +643,8 @@ export async function reindexObservations(): Promise<number> {
         lastAccessedAt: '',
         status: obs.status ?? 'active',
         source: obs.source ?? 'agent',
+        sourceDetail: obs.sourceDetail ?? '',
+        valueCategory: obs.valueCategory ?? '',
         ...(compatibleEmbedding ? { embedding: compatibleEmbedding } : {}),
       };
       await insertObservation(doc);
@@ -732,6 +750,8 @@ export async function backfillVectorEmbeddings(): Promise<{
             lastAccessedAt: '',
             status: obs.status ?? 'active',
             source: obs.source ?? 'agent',
+            sourceDetail: obs.sourceDetail ?? '',
+            valueCategory: obs.valueCategory ?? '',
             embedding,
           };
           await insertObservation(doc);

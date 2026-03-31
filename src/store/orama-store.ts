@@ -143,6 +143,8 @@ export async function getDb(): Promise<AnyOrama> {
     lastAccessedAt: 'string' as const,
     status: 'string' as const,
     source: 'string' as const,
+    sourceDetail: 'string' as const,
+    valueCategory: 'string' as const,
   };
 
   // Dynamic vector dimensions based on provider (384 for local, 1024+ for API)
@@ -479,6 +481,8 @@ export async function searchObservations(options: SearchOptions): Promise<IndexE
         score: (hit.score ?? 1) * recencyBoost,
         projectId: doc.projectId,
         source: (doc.source || 'agent') as 'agent' | 'git' | 'manual',
+        sourceDetail: (doc.sourceDetail || undefined) as 'explicit' | 'hook' | 'git-ingest' | undefined,
+        valueCategory: (doc.valueCategory || undefined) as 'core' | 'contextual' | 'ephemeral' | undefined,
         _isCommandLog: isCommandLogEntry(doc.title),
       };
     });
@@ -752,7 +756,10 @@ export async function getTimeline(
     return { before: [], anchor: null, after: [] };
   }
 
-  const toIndexEntry = (obs: { id: number; type: string; title: string; tokens: number; createdAt: string }): IndexEntry => {
+  const toIndexEntry = (obs: {
+    id: number; type: string; title: string; tokens: number; createdAt: string;
+    source?: string; sourceDetail?: string; valueCategory?: string;
+  }): IndexEntry => {
     const obsType = obs.type as ObservationType;
     return {
       id: obs.id,
@@ -761,6 +768,9 @@ export async function getTimeline(
       icon: OBSERVATION_ICONS[obsType] ?? '❓',
       title: obs.title,
       tokens: obs.tokens,
+      source: (obs.source as IndexEntry['source']) || undefined,
+      sourceDetail: (obs.sourceDetail as IndexEntry['sourceDetail']) || undefined,
+      valueCategory: (obs.valueCategory as IndexEntry['valueCategory']) || undefined,
     };
   };
 

@@ -104,6 +104,7 @@ export default defineCommand({
             entityName: result.entityName,
             type: result.type as any,
             title: result.title,
+            sourceDetail: 'git-ingest',
             narrative: result.narrative,
             facts: result.facts,
             concepts: result.concepts,

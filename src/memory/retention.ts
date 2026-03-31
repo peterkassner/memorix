@@ -56,10 +56,23 @@ const PROTECTED_TAGS = new Set(['keep', 'important', 'pinned', 'critical']);
 const MIN_ACCESS_FOR_IMMUNITY = 3;
 
 /**
+ * Get retention period multiplier based on sourceDetail.
+ * Neutral (1.0) for unknown/undefined sourceDetail — backward-compatible.
+ */
+function getSourceRetentionMultiplier(doc: MemorixDocument): number {
+  if (doc.sourceDetail === 'hook') return 0.5;        // hook auto-captures: half the retention period
+  if (doc.sourceDetail === 'git-ingest') return 1.5;  // git-backed truth: extend retention
+  return 1.0;                                         // explicit/undefined: neutral
+}
+
+/**
  * Check if an observation is immune from archiving/decay.
  * Immune observations maintain a minimum relevance score.
  */
 export function isImmune(doc: MemorixDocument): boolean {
+  // formation-classified core memories are immune regardless of type
+  if (doc.valueCategory === 'core') return true;
+
   const importance = getImportanceLevel(doc);
   if (importance === 'critical' || importance === 'high') return true;
   if ((doc.accessCount ?? 0) >= MIN_ACCESS_FOR_IMMUNITY) return true;
@@ -103,7 +116,7 @@ export function calculateRelevance(
   const now = referenceTime ?? new Date();
   const importance = getImportanceLevel(doc);
   const base = BASE_IMPORTANCE[importance];
-  const retention = RETENTION_DAYS[importance];
+  const retention = RETENTION_DAYS[importance] * getSourceRetentionMultiplier(doc);
 
   // Age in days
   const createdAt = new Date(doc.createdAt);
@@ -163,7 +176,7 @@ export type RetentionZone = 'active' | 'stale' | 'archive-candidate';
 export function getRetentionZone(doc: MemorixDocument, referenceTime?: Date): RetentionZone {
   const now = referenceTime ?? new Date();
   const importance = getImportanceLevel(doc);
-  const retention = RETENTION_DAYS[importance];
+  const retention = RETENTION_DAYS[importance] * getSourceRetentionMultiplier(doc);
 
   const createdAt = new Date(doc.createdAt);
   const ageDays = (now.getTime() - createdAt.getTime()) / (1000 * 60 * 60 * 24);
@@ -253,6 +266,8 @@ export async function archiveExpired(
         lastAccessedAt: access?.lastAccessedAt ?? '',
         status: obs.status ?? 'active',
         source: obs.source ?? 'agent',
+        sourceDetail: obs.sourceDetail ?? '',
+        valueCategory: obs.valueCategory ?? '',
       };
     };
 
