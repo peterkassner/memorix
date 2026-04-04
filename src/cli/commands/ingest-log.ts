@@ -83,7 +83,7 @@ export default defineCommand({
 
       // Store each commit
       const { initObservations, storeObservation } = await import('../../memory/observations.js');
-      const { getProjectDataDir } = await import('../../store/persistence.js');
+      const { getProjectDataDir, loadObservationsJson } = await import('../../store/persistence.js');
       const { detectProject } = await import('../../project/detector.js');
 
       const project = detectProject(cwd);
@@ -94,10 +94,20 @@ export default defineCommand({
       const dataDir = await getProjectDataDir(project.id);
       await initObservations(dataDir);
 
+      // Dedup: load existing commit hashes to skip already-ingested commits (#48)
+      const existingObs = await loadObservationsJson(dataDir) as Array<{ commitHash?: string }>;
+      const existingHashes = new Set(existingObs.map(o => o.commitHash).filter(Boolean));
+
       let stored = 0;
-      let skipped = 0;
+      let dupSkipped = 0;
+      let errSkipped = 0;
 
       for (const commit of commits) {
+        if (existingHashes.has(commit.hash)) {
+          dupSkipped++;
+          console.log(`  ⏭️ ${commit.shortHash} ${commit.subject} — already ingested`);
+          continue;
+        }
         try {
           const result = ingestCommit(commit);
           await storeObservation({
@@ -114,14 +124,18 @@ export default defineCommand({
             commitHash: commit.hash,
           });
           stored++;
+          existingHashes.add(commit.hash);
           console.log(`  ✅ ${commit.shortHash} ${commit.subject}`);
         } catch {
-          skipped++;
-          console.log(`  ⏭️ ${commit.shortHash} (skipped)`);
+          errSkipped++;
+          console.log(`  ⏭️ ${commit.shortHash} (error)`);
         }
       }
 
-      p.outro(`Ingested ${stored} commits, skipped ${skipped}.`);
+      const parts = [`Ingested ${stored}/${commits.length} commits`];
+      if (dupSkipped) parts.push(`${dupSkipped} already stored`);
+      if (errSkipped) parts.push(`${errSkipped} errors`);
+      p.outro(parts.join(', ') + '.');
     } catch (err) {
       console.error(`Failed to ingest log: ${err}`);
       p.outro('Ingest failed. Make sure you are in a git repository.');
