@@ -8,6 +8,43 @@ All notable changes to this project will be documented in this file.
 - **API-first auto embedding selection** — `MEMORIX_EMBEDDING=auto` now prefers a configured remote embedding API before falling back to local `fastembed` or `transformers`, preventing unexpected local-model activation when API credentials are already present.
 - **Embedding cache isolation across config changes** — API embedding cache keys and probe-dimension metadata now stay isolated per `baseUrl + model + requestedDimensions`, so switching between shortened and native dimensions no longer reuses stale cached embeddings or stale dimension probes.
 
+## [1.0.6] - 2026-04-05
+
+### Added — Memory Provenance and Layered Retrieval
+- **Provenance foundation** — Observations now carry `sourceDetail` (`explicit` / `hook` / `git-ingest`) and `valueCategory` (`core` / `contextual` / `ephemeral`). All ten write-path call sites annotated. Backward-compatible: old data without new fields parses cleanly.
+- **Layered disclosure (L1/L2/L3)** — `memorix_session_start` now separates routing hints (L1), working context (L2), and deep evidence (L3). Session injection scores observations by source and value category so hook noise stays out of working context.
+- **Evidence retrieval** — `memorix_detail` and `memorix_timeline` now surface provenance cues (source badge, evidence basis) so operators can trace why a memory exists and what supports it.
+- **Verification-aware evidence** — Detail and timeline outputs distinguish direct, summarized, derived, and repository-backed evidence without requiring a full citation framework.
+- **Citation-lite** — Evidence-bearing surfaces emit lightweight citation hints (`[source: git]`, `[verified: repo-backed]`) to support "why surfaced" and "what supports this" queries.
+- **Retrieval tuning** — Source-aware boost treats `git-ingest` as first-class git evidence for intent-aware ranking. Lightweight provenance tiebreaking for ambiguous retrieval results. L1 routing surfaces active entities as next-hop search guidance.
+- **Graph routing hints** — Knowledge graph neighborhood is used for lightweight retrieval enrichment and entity-affinity scoring without a full graph rewrite.
+
+### Added — Task-Line Scoping, Secret Safety, and Attribution Hardening
+- **Task-line scoping** — Search and session context now bias toward the current entity/task-line/subdomain, reducing cross-workstream contamination within a single project bucket.
+- **Secret safety** — Store-time detection blocks obvious credentials, passwords, and tokens from entering durable memory. Retrieval-time redaction acts as a second safety net for already-stored sensitive data.
+- **Project attribution hardening** — Write-path consistency checks reduce wrong-bucket writes. `memorix_audit_project` scans for misattributed observations and reports them with confidence levels.
+- **Ambiguous-target attribution fix** — Observations stored during ambiguous project context are now flagged rather than silently written to the wrong bucket.
+
+### Added — Retention, Cleanup, and Operator Remediation
+- **Retention calibration** — Source-aware retention multipliers (hook 0.5×, git-ingest 1.5×) and value-category multipliers (ephemeral 0.5×, core 2.0×) with a 7-day minimum floor. Immunity refined: only `critical` importance and `core` valueCategory grant permanent immunity; `high`-importance types keep long retention but can now decay.
+- **Retention explainability** — `memorix_retention action="stale"` shows a full table with per-observation retention explanation (importance, multipliers, effective days, zone, immunity reason).
+- **Cleanup remediation loop** — `memorix_retention` (stale/report), `memorix_audit_project`, and `memorix_resolve` now form a coherent operator loop. Each output includes structured `Suggested IDs: [...]` blocks and explicit next-step guidance. `memorix_resolve` links back to retention report for closed-loop cleanup.
+
+### Added — OpenCode Plugin Improvements
+- **`post_compact` event** — New `post_compact` hook event type. OpenCode's `session.compacted` event correctly maps to `post_compact` (was incorrectly mapped to `pre_compact`). Plugin event handler triggers `runHook` side-effect on compaction completion.
+- **Structured compaction prompt** — OpenCode compaction prompt rewritten as a structured continuation format requesting current task, key decisions, active files, blockers, next steps, active entities, and memorix context. No longer promises automatic `memorix_store` / `memorix_session_start` invocation during compaction.
+
+### Fixed
+- **#45 OpenCode compaction** — Compaction prompt no longer makes misleading tool-call promises. `session.compacted` event now fires a real side-effect via `runHook`. Normalizer mapping corrected to `post_compact`.
+- **#46 Dotenv load order** — `loadDotenv()` now runs before `getEmbeddingProvider()` in `status`, `doctor`, and TUI entry points, fixing "No API key" errors when `.env` credentials were present.
+- **#48 Ingest log dedup** — `memorix ingest log` now deduplicates by commit hash, matching the behavior of `ingest commit` and TUI batch ingest. Repeated runs skip already-ingested commits.
+
+### Stats
+- **Tests:** 1439 passed | 2 skipped (102 files)
+- **Phases landed:** 11 (provenance → layered disclosure → evidence → verification → citation-lite → retrieval tuning → graph routing → task-line/secret → attribution → retention → cleanup ergonomics)
+
+---
+
 ## [1.0.5] - 2026-03-24
 
 ### Added
