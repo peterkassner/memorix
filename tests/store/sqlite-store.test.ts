@@ -17,6 +17,7 @@ import {
   getObservationStore,
   resetObservationStore,
 } from '../../src/store/obs-store.js';
+import { closeAllDatabases } from '../../src/store/sqlite-db.js';
 
 // ── Helpers ───────────────────────────────────────────────────────
 
@@ -44,6 +45,7 @@ beforeEach(async () => {
 
 afterEach(async () => {
   resetObservationStore();
+  closeAllDatabases();
   await fs.rm(tmpDir, { recursive: true, force: true });
 });
 
@@ -412,6 +414,7 @@ describe('initObservationStore fallback', () => {
       expect(store1).not.toBe(store2);
     } finally {
       resetObservationStore();
+      closeAllDatabases();
       await fs.rm(dir2, { recursive: true, force: true });
     }
   });
@@ -420,11 +423,12 @@ describe('initObservationStore fallback', () => {
 // ── Close / resource cleanup ─────────────────────────────────────
 
 describe('SqliteBackend close()', () => {
-  it('close releases the DB file (no EBUSY on cleanup)', async () => {
+  it('close + closeAllDatabases releases the DB file (no EBUSY on cleanup)', async () => {
     const store = new SqliteBackend();
     await store.init(tmpDir);
     await store.insert(makeObs({ id: 1, entityName: 'a', projectId: 'p' }));
     store.close();
+    closeAllDatabases();
 
     // Should be able to delete the directory without EBUSY
     await fs.rm(tmpDir, { recursive: true, force: true });

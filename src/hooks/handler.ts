@@ -270,6 +270,8 @@ async function handleSessionStart(input: NormalizedHookInput): Promise<{
     const { detectProject } = await import('../project/detector.js');
     const { getProjectDataDir } = await import('../store/persistence.js');
     const { initObservationStore, getObservationStore: getStore } = await import('../store/obs-store.js');
+    const { initMiniSkillStore } = await import('../store/mini-skill-store.js');
+    const { initSessionStore } = await import('../store/session-store.js');
     const { initAliasRegistry, registerAlias } = await import('../project/aliases.js');
     const { calculateProjectAffinity, extractProjectKeywords } = await import('../store/project-affinity.js');
 
@@ -281,6 +283,8 @@ async function handleSessionStart(input: NormalizedHookInput): Promise<{
     initAliasRegistry(dataDir);
     const canonicalId = await registerAlias(rawProject);
     await initObservationStore(dataDir);
+    await initMiniSkillStore(dataDir);
+    await initSessionStore(dataDir);
     const allObs = await getStore().loadAll() as Array<{
       type?: string; title?: string; narrative?: string;
       facts?: string[]; timestamp?: string; entityName?: string;
@@ -517,6 +521,8 @@ export async function runHook(agentOverride?: string): Promise<void> {
     try {
       const { storeObservation, initObservations } = await import('../memory/observations.js');
       const { initObservationStore } = await import('../store/obs-store.js');
+      const { initMiniSkillStore: initMSStore } = await import('../store/mini-skill-store.js');
+      const { initSessionStore: initSessStore } = await import('../store/session-store.js');
       const { detectProject } = await import('../project/detector.js');
       const { getProjectDataDir } = await import('../store/persistence.js');
       const { initAliasRegistry, registerAlias } = await import('../project/aliases.js');
@@ -531,6 +537,8 @@ export async function runHook(agentOverride?: string): Promise<void> {
       const projectId = canonicalId;
       
       await initObservationStore(dataDir);
+      await initMSStore(dataDir);
+      await initSessStore(dataDir);
       await initObservations(dataDir);
       await storeObservation({ ...observation, projectId, sourceDetail: 'hook' });
 
@@ -542,8 +550,8 @@ export async function runHook(agentOverride?: string): Promise<void> {
         const shouldSample = Math.random() < samplingRate;
 
         if (shouldSample) {
-          const { ensureFreshObservations } = await import('../memory/observations.js');
-          await ensureFreshObservations();
+          const { withFreshObservations, getAllObservations } = await import('../memory/observations.js');
+          await withFreshObservations(() => getAllObservations());
         }
 
         // In hooks, shadow mode by default for performance

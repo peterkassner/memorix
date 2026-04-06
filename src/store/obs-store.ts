@@ -124,7 +124,8 @@ export function setObservationStore(store: ObservationStore): void {
   _store = store;
 }
 
-/** Reset the singleton (for tests only). Closes the backend if open. */
+/** Reset the singleton (for tests only). Detaches from the backend.
+ *  Call closeAllDatabases() separately if you need to release the shared DB handle. */
 export function resetObservationStore(): void {
   if (_store) {
     try { _store.close(); } catch { /* best-effort */ }

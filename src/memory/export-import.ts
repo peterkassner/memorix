@@ -12,8 +12,8 @@
 
 import type { Observation } from '../types.js';
 import type { Session } from '../types.js';
-import { loadSessionsJson, saveSessionsJson } from '../store/persistence.js';
 import { getObservationStore } from '../store/obs-store.js';
+import { getSessionStore } from '../store/session-store.js';
 
 /** Export package structure */
 export interface MemorixExport {
@@ -44,7 +44,7 @@ export async function exportAsJson(
 ): Promise<MemorixExport> {
   const store = getObservationStore();
   const allObs = await store.loadAll();
-  const allSessions = (await loadSessionsJson(projectDir)) as Session[];
+  const allSessions = await getSessionStore().loadAll();
 
   const projectObs = allObs.filter(o => o.projectId === projectId);
   const projectSessions = allSessions.filter(s => s.projectId === projectId);
@@ -157,7 +157,8 @@ export async function importFromJson(
   const store = getObservationStore();
   await store.atomic(async (tx) => {
     const existingObs = await tx.loadAll();
-    const existingSessions = (await loadSessionsJson(projectDir)) as Session[];
+    const sessionStore = getSessionStore();
+    const existingSessions = await sessionStore.loadAll();
     let nextId = await tx.loadIdCounter();
 
     // Build set of existing topicKey+projectId for dedup
@@ -191,7 +192,12 @@ export async function importFromJson(
 
     await tx.saveAll(existingObs);
     await tx.saveIdCounter(nextId);
-    await saveSessionsJson(projectDir, existingSessions);
+    // Persist imported sessions via store
+    for (const session of data.sessions) {
+      if (!existingSessionIds.has(session.id)) {
+        await sessionStore.insert(session);
+      }
+    }
   });
 
   return { observationsImported: imported, sessionsImported, skipped };

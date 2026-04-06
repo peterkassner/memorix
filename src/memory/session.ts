@@ -14,9 +14,8 @@
 import type { Observation, Session } from '../types.js';
 import { classifyLayer } from './disclosure-policy.js';
 import { resolveAliases } from '../project/aliases.js';
-import { withFileLock } from '../store/file-lock.js';
-import { loadSessionsJson, saveSessionsJson } from '../store/persistence.js';
 import { getObservationStore } from '../store/obs-store.js';
+import { getSessionStore } from '../store/session-store.js';
 import { KnowledgeGraphManager } from './graph.js';
 import { redactCredentials, sanitizeCredentials } from './secret-filter.js';
 
@@ -232,25 +231,25 @@ export async function startSession(
   // Load previous context before creating new session
   const previousContext = await getSessionContext(projectDir, projectId);
 
-  // Persist with file lock
-  await withFileLock(projectDir, async () => {
-    const sessions = await loadSessionsJson(projectDir) as Session[];
-
-    // Mark any existing active sessions as completed (stale)
-    const aliasSet = await resolveProjectIds(projectId);
-    for (const s of sessions) {
-      if (aliasSet.has(s.projectId) && s.status === 'active') {
-        s.status = 'completed';
-        s.endedAt = now;
-        if (!s.summary) {
-          s.summary = '(session ended implicitly by new session start)';
-        }
+  // Mark any existing active sessions as completed (stale)
+  const sessionStore = getSessionStore();
+  const aliasSet = await resolveProjectIds(projectId);
+  const allSessions = await sessionStore.loadAll();
+  const staleUpdates: Session[] = [];
+  for (const s of allSessions) {
+    if (aliasSet.has(s.projectId) && s.status === 'active') {
+      s.status = 'completed';
+      s.endedAt = now;
+      if (!s.summary) {
+        s.summary = '(session ended implicitly by new session start)';
       }
+      staleUpdates.push(s);
     }
-
-    sessions.push(session);
-    await saveSessionsJson(projectDir, sessions);
-  });
+  }
+  if (staleUpdates.length > 0) {
+    await sessionStore.bulkUpdate(staleUpdates);
+  }
+  await sessionStore.insert(session);
 
   return { session, previousContext };
 }
@@ -269,25 +268,20 @@ export async function endSession(
   sessionId: string,
   summary?: string,
 ): Promise<Session | null> {
-  let endedSession: Session | null = null;
+  const sessionStore = getSessionStore();
+  const sessions = await sessionStore.loadAll();
+  const session = sessions.find((entry) => entry.id === sessionId);
 
-  await withFileLock(projectDir, async () => {
-    const sessions = await loadSessionsJson(projectDir) as Session[];
-    const session = sessions.find((entry) => entry.id === sessionId);
+  if (!session) return null;
 
-    if (!session) return;
+  session.status = 'completed';
+  session.endedAt = new Date().toISOString();
+  if (summary) {
+    session.summary = sanitizeCredentials(summary);
+  }
 
-    session.status = 'completed';
-    session.endedAt = new Date().toISOString();
-    if (summary) {
-      session.summary = sanitizeCredentials(summary);
-    }
-
-    endedSession = session;
-    await saveSessionsJson(projectDir, sessions);
-  });
-
-  return endedSession;
+  await sessionStore.update(session);
+  return session;
 }
 
 /**
@@ -305,7 +299,7 @@ export async function getSessionContext(
   projectId: string,
   limit: number = 3,
 ): Promise<string> {
-  const sessions = await loadSessionsJson(projectDir) as Session[];
+  const sessions = await getSessionStore().loadAll();
   const allObs = await getObservationStore().loadAll();
 
   const aliasSet = await resolveProjectIds(projectId);
@@ -513,12 +507,13 @@ export async function listSessions(
   projectDir: string,
   projectId?: string,
 ): Promise<Session[]> {
-  const sessions = await loadSessionsJson(projectDir) as Session[];
+  const sessionStore = getSessionStore();
   if (projectId) {
     const aliasSet = await resolveProjectIds(projectId);
-    return sessions.filter((session) => aliasSet.has(session.projectId));
+    const all = await sessionStore.loadAll();
+    return all.filter((session) => aliasSet.has(session.projectId));
   }
-  return sessions;
+  return sessionStore.loadAll();
 }
 
 /**
@@ -528,7 +523,8 @@ export async function getActiveSession(
   projectDir: string,
   projectId: string,
 ): Promise<Session | null> {
-  const sessions = await loadSessionsJson(projectDir) as Session[];
+  const sessionStore = getSessionStore();
+  const sessions = await sessionStore.loadAll();
   const aliasSet = await resolveProjectIds(projectId);
   return sessions.find((session) => aliasSet.has(session.projectId) && session.status === 'active') || null;
 }

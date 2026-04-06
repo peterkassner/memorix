@@ -23,7 +23,6 @@ vi.mock('../../src/embedding/provider.js', () => ({
   resetProvider: () => {},
 }));
 
-import { SqliteBackend } from '../../src/store/sqlite-store.js';
 import {
   initObservationStore,
   getObservationStore,
@@ -38,6 +37,7 @@ import {
   storeObservation,
 } from '../../src/memory/observations.js';
 import { resetDb, searchObservations, getTimeline } from '../../src/store/orama-store.js';
+import { closeAllDatabases, loadBetterSqlite3 } from '../../src/store/sqlite-db.js';
 import type { Observation } from '../../src/types.js';
 
 let tmpDir: string;
@@ -49,6 +49,7 @@ beforeEach(async () => {
 
 afterEach(async () => {
   resetObservationStore();
+  closeAllDatabases();
   await fs.rm(tmpDir, { recursive: true, force: true });
 });
 
@@ -79,12 +80,14 @@ describe('Cross-process freshness', () => {
     expect(getAllObservations()).toHaveLength(0);
     expect(getObservationCount()).toBe(0);
 
-    // ── Instance A: open same DB and write directly (simulates another process)
-    const instanceA = new SqliteBackend();
-    await instanceA.init(tmpDir);
-    await instanceA.insert(makeObs(1, 'Written by Process A'));
-    await instanceA.saveIdCounter(2);
-    instanceA.close();
+    // ── Instance A: open a raw connection (simulates a truly separate process)
+    const DB = loadBetterSqlite3();
+    const rawA = new DB(path.join(tmpDir, 'memorix.db'));
+    rawA.prepare(`INSERT OR REPLACE INTO observations (id, entityName, type, title, narrative, facts, filesModified, concepts, tokens, createdAt, projectId, status, source) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+      .run(1, 'entity-1', 'discovery', 'Written by Process A', 'Narrative', '[]', '[]', '["freshness-test"]', 10, new Date().toISOString(), 'test/freshness', 'active', 'agent');
+    rawA.prepare(`UPDATE meta SET value = CAST(CAST(value AS INTEGER) + 1 AS TEXT) WHERE key = 'storage_generation'`).run();
+    rawA.prepare(`INSERT OR REPLACE INTO meta (key, value) VALUES ('next_id', '2')`).run();
+    rawA.close();
 
     // ── Instance B: WITHOUT freshness check, still sees stale empty array
     expect(getAllObservations()).toHaveLength(0);
@@ -111,13 +114,15 @@ describe('Cross-process freshness', () => {
     // ── Instance B: start with empty state
     await initObservations(tmpDir);
 
-    // ── Instance A: write 2 observations to shared SQLite
-    const instanceA = new SqliteBackend();
-    await instanceA.init(tmpDir);
-    await instanceA.insert(makeObs(1, 'Authentication module setup'));
-    await instanceA.insert(makeObs(2, 'Database schema migration'));
-    await instanceA.saveIdCounter(3);
-    instanceA.close();
+    // ── Instance A: write 2 observations via raw connection
+    const DB = loadBetterSqlite3();
+    const rawA = new DB(path.join(tmpDir, 'memorix.db'));
+    const stmt = rawA.prepare(`INSERT OR REPLACE INTO observations (id, entityName, type, title, narrative, facts, filesModified, concepts, tokens, createdAt, projectId, status, source) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
+    stmt.run(1, 'entity-1', 'discovery', 'Authentication module setup', 'Narrative', '[]', '[]', '["freshness-test"]', 10, new Date().toISOString(), 'test/freshness', 'active', 'agent');
+    stmt.run(2, 'entity-2', 'discovery', 'Database schema migration', 'Narrative', '[]', '[]', '["freshness-test"]', 10, new Date().toISOString(), 'test/freshness', 'active', 'agent');
+    rawA.prepare(`UPDATE meta SET value = CAST(CAST(value AS INTEGER) + 1 AS TEXT) WHERE key = 'storage_generation'`).run();
+    rawA.prepare(`INSERT OR REPLACE INTO meta (key, value) VALUES ('next_id', '3')`).run();
+    rawA.close();
 
     // ── Instance B: freshness check triggers reload + Orama reindex
     await ensureFreshObservations();
@@ -134,11 +139,13 @@ describe('Cross-process freshness', () => {
   it('timeline read path triggers freshness before reading in-memory observations', async () => {
     await initObservations(tmpDir);
 
-    const instanceA = new SqliteBackend();
-    await instanceA.init(tmpDir);
-    await instanceA.insert(makeObs(1, 'Timeline anchor from Process A'));
-    await instanceA.saveIdCounter(2);
-    instanceA.close();
+    const DB = loadBetterSqlite3();
+    const rawA = new DB(path.join(tmpDir, 'memorix.db'));
+    rawA.prepare(`INSERT OR REPLACE INTO observations (id, entityName, type, title, narrative, facts, filesModified, concepts, tokens, createdAt, projectId, status, source) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+      .run(1, 'entity-1', 'discovery', 'Timeline anchor from Process A', 'Narrative', '[]', '[]', '["freshness-test"]', 10, new Date().toISOString(), 'test/freshness', 'active', 'agent');
+    rawA.prepare(`UPDATE meta SET value = CAST(CAST(value AS INTEGER) + 1 AS TEXT) WHERE key = 'storage_generation'`).run();
+    rawA.prepare(`INSERT OR REPLACE INTO meta (key, value) VALUES ('next_id', '2')`).run();
+    rawA.close();
 
     const timeline = await getTimeline(1, 'test/freshness');
     expect(timeline.anchor).not.toBeNull();
@@ -152,21 +159,24 @@ describe('Cross-process freshness', () => {
     await initObservations(tmpDir);
 
     // Round 1: A writes obs #1
-    const a1 = new SqliteBackend();
-    await a1.init(tmpDir);
-    await a1.insert(makeObs(1, 'Round 1 observation'));
-    await a1.saveIdCounter(2);
-    a1.close();
+    const DB = loadBetterSqlite3();
+    let rawA = new DB(path.join(tmpDir, 'memorix.db'));
+    rawA.prepare(`INSERT OR REPLACE INTO observations (id, entityName, type, title, narrative, facts, filesModified, concepts, tokens, createdAt, projectId, status, source) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+      .run(1, 'entity-1', 'discovery', 'Round 1 observation', 'Narrative', '[]', '[]', '["freshness-test"]', 10, new Date().toISOString(), 'test/freshness', 'active', 'agent');
+    rawA.prepare(`UPDATE meta SET value = CAST(CAST(value AS INTEGER) + 1 AS TEXT) WHERE key = 'storage_generation'`).run();
+    rawA.prepare(`INSERT OR REPLACE INTO meta (key, value) VALUES ('next_id', '2')`).run();
+    rawA.close();
 
     await ensureFreshObservations();
     expect(getAllObservations()).toHaveLength(1);
 
     // Round 2: A writes obs #2
-    const a2 = new SqliteBackend();
-    await a2.init(tmpDir);
-    await a2.insert(makeObs(2, 'Round 2 observation'));
-    await a2.saveIdCounter(3);
-    a2.close();
+    rawA = new DB(path.join(tmpDir, 'memorix.db'));
+    rawA.prepare(`INSERT OR REPLACE INTO observations (id, entityName, type, title, narrative, facts, filesModified, concepts, tokens, createdAt, projectId, status, source) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+      .run(2, 'entity-2', 'discovery', 'Round 2 observation', 'Narrative', '[]', '[]', '["freshness-test"]', 10, new Date().toISOString(), 'test/freshness', 'active', 'agent');
+    rawA.prepare(`UPDATE meta SET value = CAST(CAST(value AS INTEGER) + 1 AS TEXT) WHERE key = 'storage_generation'`).run();
+    rawA.prepare(`INSERT OR REPLACE INTO meta (key, value) VALUES ('next_id', '3')`).run();
+    rawA.close();
 
     await ensureFreshObservations();
     expect(getAllObservations()).toHaveLength(2);
@@ -185,15 +195,16 @@ describe('Cross-process freshness', () => {
     });
     expect(getAllObservations()).toHaveLength(1);
 
-    // A writes directly to SQLite
-    const instanceA = new SqliteBackend();
-    await instanceA.init(tmpDir);
-    // A sees B's write (via migration or shared DB)
-    const existing = await instanceA.loadAll();
-    const newObs = makeObs(existing.length + 1, 'Written by A');
-    await instanceA.insert(newObs);
-    await instanceA.saveIdCounter(existing.length + 2);
-    instanceA.close();
+    // A writes directly to SQLite via raw connection
+    const DB = loadBetterSqlite3();
+    const rawA = new DB(path.join(tmpDir, 'memorix.db'));
+    const existingCount = rawA.prepare(`SELECT COUNT(*) AS cnt FROM observations`).get().cnt;
+    const newId = existingCount + 1;
+    rawA.prepare(`INSERT OR REPLACE INTO observations (id, entityName, type, title, narrative, facts, filesModified, concepts, tokens, createdAt, projectId, status, source) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+      .run(newId, `entity-${newId}`, 'discovery', 'Written by A', 'Narrative', '[]', '[]', '["freshness-test"]', 10, new Date().toISOString(), 'test/freshness', 'active', 'agent');
+    rawA.prepare(`UPDATE meta SET value = CAST(CAST(value AS INTEGER) + 1 AS TEXT) WHERE key = 'storage_generation'`).run();
+    rawA.prepare(`INSERT OR REPLACE INTO meta (key, value) VALUES ('next_id', '${newId + 1}')`).run();
+    rawA.close();
 
     // B still sees only its own write
     expect(getAllObservations()).toHaveLength(1);

@@ -20,13 +20,19 @@ import os from 'node:os';
 import { startSession, endSession, getSessionContext, listSessions, getActiveSession } from '../../src/memory/session.js';
 import { storeObservation, initObservations, resolveObservations } from '../../src/memory/observations.js';
 import { resetDb } from '../../src/store/orama-store.js';
+import { initObservationStore, resetObservationStore } from '../../src/store/obs-store.js';
+import { initSessionStore, resetSessionStore } from '../../src/store/session-store.js';
 
 let testDir: string;
 const PROJECT_ID = 'test/session-lifecycle';
 
 beforeEach(async () => {
   testDir = await fs.mkdtemp(path.join(os.tmpdir(), 'memorix-session-'));
+  resetObservationStore();
+  resetSessionStore();
   await resetDb();
+  await initObservationStore(testDir);
+  await initSessionStore(testDir);
   await initObservations(testDir);
 });
 

@@ -800,9 +800,10 @@ export default defineCommand({
 
         if (apiPath === '/sessions') {
           const { projectId: sessProjectId, dataDir: sessDataDir } = await resolveRequestProject(url);
-          const { loadSessionsJson } = await import('../../store/persistence.js');
-          const allSessions = await loadSessionsJson(sessDataDir) as Array<{ projectId?: string }>;
-          sendJson(allSessions.filter(s => s.projectId === sessProjectId));
+          const { initSessionStore, getSessionStore, resetSessionStore } = await import('../../store/session-store.js');
+          await initSessionStore(sessDataDir);
+          const allSessions = await getSessionStore().loadByProject(sessProjectId);
+          sendJson(allSessions);
           return;
         }
 

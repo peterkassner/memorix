@@ -10,71 +10,16 @@
  *
  * Array fields (facts, filesModified, concepts, relatedCommits, relatedEntities)
  * are stored as JSON strings in SQLite columns.
+ *
+ * Uses the shared database handle from sqlite-db.ts so that observations,
+ * mini-skills, and sessions all share one connection and one DB file.
  */
 
 import type { Observation } from '../types.js';
 import type { ObservationStore, StoreTransaction } from './obs-store.js';
-import { createRequire } from 'node:module';
+import { getDatabase, closeDatabase } from './sqlite-db.js';
 import path from 'node:path';
 import fs from 'node:fs';
-
-// Dynamic require for better-sqlite3 (native module, optionalDependencies)
-let Database: any;
-
-function loadBetterSqlite3(): any {
-  if (Database) return Database;
-  try {
-    const require = createRequire(import.meta.url);
-    Database = require('better-sqlite3');
-    return Database;
-  } catch {
-    throw new Error('[memorix] better-sqlite3 is not available');
-  }
-}
-
-// ── SQL constants ──────────────────────────────────────────────────
-
-const CREATE_OBSERVATIONS_TABLE = `
-CREATE TABLE IF NOT EXISTS observations (
-  id              INTEGER PRIMARY KEY,
-  entityName      TEXT NOT NULL,
-  type            TEXT NOT NULL,
-  title           TEXT NOT NULL,
-  narrative       TEXT NOT NULL DEFAULT '',
-  facts           TEXT NOT NULL DEFAULT '[]',
-  filesModified   TEXT NOT NULL DEFAULT '[]',
-  concepts        TEXT NOT NULL DEFAULT '[]',
-  tokens          INTEGER NOT NULL DEFAULT 0,
-  createdAt       TEXT NOT NULL,
-  updatedAt       TEXT,
-  projectId       TEXT NOT NULL,
-  hasCausalLanguage INTEGER DEFAULT 0,
-  topicKey        TEXT,
-  revisionCount   INTEGER DEFAULT 1,
-  sessionId       TEXT,
-  status          TEXT NOT NULL DEFAULT 'active',
-  progress        TEXT,
-  source          TEXT DEFAULT 'agent',
-  commitHash      TEXT,
-  relatedCommits  TEXT,
-  relatedEntities TEXT,
-  sourceDetail    TEXT,
-  valueCategory   TEXT
-);
-`;
-
-const CREATE_META_TABLE = `
-CREATE TABLE IF NOT EXISTS meta (
-  key   TEXT PRIMARY KEY,
-  value TEXT NOT NULL
-);
-`;
-
-const CREATE_INDEXES = `
-CREATE INDEX IF NOT EXISTS idx_observations_projectId ON observations(projectId);
-CREATE INDEX IF NOT EXISTS idx_observations_topicKey ON observations(projectId, topicKey);
-CREATE INDEX IF NOT EXISTS idx_observations_status ON observations(status);
-`;
 
 // ── Row ↔ Observation serialization ────────────────────────────────
 
@@ -163,25 +108,9 @@ export class SqliteBackend implements ObservationStore {
 
   async init(dataDir: string): Promise<void> {
     this.dataDir = dataDir;
-    const BetterSqlite3 = loadBetterSqlite3();
 
-    const dbPath = path.join(dataDir, 'memorix.db');
-    fs.mkdirSync(dataDir, { recursive: true });
-
-    this.db = new BetterSqlite3(dbPath);
-
-    // WAL mode for concurrent reads
-    this.db.pragma('journal_mode = WAL');
-    this.db.pragma('busy_timeout = 5000');
-
-    // Create schema
-    this.db.exec(CREATE_OBSERVATIONS_TABLE);
-    this.db.exec(CREATE_META_TABLE);
-    this.db.exec(CREATE_INDEXES);
-
-    // Seed meta defaults
-    this.db.prepare(`INSERT OR IGNORE INTO meta (key, value) VALUES ('storage_generation', '0')`).run();
-    this.db.prepare(`INSERT OR IGNORE INTO meta (key, value) VALUES ('next_id', '1')`).run();
+    // Use shared database handle (opens DB, creates all tables, sets pragmas)
+    this.db = getDatabase(dataDir);
 
     // Prepare statements
     this.stmtInsert = this.db.prepare(`
@@ -394,10 +323,10 @@ export class SqliteBackend implements ObservationStore {
   // ── Diagnostics ──────────────────────────────────────────────────
 
   close(): void {
-    if (this.db) {
-      try { this.db.close(); } catch { /* best-effort */ }
-      this.db = null;
-    }
+    // Detach from the shared handle without closing it — other stores
+    // (MiniSkillSqliteStore, SessionSqliteStore) may still be using it.
+    // Use closeDatabase(dataDir) or closeAllDatabases() for full shutdown.
+    this.db = null;
   }
 
   getBackendName(): 'sqlite' | 'json' {

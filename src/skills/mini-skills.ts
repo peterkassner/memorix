@@ -14,13 +14,7 @@
  */
 
 import type { MiniSkill, Observation } from '../types.js';
-import {
-  loadMiniSkillsJson,
-  saveMiniSkillsJson,
-  loadMiniSkillsCounter,
-  saveMiniSkillsCounter,
-} from '../store/persistence.js';
-import { withFileLock } from '../store/file-lock.js';
+import { getMiniSkillStore } from '../store/mini-skill-store.js';
 
 // ── Promote observations to mini-skills ──────────────────────────
 
@@ -44,42 +38,38 @@ export async function promoteToMiniSkill(
   observations: Observation[],
   options?: PromoteOptions,
 ): Promise<MiniSkill> {
-  return await withFileLock(projectDir, async () => {
-    const existing = (await loadMiniSkillsJson(projectDir)) as MiniSkill[];
-    let nextId = await loadMiniSkillsCounter(projectDir);
+  const store = getMiniSkillStore();
+  let nextId = await store.loadIdCounter();
 
-    // Auto-generate content from observations
-    const title = generateTitle(observations);
-    const instruction = options?.instruction || generateInstruction(observations);
-    const trigger = options?.trigger || generateTrigger(observations);
-    const facts = extractFacts(observations);
-    const tags = [
-      ...(options?.tags || []),
-      ...extractTags(observations),
-    ];
+  // Auto-generate content from observations
+  const title = generateTitle(observations);
+  const instruction = options?.instruction || generateInstruction(observations);
+  const trigger = options?.trigger || generateTrigger(observations);
+  const facts = extractFacts(observations);
+  const tags = [
+    ...(options?.tags || []),
+    ...extractTags(observations),
+  ];
 
-    const skill: MiniSkill = {
-      id: nextId,
-      sourceObservationIds: observations.map(o => o.id),
-      sourceEntity: observations[0]?.entityName || 'unknown',
-      title,
-      instruction,
-      trigger,
-      facts,
-      projectId,
-      createdAt: new Date().toISOString(),
-      usedCount: 0,
-      tags: [...new Set(tags)],
-    };
+  const skill: MiniSkill = {
+    id: nextId,
+    sourceObservationIds: observations.map(o => o.id),
+    sourceEntity: observations[0]?.entityName || 'unknown',
+    title,
+    instruction,
+    trigger,
+    facts,
+    projectId,
+    createdAt: new Date().toISOString(),
+    usedCount: 0,
+    tags: [...new Set(tags)],
+  };
 
-    existing.push(skill);
-    nextId++;
+  nextId++;
+  await store.insert(skill);
+  await store.saveIdCounter(nextId);
 
-    await saveMiniSkillsJson(projectDir, existing);
-    await saveMiniSkillsCounter(projectDir, nextId);
-
-    return skill;
-  });
+  return skill;
 }
 
 // ── Load & query mini-skills ─────────────────────────────────────
@@ -91,16 +81,16 @@ export async function loadMiniSkills(
   projectDir: string,
   projectId?: string,
 ): Promise<MiniSkill[]> {
-  const all = (await loadMiniSkillsJson(projectDir)) as MiniSkill[];
-  if (!projectId) return all;
-  return all.filter(s => s.projectId === projectId);
+  const store = getMiniSkillStore();
+  if (!projectId) return store.loadAll();
+  return store.loadByProject(projectId);
 }
 
 /**
  * Load all mini-skills (unfiltered).
  */
 export async function loadAllMiniSkills(projectDir: string): Promise<MiniSkill[]> {
-  return (await loadMiniSkillsJson(projectDir)) as MiniSkill[];
+  return getMiniSkillStore().loadAll();
 }
 
 /**
@@ -110,14 +100,12 @@ export async function deleteMiniSkill(
   projectDir: string,
   skillId: number,
 ): Promise<boolean> {
-  return await withFileLock(projectDir, async () => {
-    const existing = (await loadMiniSkillsJson(projectDir)) as MiniSkill[];
-    const idx = existing.findIndex(s => s.id === skillId);
-    if (idx === -1) return false;
-    existing.splice(idx, 1);
-    await saveMiniSkillsJson(projectDir, existing);
-    return true;
-  });
+  const store = getMiniSkillStore();
+  const all = await store.loadAll();
+  const exists = all.some(s => s.id === skillId);
+  if (!exists) return false;
+  await store.remove(skillId);
+  return true;
 }
 
 /**
@@ -128,15 +116,14 @@ export async function recordMiniSkillUsage(
   skillIds: number[],
 ): Promise<void> {
   if (skillIds.length === 0) return;
-  await withFileLock(projectDir, async () => {
-    const existing = (await loadMiniSkillsJson(projectDir)) as MiniSkill[];
-    for (const skill of existing) {
-      if (skillIds.includes(skill.id)) {
-        skill.usedCount++;
-      }
+  const store = getMiniSkillStore();
+  const existing = await store.loadAll();
+  for (const skill of existing) {
+    if (skillIds.includes(skill.id)) {
+      skill.usedCount++;
+      await store.update(skill);
     }
-    await saveMiniSkillsJson(projectDir, existing);
-  });
+  }
 }
 
 // ── Format mini-skills for session injection ─────────────────────

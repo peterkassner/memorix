@@ -163,7 +163,9 @@ describe('Compact Engine', () => {
         expect(detailResult.formatted).not.toContain('Repository-backed');
       } finally {
         const { resetObservationStore } = await import('../../src/store/obs-store.js');
+        const { closeAllDatabases } = await import('../../src/store/sqlite-db.js');
         resetObservationStore();
+        closeAllDatabases();
         await fs.rm(projectADir, { recursive: true, force: true });
         await fs.rm(projectBDir, { recursive: true, force: true });
       }

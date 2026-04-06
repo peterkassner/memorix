@@ -86,6 +86,21 @@ export async function ensureFreshObservations(): Promise<boolean> {
 }
 
 /**
+ * Centralized freshness gate — wraps a read-facing function with
+ * ensureFreshObservations() so callers cannot forget the freshness check.
+ *
+ * Usage:
+ *   return withFreshObservations(async () => { ... read observations ... });
+ *
+ * Phase 2 debt paydown: replaces scattered manual ensureFreshObservations()
+ * calls with a single wrapper. New read surfaces should use this by default.
+ */
+export async function withFreshObservations<T>(fn: () => T | Promise<T>): Promise<T> {
+  await ensureFreshObservations();
+  return fn();
+}
+
+/**
  * Store a new observation.
  *
  * This is the primary write API — called by the `memorix_store` MCP tool.

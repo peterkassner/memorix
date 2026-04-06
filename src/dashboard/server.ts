@@ -13,8 +13,9 @@ import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import { exec } from 'node:child_process';
 
-import { loadGraphJsonl, saveGraphJsonl, loadIdCounter, getBaseDataDir, loadSessionsJson } from '../store/persistence.js';
+import { loadGraphJsonl, saveGraphJsonl, loadIdCounter, getBaseDataDir } from '../store/persistence.js';
 import { getObservationStore, initObservationStore } from '../store/obs-store.js';
+import { getSessionStore, initSessionStore } from '../store/session-store.js';
 
 // MIME types for static file serving
 const MIME_TYPES: Record<string, string> = {
@@ -147,7 +148,7 @@ async function handleApi(
             }
 
             case '/sessions': {
-                const allSessions = await loadSessionsJson(effectiveDataDir);
+                const allSessions = await getSessionStore().loadAll();
                 const sessions = filterByProject(allSessions as Array<{ projectId?: string }>, effectiveProjectId);
                 sendJson(res, sessions);
                 break;
@@ -603,6 +604,7 @@ export async function startDashboard(
     teamInstances?: TeamInstances,
 ): Promise<void> {
     await initObservationStore(dataDir);
+    await initSessionStore(dataDir);
     const resolvedStaticDir = staticDir;
     // Derive baseDir from dataDir (parent directory of project-specific dir)
     const baseDir = getBaseDataDir();

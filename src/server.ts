@@ -20,8 +20,10 @@ import { watchFile } from 'node:fs';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { KnowledgeGraphManager } from './memory/graph.js';
-import { initObservations, storeObservation, reindexObservations, migrateProjectIds, getObservation, getAllObservations, ensureFreshObservations } from './memory/observations.js';
+import { initObservations, storeObservation, reindexObservations, migrateProjectIds, getObservation, getAllObservations, withFreshObservations } from './memory/observations.js';
 import { initObservationStore, getObservationStore } from './store/obs-store.js';
+import { initMiniSkillStore } from './store/mini-skill-store.js';
+import { initSessionStore } from './store/session-store.js';
 import { checkProjectAttribution, auditProjectObservations } from './memory/attribution-guard.js';
 import { resetDb } from './store/orama-store.js';
 import { createAutoRelations } from './memory/auto-relations.js';
@@ -256,6 +258,8 @@ export async function createMemorixServer(
 
   // Initialize components
   await initObservationStore(projectDir);
+  await initMiniSkillStore(projectDir);
+  await initSessionStore(projectDir);
   {
     const store = getObservationStore();
     console.error(`[memorix] ObservationStore backend: ${store.getBackendName()}, generation: ${store.getGeneration()}`);
@@ -268,6 +272,8 @@ export async function createMemorixServer(
 
   const initializeProjectRuntime = async (logPrefix: 'startup' | 'switch'): Promise<void> => {
     await initObservationStore(projectDir);
+    await initMiniSkillStore(projectDir);
+    await initSessionStore(projectDir);
     graphManager = new KnowledgeGraphManager(projectDir);
     await graphManager.init();
     await initObservations(projectDir);
@@ -403,7 +409,7 @@ export async function createMemorixServer(
     async ({ entityName: rawEntityName, type: rawType, title: rawTitle, narrative, facts, filesModified, concepts, topicKey, progress, relatedCommits, relatedEntities }) => {
       const unresolved = requireResolvedProject('store memory in the current project');
       if (unresolved) return unresolved;
-      await ensureFreshObservations();
+      return withFreshObservations(async () => {
 
       // Mutable copies — Formation Pipeline may improve these
       let entityName = rawEntityName;
@@ -864,6 +870,7 @@ export async function createMemorixServer(
           },
         ],
       };
+      }); // withFreshObservations
     },
   );
 
@@ -941,7 +948,7 @@ export async function createMemorixServer(
         const unresolved = requireResolvedProject('search the current project');
         if (unresolved) return unresolved;
       }
-      await ensureFreshObservations();
+      return withFreshObservations(async () => {
 
       const safeLimit = limit != null ? coerceNumber(limit, 20) : undefined;
       const safeMaxTokens = maxTokens != null ? coerceNumber(maxTokens, 0) : undefined;
@@ -1004,6 +1011,7 @@ export async function createMemorixServer(
           },
         ],
       };
+      }); // withFreshObservations
     },
   );
 
@@ -1085,7 +1093,7 @@ export async function createMemorixServer(
     async ({ entityName, decision, alternatives, rationale, constraints, expectedOutcome, risks, concepts, filesModified, relatedCommits, relatedEntities }) => {
       const unresolved = requireResolvedProject('store reasoning in the current project');
       if (unresolved) return unresolved;
-      await ensureFreshObservations();
+      return withFreshObservations(async () => {
 
       // Build structured narrative from reasoning fields
       const narrativeParts: string[] = [rationale];
@@ -1148,6 +1156,7 @@ export async function createMemorixServer(
           text: `🧠 Reasoning trace stored #${obs.id}: "${decision}"\nEntity: ${entityName} | ${facts.length} facts | ${obs.tokens} tokens${reasoningAttributionWarning}`,
         }],
       };
+      }); // withFreshObservations
     },
   );
 
@@ -1175,12 +1184,10 @@ export async function createMemorixServer(
     async ({ threshold }) => {
       const unresolved = requireResolvedProject('audit project attribution');
       if (unresolved) return unresolved;
-      await ensureFreshObservations();
-
       const minCount = threshold ?? 2;
       let entries: import('./memory/attribution-guard.js').AuditEntry[];
       try {
-        entries = await auditProjectObservations(project.id, getAllObservations(), minCount);
+        entries = await auditProjectObservations(project.id, await withFreshObservations(() => getAllObservations()), minCount);
       } catch (err) {
         return {
           content: [{
@@ -1256,16 +1263,14 @@ export async function createMemorixServer(
         const unresolved = requireResolvedProject('search reasoning in the current project');
         if (unresolved) return unresolved;
       }
-      await ensureFreshObservations();
-
       const safeLimit = limit != null ? coerceNumber(limit, 10) : 10;
-      const result = await compactSearch({
+      const result = await withFreshObservations(() => compactSearch({
         query,
         limit: safeLimit,
         type: 'reasoning' as ObservationType,
         projectId: scope === 'global' ? undefined : project.id,
         status: 'active',
-      });
+      }));
 
       if (result.entries.length === 0) {
         return {
@@ -1300,9 +1305,8 @@ export async function createMemorixServer(
       },
     },
     async ({ query, dryRun }) => {
-      await ensureFreshObservations();
       const { getAllObservations, resolveObservations } = await import('./memory/observations.js');
-      const allObs = getAllObservations().filter(o => (o.status ?? 'active') === 'active' && o.projectId === project.id);
+      const allObs = await withFreshObservations(() => getAllObservations().filter(o => (o.status ?? 'active') === 'active' && o.projectId === project.id));
 
       if (allObs.length < 2) {
         return { content: [{ type: 'text' as const, text: 'Not enough active memories to deduplicate.' }] };
@@ -1523,9 +1527,8 @@ export async function createMemorixServer(
       const { search } = await import('@orama/orama');
 
       // Shared: build MemorixDocument[] from in-memory observations
-      await ensureFreshObservations();
       const { getAllObservations } = await import('./memory/observations.js');
-      const allObs = getAllObservations();
+      const allObs = await withFreshObservations(() => getAllObservations());
 
       // Pull current access metadata from the live Orama index so access-based
       // immunity (e.g. accessCount >= 3) still works in retention/report/archive
@@ -1558,7 +1561,7 @@ export async function createMemorixServer(
           };
         }
         return {
-          content: [{ type: 'text' as const, text: `🗄️ Archived ${result.archived} expired observations → observations.archived.json\n${result.remaining} active observations remaining.\n\nArchived memories can be restored manually if needed.` }],
+          content: [{ type: 'text' as const, text: `🗄️ Archived ${result.archived} expired observations (status set to 'archived' in-place)\n${result.remaining} active observations remaining.\n\nArchived memories are hidden from default search but can be found with status: "all".` }],
         };
       }
 
@@ -1959,9 +1962,8 @@ export async function createMemorixServer(
 
   /** Filter a KnowledgeGraph to only entities referenced by the current project's observations */
   async function scopeGraphToProject(graph: { entities: any[]; relations: any[] }) {
-    await ensureFreshObservations();
     const { getAllObservations } = await import('./memory/observations.js');
-    const allObs = getAllObservations();
+    const allObs = await withFreshObservations(() => getAllObservations());
     const projectEntityNames = new Set(
       allObs
         .filter(o => o.projectId === project.id && (o.status ?? 'active') === 'active' && o.entityName)
@@ -2445,9 +2447,8 @@ export async function createMemorixServer(
       }
 
       // Load observations by ID
-      await ensureFreshObservations();
       const { getAllObservations } = await import('./memory/observations.js');
-      const allObs = getAllObservations();
+      const allObs = await withFreshObservations(() => getAllObservations());
       const selected = allObs.filter(o => observationIds.includes(o.id));
 
       if (selected.length === 0) {
@@ -3387,10 +3388,9 @@ export async function createMemorixServer(
     // Users who configure an API key want quality — each call is only ~500 tokens.
     try {
       if (isLLMEnabled()) {
-        await ensureFreshObservations();
         const { getAllObservations, resolveObservations } = await import('./memory/observations.js');
         const { deduplicateMemory } = await import('./llm/memory-manager.js');
-        const allObs = getAllObservations().filter(o => (o.status ?? 'active') === 'active' && o.projectId === project.id);
+        const allObs = await withFreshObservations(() => getAllObservations().filter(o => (o.status ?? 'active') === 'active' && o.projectId === project.id));
         if (allObs.length > 10) {
           const grouped = new Map<string, typeof allObs>();
           for (const obs of allObs) {

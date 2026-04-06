@@ -16,7 +16,6 @@
  */
 
 import type { MemorixDocument, Observation } from '../types.js';
-import { appendArchivedObservations } from '../store/persistence.js';
 import { getObservationStore } from '../store/obs-store.js';
 
 // ── Importance → Retention Period mapping ────────────────────────────
@@ -344,11 +343,14 @@ export function explainRetention(
 // ── Auto-Archive ────────────────────────────────────────────────────
 
 /**
- * Archive expired observations: move archive-candidates from active
- * storage to observations.archived.json.
+ * Archive expired observations by setting status='archived' in-place.
+ *
+ * Phase 2 change: instead of moving observations to a separate
+ * observations.archived.json file, we update their status in the
+ * canonical store (SQLite or JSON). This eliminates the separate
+ * archive file and keeps all observation data in one place.
  *
  * Returns the count of archived observations.
- * Uses file locking for cross-process safety.
  */
 export async function archiveExpired(
   projectDir: string,
@@ -385,27 +387,26 @@ export async function archiveExpired(
       };
     };
 
-    const toArchive: Observation[] = [];
-    const toKeep: Observation[] = [];
+    // Only consider active observations for archiving
+    const activeObs = allObs.filter(o => (o.status ?? 'active') === 'active');
+    let archivedCount = 0;
 
-    for (const obs of allObs) {
+    for (const obs of activeObs) {
       const doc = toDoc(obs);
       const zone = getRetentionZone(doc, referenceTime);
       if (zone === 'archive-candidate') {
-        toArchive.push(obs);
-      } else {
-        toKeep.push(obs);
+        obs.status = 'archived';
+        archivedCount++;
       }
     }
 
-    if (toArchive.length === 0) {
-      return { archived: 0, remaining: allObs.length };
+    if (archivedCount === 0) {
+      return { archived: 0, remaining: activeObs.length };
     }
 
-    // Move to archive file, then update active observations
-    await appendArchivedObservations(projectDir, toArchive);
-    await tx.saveAll(toKeep);
+    // Persist all observations with updated statuses
+    await tx.saveAll(allObs);
 
-    return { archived: toArchive.length, remaining: toKeep.length };
+    return { archived: archivedCount, remaining: activeObs.length - archivedCount };
   });
 }

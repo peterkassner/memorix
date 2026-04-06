@@ -20,6 +20,8 @@ import os from 'node:os';
 import { storeObservation, initObservations } from '../../src/memory/observations.js';
 import { resetDb } from '../../src/store/orama-store.js';
 import { getSessionContext } from '../../src/memory/session.js';
+import { initObservationStore, resetObservationStore } from '../../src/store/obs-store.js';
+import { initSessionStore, resetSessionStore } from '../../src/store/session-store.js';
 
 const PROJECT_ID = 'test/session-layered';
 
@@ -27,7 +29,11 @@ let testDir: string;
 
 beforeEach(async () => {
   testDir = await fs.mkdtemp(path.join(os.tmpdir(), 'memorix-session-layered-'));
+  resetObservationStore();
+  resetSessionStore();
   await resetDb();
+  await initObservationStore(testDir);
+  await initSessionStore(testDir);
   await initObservations(testDir);
 });
 
