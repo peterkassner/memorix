@@ -8,8 +8,13 @@
  * but with an LLM configured, memory quality approaches Mem0/Cipher level.
  */
 
-/** Per-call timeout for LLM API requests (ms). Prevents a single slow call from blocking the store path. */
-const LLM_CALL_TIMEOUT_MS = 12_000;
+/**
+ * LLM call timeout in milliseconds.
+ * Configurable via MEMORIX_LLM_TIMEOUT_MS environment variable.
+ * Default: 30000ms (30s) — allows for proxy routing and cold starts.
+ */
+const _parsedTimeout = parseInt(process.env.MEMORIX_LLM_TIMEOUT_MS || '', 10);
+const LLM_CALL_TIMEOUT_MS = Number.isFinite(_parsedTimeout) && _parsedTimeout > 0 ? _parsedTimeout : 30_000;
 
 export interface LLMConfig {
   provider: 'openai' | 'anthropic' | 'openrouter' | 'custom';
