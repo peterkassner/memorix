@@ -12,7 +12,7 @@ Memorix is a TypeScript project built around:
 
 ## Current Release Baseline
 
-The current published release line is **1.0.7**.
+The current published release line is **1.0.8**.
 
 Contributors should assume the following are already part of the supported product surface:
 

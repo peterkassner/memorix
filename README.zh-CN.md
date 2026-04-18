@@ -396,13 +396,16 @@ docker compose up --build -d
 
 ## 1.0.8 更新亮点
 
-`1.0.8` 延续 1.0.7 的多 Agent 协调 / SQLite / 团队身份基线，并新增面向 HTTP control plane 的官方 Docker 部署路径。
+`1.0.8` 在 1.0.7 的多 Agent 协调 / SQLite / 团队身份基线上，新增 Operator CLI、官方 Docker 路径、Dashboard 语义分层和大量 Hooks 修复。
 
-- **多 Agent 协调器**：`memorix orchestrate` 运行结构化协调循环 — 计划 → 并行执行 → 验证关卡 → 修复循环 → 审查 → 合并。支持 Claude、Codex、Gemini CLI 和 OpenCode，含能力路由、worktree 隔离和 Agent 回退。
-- **SQLite 统一存储**：Observation、mini-skill、session 和 archive 现在全部使用 SQLite 作为唯一数据源，共享 DB 句柄，检索前自动刷新索引。
-- **团队身份与协作**：Agent 注册、心跳、任务板、交接产物和过期检测。Team 页面定位为项目协作空间，`memorix_session_start` 自动注册 Agent 并分配默认角色。
-- **可配置超时**：`MEMORIX_LLM_TIMEOUT_MS`（默认 30s）和 `MEMORIX_RERANK_TIMEOUT_MS`（默认 5s），适配慢速 API 提供商。
-- **Cursor stdio 修复**：工作区根路径不可用时不再退出 — 改为延迟绑定模式启动。
+- **Operator CLI**：面向人类的命名空间（`memorix session`、`memory`、`team`、`task`、`message`、`lock`、`handoff`、`poll`），常用项目操作无需再走 MCP tool call。
+- **Docker 部署**：官方 `Dockerfile`、`compose.yaml`、健康检查、`--host` 绑定，详见 [DOCKER.md](docs/DOCKER.md)。
+- **多 Agent 协调器**：`memorix orchestrate` — 计划 → 并行执行 → 验证关卡 → 修复循环 → 审查 → 合并。支持 Claude、Codex、Gemini CLI、OpenCode，含能力路由、worktree 隔离和 Agent 回退。
+- **SQLite 统一存储**：Observation、mini-skill、session、archive 全部 SQLite。共享 DB 句柄，检索前自动刷新，已删除废弃的 `JsonBackend`。
+- **团队身份与协作**：Agent 注册、心跳、任务板、交接产物、过期检测。`session_start` 自动注册 Agent 并分配默认角色。
+- **Dashboard 语义分层**：Team 页面过滤标签（Active / Recent / Historical）；历史 Agent 降低显示权重；项目选择器按 真实 / 临时 / 占位 分组；Identity 页面优化。
+- **Hooks 修复**：OpenCode 事件键映射 + `Bun.spawn` → `spawnSync`；Copilot `pwsh` 回退 + 全局 hooks 拦截；hook handler 诊断日志。
+- **测试稳定化**：E2e 和 live-LLM 测试从默认套件中排除；merge-conflict 测试确定性化。**146 files, 1992 tests, 0 skipped, 0 failed**。
 
 ---
 

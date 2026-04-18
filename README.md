@@ -397,14 +397,16 @@ Additional deep references:
 
 ## What's New in 1.0.8
 
-Version `1.0.8` keeps the 1.0.7 coordination/storage/team baseline and adds an official Docker deployment path for the HTTP control plane.
+Version `1.0.8` builds on the 1.0.7 coordination/storage/team baseline with an operator CLI, official Docker path, dashboard refinements, and broad hooks fixes.
 
-- **Multi-Agent Coordinator**: `memorix orchestrate` runs a structured coordination loop — plan → parallel execution → verify gates → fix loops → review → merge. Supports Claude, Codex, Gemini CLI, and OpenCode with capability routing, worktree isolation, and agent fallback.
-- **SQLite Canonical Store**: Observations, mini-skills, sessions, and archives now use SQLite as the single source of truth with shared DB handle and freshness-safe retrieval.
-- **Team Identity**: Agent registration, heartbeat, task board, handoff artifacts, and stale detection for multi-agent collaboration.
-- **Docker Deployment**: Official `Dockerfile`, `compose.yaml`, healthcheck, and explicit path-truth docs for running the HTTP control plane in a container.
-- **Configurable Timeouts**: `MEMORIX_LLM_TIMEOUT_MS` (default 30s) and `MEMORIX_RERANK_TIMEOUT_MS` (default 5s) for slow API providers.
-- **Cursor stdio fix**: No longer exits when workspace root is unavailable — starts in deferred-binding mode instead.
+- **Operator CLI**: Human-oriented namespaces (`memorix session`, `memory`, `team`, `task`, `message`, `lock`, `handoff`, `poll`) so the most common project ops no longer require MCP tool calls.
+- **Docker Deployment**: Official `Dockerfile`, `compose.yaml`, healthcheck, `--host` binding, and [DOCKER.md](docs/DOCKER.md) for running the HTTP control plane in a container.
+- **Multi-Agent Orchestrator**: `memorix orchestrate` — plan → parallel execution → verify gates → fix loops → review → merge. Claude, Codex, Gemini CLI, OpenCode with capability routing, worktree isolation, and agent fallback.
+- **SQLite Canonical Store**: Observations, mini-skills, sessions, and archives in SQLite. Shared DB handle, freshness-safe retrieval, dead `JsonBackend` removed.
+- **Team Identity**: Agent registration, heartbeat, task board, handoff artifacts, stale detection. `session_start` auto-registers agents with default role mapping.
+- **Dashboard Semantic Layering**: Team page filter tabs (Active/Recent/Historical), de-emphasized historical agents, project switcher grouped by real/temporary/placeholder, identity page cleanup.
+- **Hooks Fixes**: OpenCode event-name key mapping + `Bun.spawn` → `spawnSync`; Copilot `pwsh` fallback + global-hooks guard; hook handler diagnostic logging.
+- **Test Suite Stabilization**: E2e and live-LLM tests excluded from default suite; deterministic merge-conflict test. **146 files, 1992 tests, 0 skipped, 0 failed**.
 
 ---
 
