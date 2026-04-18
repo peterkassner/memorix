@@ -347,71 +347,9 @@ MCP tools: `memorix_skills`, `memorix_promote`.
 
 ## How It Works
 
-```mermaid
-flowchart LR
-    subgraph Ingress["Ingress Surfaces"]
-        A1["Git hooks / ingest"]
-        A2["MCP tools"]
-        A3["CLI / TUI"]
-        A4["HTTP dashboard"]
-    end
-
-    subgraph Runtime["Memorix Runtime"]
-        B1["stdio MCP server"]
-        B2["HTTP control plane"]
-        B3["project binding + config"]
-    end
-
-    subgraph Memory["Memory Substrates"]
-        C1["Observation memory"]
-        C2["Reasoning memory"]
-        C3["Git memory"]
-        C4["Session + team state"]
-    end
-
-    subgraph Processing["Async Processing"]
-        D1["Formation pipeline"]
-        D2["Embedding + indexing"]
-        D3["Graph linking"]
-        D4["Dedup + retention"]
-    end
-
-    subgraph Consumption["Consumption Surfaces"]
-        E1["Search / detail / timeline"]
-        E2["Dashboard / team views"]
-        E3["Agent recall / handoff"]
-    end
-
-    A1 --> B1
-    A2 --> B1
-    A2 --> B2
-    A3 --> B1
-    A3 --> B2
-    A4 --> B2
-
-    B1 --> B3
-    B2 --> B3
-
-    B3 --> C1
-    B3 --> C2
-    B3 --> C3
-    B3 --> C4
-
-    C1 --> D1
-    C1 --> D2
-    C1 --> D3
-    C1 --> D4
-    C2 --> D1
-    C2 --> D3
-    C3 --> D2
-    C4 --> D3
-
-    D1 --> E1
-    D2 --> E1
-    D3 --> E2
-    D4 --> E3
-    C4 --> E3
-```
+<p align="center">
+  <img src="assets/architecture.svg" alt="Memorix Architecture" width="960">
+</p>
 
 Memorix is not a single linear pipeline. It accepts memory from multiple ingress surfaces, persists it across multiple substrates, runs several asynchronous quality/indexing branches, and exposes the results through different retrieval and collaboration surfaces.
 

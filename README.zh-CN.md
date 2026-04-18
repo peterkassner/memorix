@@ -327,71 +327,9 @@ MCP 工具：`memorix_skills`、`memorix_promote`。
 
 ## 工作原理
 
-```mermaid
-flowchart LR
-    subgraph Ingress["入口层"]
-        A1["Git hooks / ingest"]
-        A2["MCP tools"]
-        A3["CLI / TUI"]
-        A4["HTTP dashboard"]
-    end
-
-    subgraph Runtime["Memorix Runtime"]
-        B1["stdio MCP server"]
-        B2["HTTP control plane"]
-        B3["project binding + config"]
-    end
-
-    subgraph Memory["记忆基底"]
-        C1["Observation memory"]
-        C2["Reasoning memory"]
-        C3["Git memory"]
-        C4["Session + team state"]
-    end
-
-    subgraph Processing["异步处理"]
-        D1["Formation pipeline"]
-        D2["Embedding + indexing"]
-        D3["Graph linking"]
-        D4["Dedup + retention"]
-    end
-
-    subgraph Consumption["消费面"]
-        E1["Search / detail / timeline"]
-        E2["Dashboard / team views"]
-        E3["Agent recall / handoff"]
-    end
-
-    A1 --> B1
-    A2 --> B1
-    A2 --> B2
-    A3 --> B1
-    A3 --> B2
-    A4 --> B2
-
-    B1 --> B3
-    B2 --> B3
-
-    B3 --> C1
-    B3 --> C2
-    B3 --> C3
-    B3 --> C4
-
-    C1 --> D1
-    C1 --> D2
-    C1 --> D3
-    C1 --> D4
-    C2 --> D1
-    C2 --> D3
-    C3 --> D2
-    C4 --> D3
-
-    D1 --> E1
-    D2 --> E1
-    D3 --> E2
-    D4 --> E3
-    C4 --> E3
-```
+<p align="center">
+  <img src="assets/architecture.svg" alt="Memorix Architecture" width="960">
+</p>
 
 Memorix 不是一条单线流水线。它从多个入口接收记忆，把内容落到多种记忆基底上，经过异步质量与索引处理，再通过不同的检索和协作界面提供给用户与 agent。
 
