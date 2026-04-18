@@ -323,6 +323,42 @@ memorix skills generate --target cursor
 
 MCP 工具：`memorix_skills`、`memorix_promote`。
 
+### 8. 编程 SDK
+
+直接在你自己的 TypeScript/Node.js 项目中 import Memorix —— 无需 MCP 或 CLI：
+
+```ts
+import { createMemoryClient } from 'memorix/sdk';
+
+const client = await createMemoryClient({ projectRoot: '/path/to/repo' });
+
+// 存储记忆
+await client.store({
+  entityName: 'auth-module',
+  type: 'decision',
+  title: 'Use JWT for API auth',
+  narrative: 'Chose JWT over session cookies for stateless API.',
+});
+
+// 搜索
+const results = await client.search({ query: 'authentication' });
+
+// 查询、归档、计数
+const obs = await client.get(1);
+const all = await client.getAll();
+await client.resolve([1, 2]);
+
+await client.close();
+```
+
+三个子路径导出：
+
+| Import | 内容 |
+| --- | --- |
+| `memorix/sdk` | `createMemoryClient`、`createMemorixServer`、`detectProject`、全部类型 |
+| `memorix/types` | 纯类型 —— interface、enum、常量 |
+| `memorix` | MCP stdio 入口（不适合编程使用） |
+
 ---
 
 ## 工作原理
@@ -405,7 +441,8 @@ docker compose up --build -d
 - **团队身份与协作**：Agent 注册、心跳、任务板、交接产物、过期检测。`session_start` 自动注册 Agent 并分配默认角色。
 - **Dashboard 语义分层**：Team 页面过滤标签（Active / Recent / Historical）；历史 Agent 降低显示权重；项目选择器按 真实 / 临时 / 占位 分组；Identity 页面优化。
 - **Hooks 修复**：OpenCode 事件键映射 + `Bun.spawn` → `spawnSync`；Copilot `pwsh` 回退 + 全局 hooks 拦截；hook handler 诊断日志。
-- **测试稳定化**：E2e 和 live-LLM 测试从默认套件中排除；merge-conflict 测试确定性化。**146 files, 1992 tests, 0 skipped, 0 failed**。
+- **编程 SDK**：`import { createMemoryClient } from 'memorix/sdk'` —— 直接在代码中 store / search / get / resolve，无需 MCP 或 CLI。同时导出 `createMemorixServer` 和 `detectProject`。
+- **测试稳定化**：E2e 和 live-LLM 测试从默认套件中排除；merge-conflict 测试确定性化。**147 files, 2002 tests, 0 skipped, 0 failed**。
 
 ---
 

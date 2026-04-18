@@ -343,6 +343,42 @@ memorix skills generate --target cursor
 
 MCP tools: `memorix_skills`, `memorix_promote`.
 
+### 8. Programmatic SDK
+
+Import Memorix directly into your own TypeScript/Node.js project — no MCP or CLI needed:
+
+```ts
+import { createMemoryClient } from 'memorix/sdk';
+
+const client = await createMemoryClient({ projectRoot: '/path/to/repo' });
+
+// Store a memory
+await client.store({
+  entityName: 'auth-module',
+  type: 'decision',
+  title: 'Use JWT for API auth',
+  narrative: 'Chose JWT over session cookies for stateless API.',
+});
+
+// Search
+const results = await client.search({ query: 'authentication' });
+
+// Retrieve, resolve, count
+const obs = await client.get(1);
+const all = await client.getAll();
+await client.resolve([1, 2]);
+
+await client.close();
+```
+
+Three subpath exports:
+
+| Import | What you get |
+| --- | --- |
+| `memorix/sdk` | `createMemoryClient`, `createMemorixServer`, `detectProject`, all types |
+| `memorix/types` | Type-only — interfaces, enums, constants |
+| `memorix` | MCP stdio entry point (not for programmatic use) |
+
 ---
 
 ## How It Works
@@ -406,7 +442,8 @@ Version `1.0.8` builds on the 1.0.7 coordination/storage/team baseline with an o
 - **Team Identity**: Agent registration, heartbeat, task board, handoff artifacts, stale detection. `session_start` auto-registers agents with default role mapping.
 - **Dashboard Semantic Layering**: Team page filter tabs (Active/Recent/Historical), de-emphasized historical agents, project switcher grouped by real/temporary/placeholder, identity page cleanup.
 - **Hooks Fixes**: OpenCode event-name key mapping + `Bun.spawn` → `spawnSync`; Copilot `pwsh` fallback + global-hooks guard; hook handler diagnostic logging.
-- **Test Suite Stabilization**: E2e and live-LLM tests excluded from default suite; deterministic merge-conflict test. **146 files, 1992 tests, 0 skipped, 0 failed**.
+- **Programmatic SDK**: `import { createMemoryClient } from 'memorix/sdk'` — store, search, get, resolve observations directly from your own code without MCP or CLI. Also exports `createMemorixServer` and `detectProject`.
+- **Test Suite Stabilization**: E2e and live-LLM tests excluded from default suite; deterministic merge-conflict test. **147 files, 2002 tests, 0 skipped, 0 failed**.
 
 ---
 

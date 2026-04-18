@@ -7,7 +7,8 @@ const define = { __MEMORIX_VERSION__: JSON.stringify(pkg.version) };
 export default defineConfig([
   {
     // Phase 4b: types entry added for memorix/types SDK subpath export
-    entry: { index: 'src/index.ts', types: 'src/types.ts' },
+    // SDK entry added for memorix/sdk programmatic API
+    entry: { index: 'src/index.ts', types: 'src/types.ts', sdk: 'src/sdk.ts' },
     format: ['esm'],
     target: 'node20',
     dts: true,

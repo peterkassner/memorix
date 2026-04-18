@@ -17,6 +17,10 @@
     "./types": {
       "import": "./dist/types.js",
       "types": "./dist/types.d.ts"
+    },
+    "./sdk": {
+      "import": "./dist/sdk.js",
+      "types": "./dist/sdk.d.ts"
     }
   },
   "files": [
@@ -26,6 +30,9 @@
     "dist/types.js",
     "dist/types.js.map",
     "dist/types.d.ts",
+    "dist/sdk.js",
+    "dist/sdk.js.map",
+    "dist/sdk.d.ts",
     "dist/cli/index.js",
     "dist/cli/index.js.map",
     "dist/cli/index.d.ts",

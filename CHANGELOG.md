@@ -9,6 +9,12 @@ All notable changes to this project will be documented in this file.
 - **Default-role session registration** -- `memorix session start --agentType ...` now auto-registers the operator into the project collaboration space and applies the same default role mapping used by the control plane.
 - **CLI-first project ops** -- Terminal operators can now inspect memory detail/timeline, claim and complete tasks, send messages, check inbox state, acquire locks, and compute situational-awareness poll output without leaving the shell.
 
+### Added -- Programmatic SDK
+- **`memorix/sdk` subpath export** -- `createMemoryClient()` factory returns a self-contained `MemoryClient` with `store`, `search`, `get`, `getAll`, `count`, `resolve`, and `close` methods. No MCP transport or CLI needed — initialize from a Git project root, read/write observations directly.
+- **`createMemorixServer` re-export** -- Embed the full MCP server into your own Node.js process and connect it to any transport.
+- **`detectProject` re-export** -- Standalone Git-based project detection.
+- **Three subpath exports** -- `memorix/sdk` (runtime API + types), `memorix/types` (type-only), `memorix` (MCP stdio entry).
+
 ### Added -- Official Docker Deployment
 - **Official HTTP control-plane container path** -- `Dockerfile` now builds a real `serve-http` runtime image instead of defaulting to stdio MCP.
 - **Compose example** -- added `compose.yaml` with port `3211`, persistent data volume, and `/health` healthcheck.
@@ -103,7 +109,7 @@ All notable changes to this project will be documented in this file.
 - **E2e demo tests** (`tests/e2e/`) excluded from default `vitest run` — these test CLI-agent demo artifacts, not Memorix product code. Available via `npm run test:e2e`.
 - **Live LLM quality tests** excluded from default suite — require `MEMORIX_RUN_LIVE_LLM_TESTS=1`. Rules-only fallback test preserved in `tests/memory/formation-rules-fallback.test.ts`. Available via `npm run test:llm-live`.
 - **Coordinator merge-conflict test** made deterministic — synchronous conflict file writes in `spawn()` instead of async `setTimeout` race. Removed `{ retry: 3 }`.
-- **Default test suite**: 146 files, 1992 tests, **0 skipped, 0 failed**.
+- **Default test suite**: 147 files, 2002 tests, **0 skipped, 0 failed**.
 
 ### Added -- Hooks Test Coverage
 - Audit ledger lost/corrupted → re-install recovers audit entry (codex).
