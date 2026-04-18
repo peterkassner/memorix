@@ -47,27 +47,16 @@
 
 ## 为什么是 Memorix
 
+**唯一同时保留 Git 真相、推理上下文和本地控制权的跨 Agent 记忆层 — 支持 10 个 IDE 和 Agent。**
+
 大多数 Coding Agent 只记得当前线程。Memorix 提供的是一层共享、持久、可检索的项目记忆，让不同 IDE、不同 Agent、不同会话都能在同一套本地记忆库上继续工作。
 
-Memorix 的几个关键差异点：
-
-- **Git Memory**：把 `git commit` 变成可检索的工程记忆，保留提交来源、变更文件和噪音过滤结果。
-- **Reasoning Memory**：不只记录“改了什么”，还记录“为什么这么做”。
-- **跨 Agent 本地召回**：多个 IDE 和 Agent 可以读取同一套本地记忆，而不是各自形成孤岛。
-- **记忆质量管线**：formation、压缩、保留衰减和 source-aware retrieval 协同工作，而不是一堆彼此独立的小功能。
-
-一句话说，Memorix 解决的是：让多个 Coding Agent 通过 MCP 共享同一套耐久项目记忆，同时保留 Git 真相、推理上下文和本地控制权。
-
-## 1.0.7 更新亮点
-
-`1.0.7` 这次发布，真正把 Memorix 的记忆语义、检索层次和运维闭环补完整了。
-
-- **以 provenance 为先的检索模型**：记忆现在会明确区分 `explicit`、`hook`、`git-ingest` 等来源细节，以及 `core`、`contextual`、`ephemeral` 等价值类别。
-- **分层披露（Layered Disclosure）**：session start、search、detail、timeline 更清楚地区分了 routing hints、working context 和 deeper evidence。
-- **证据语义与 citation-lite**：紧凑输出现在能说明 repository-backed evidence、synthesized analysis，以及“为什么会浮出来 / 它由什么支持”的轻量提示。
-- **任务线收束与 secret safety**：检索更不容易在同一个 repo 内串到错误的 workstream，明显的密码、token、credential 也会在写入和读取路径上被拦截或脱敏。
-- **归属校验与 cleanup 闭环**：wrong-bucket 审计、retention explainability、stale review 和 remediation hint 现在已经形成一个可操作的清理闭环。
-- **OpenCode compaction 改进**：OpenCode 的 compaction 不再暗示会自动调用 MCP 工具，而是使用结构化 continuation prompt，并暴露真实的 `post_compact` 事件。
+<table>
+<tr><td><b>Git Memory</b></td><td>把 <code>git commit</code> 变成可检索的工程记忆，保留提交来源、变更文件和噪音过滤结果。</td></tr>
+<tr><td><b>Reasoning Memory</b></td><td>不只记录“改了什么”，还记录“为什么这么做”——替代方案、权衡、风险。</td></tr>
+<tr><td><b>跨 Agent 召回</b></td><td>多个 IDE 和 Agent 读取同一套本地记忆，而不是各自形成孤岛。</td></tr>
+<tr><td><b>记忆质量管线</b></td><td>formation、压缩、保留衰减和 source-aware retrieval 协同工作，而不是一堆彼此独立的小功能。</td></tr>
+</table>
 
 ## 支持的客户端
 
@@ -112,36 +101,11 @@ Memorix 使用两类文件：
 | 在后台长期运行 HTTP MCP + Dashboard | `memorix background start` | 日常使用、多 Agent、协作、dashboard |
 | 把 HTTP 模式放在前台调试或自定义端口 | `memorix serve-http --port 3211` | 调试、手动观察日志、自定义启动方式 |
 
-对大多数用户来说，先从下面两条里选一条就够了：
+对大多数用户来说，选上面前两条之一就够了。
 
-- `memorix serve`：你只想尽快在 IDE 里用起来
-- `memorix background start`：你想要 dashboard 和后台常驻的 HTTP control plane
+配套命令：`memorix background status|logs|stop`。多工作区 HTTP session 需用 `memorix_session_start(projectRoot=...)` 绑定。
 
-可选的本地交互式界面：
-
-```bash
-memorix
-```
-
-只有在你确实想在 TTY 里直接使用本地 workbench 时，才需要运行裸命令 `memorix`。对大多数用户来说，它不是主安装路径。
-
-配套命令：
-
-```bash
-memorix background status
-memorix background logs
-memorix background stop
-```
-
-如果你确实需要把 HTTP control plane 放在前台运行、做调试、手动观察日志或使用自定义端口，再用：
-
-```bash
-memorix serve-http --port 3211
-```
-
-如果你在多个工作区或多个 Agent 之间共享 HTTP control plane，请让每个 session 都在开始时调用 `memorix_session_start(projectRoot=...)`。
-
-更细的启动根路径选择、项目绑定、配置优先级和 agent 操作说明，放在 [docs/SETUP.md](docs/SETUP.md) 和 [Agent Operator Playbook](docs/AGENT_OPERATOR_PLAYBOOK.md) 里。
+更细的启动根路径选择、项目绑定、配置优先级和 agent 操作说明：[docs/SETUP.md](docs/SETUP.md) 和 [Agent Operator Playbook](docs/AGENT_OPERATOR_PLAYBOOK.md)。
 
 把 Memorix 加进你的 MCP 客户端：
 
@@ -170,8 +134,6 @@ memorix serve-http --port 3211
   }
 }
 ```
-
-如果你用的是 HTTP control plane，并且会跨多个工作区或多个 Agent 共享，请确保客户端或 agent 在每个项目 session 开始时调用 `memorix_session_start(projectRoot=绝对工作区路径)`。
 
 下面这些客户端示例展示的是最简单的 stdio 形态。如果你更想使用共享的 HTTP control plane，请沿用上面的通用 HTTP 配置块，并到 [docs/SETUP.md](docs/SETUP.md) 查看各客户端字段差异。
 
@@ -361,34 +323,39 @@ Memorix 不是一条单线流水线。它从多个入口接收记忆，把内容
 
 ## 文档导航
 
-### 入门
+📖 **[文档地图](docs/README.md)** — 最快找到你需要的文档。
 
-- [Setup Guide](docs/SETUP.md)
-- [Configuration Guide](docs/CONFIGURATION.md)
+| 章节 | 内容 |
+| --- | --- |
+| [安装与接入](docs/SETUP.md) | 安装、stdio vs HTTP control plane、各客户端配置 |
+| [配置指南](docs/CONFIGURATION.md) | `memorix.yml`、`.env`、项目覆盖 |
+| [Agent Operator Playbook](docs/AGENT_OPERATOR_PLAYBOOK.md) | AI 面向的正式操作手册：安装、绑定、hooks、排障 |
+| [架构](docs/ARCHITECTURE.md) | 系统形态、记忆层、数据流、模块图 |
+| [API 参考](docs/API_REFERENCE.md) | MCP / HTTP / CLI 命令面 |
+| [Git Memory 指南](docs/GIT_MEMORY.md) | 摄入、噪音过滤、检索语义 |
+| [开发指南](docs/DEVELOPMENT.md) | 贡献者工作流、构建、测试、发布 |
 
-### 产品与架构
+更多深度参考：
 
-- [Architecture](docs/ARCHITECTURE.md)
 - [Memory Formation Pipeline](docs/MEMORY_FORMATION_PIPELINE.md)
 - [Design Decisions](docs/DESIGN_DECISIONS.md)
-
-### 参考资料
-
-- [API Reference](docs/API_REFERENCE.md)
-- [Git Memory Guide](docs/GIT_MEMORY.md)
 - [Modules](docs/MODULES.md)
-
-### 开发
-
-- [Development Guide](docs/DEVELOPMENT.md)
 - [Known Issues and Roadmap](docs/KNOWN_ISSUES_AND_ROADMAP.md)
-
-### AI / Agent 文档
-
-- [Agent Operator Playbook](docs/AGENT_OPERATOR_PLAYBOOK.md)
 - [AI Context Note](docs/AI_CONTEXT.md)
 - [`llms.txt`](llms.txt)
 - [`llms-full.txt`](llms-full.txt)
+
+---
+
+## 1.0.7 更新亮点
+
+`1.0.7` 新增多 Agent 协调、SQLite 统一存储和团队身份。
+
+- **多 Agent 协调器**：`memorix orchestrate` 运行结构化协调循环 — 计划 → 并行执行 → 验证关卡 → 修复循环 → 审查 → 合并。支持 Claude、Codex、Gemini CLI 和 OpenCode，含能力路由、worktree 隔离和 Agent 回退。
+- **SQLite 统一存储**：Observation、mini-skill、session 和 archive 现在全部使用 SQLite 作为唯一数据源，共享 DB 句柄，检索前自动刷新索引。
+- **团队身份与协作**：Agent 注册、心跳、任务板、交接产物和过期检测。Team 页面定位为项目协作空间，`memorix_session_start` 自动注册 Agent 并分配默认角色。
+- **可配置超时**：`MEMORIX_LLM_TIMEOUT_MS`（默认 30s）和 `MEMORIX_RERANK_TIMEOUT_MS`（默认 5s），适配慢速 API 提供商。
+- **Cursor stdio 修复**：工作区根路径不可用时不再退出 — 改为延迟绑定模式启动。
 
 ---
 

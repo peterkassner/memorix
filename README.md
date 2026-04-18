@@ -47,26 +47,16 @@ That playbook is the canonical AI-facing guide for:
 
 ## Why Memorix
 
+**The only cross-agent memory layer that preserves Git truth, reasoning context, and local control — across 10 IDEs and agents.**
+
 Most coding agents remember only the current thread. Memorix gives them a shared, persistent memory layer across IDEs, sessions, and projects.
 
-What makes Memorix different:
-
-- **Git Memory**: turn `git commit` into searchable engineering memory with noise filtering and commit provenance.
-- **Reasoning Memory**: store why a decision was made, not just what changed.
-- **Cross-Agent Local Recall**: multiple IDEs and agents can read the same local memory base instead of living in isolated silos.
-- **Memory Quality Pipeline**: formation, compaction, retention, and source-aware retrieval work together instead of acting like isolated tools.
-
-Memorix is built for one job: let multiple coding agents share the same durable project memory through MCP without giving up Git truth, reasoning history, or local control.
-
-## What's New in 1.0.7
-
-Version `1.0.7` adds multi-agent coordination, SQLite canonical storage, and team identity.
-
-- **Multi-Agent Coordinator**: `memorix orchestrate` runs a structured coordination loop — plan → parallel execution → verify gates → fix loops → review → merge. Supports Claude, Codex, Gemini CLI, and OpenCode with capability routing, worktree isolation, and agent fallback.
-- **SQLite Canonical Store**: Observations, mini-skills, sessions, and archives now use SQLite as the single source of truth with shared DB handle and freshness-safe retrieval.
-- **Team Identity**: Agent registration, heartbeat, task board, handoff artifacts, and stale detection for multi-agent collaboration.
-- **Configurable Timeouts**: `MEMORIX_LLM_TIMEOUT_MS` (default 30s) and `MEMORIX_RERANK_TIMEOUT_MS` (default 5s) for slow API providers.
-- **Cursor stdio fix**: No longer exits when workspace root is unavailable — starts in deferred-binding mode instead.
+<table>
+<tr><td><b>Git Memory</b></td><td>Turn <code>git commit</code> into searchable engineering memory with noise filtering and commit provenance.</td></tr>
+<tr><td><b>Reasoning Memory</b></td><td>Store why a decision was made, not just what changed — alternatives, trade-offs, risks.</td></tr>
+<tr><td><b>Cross-Agent Recall</b></td><td>Multiple IDEs and agents read the same local memory base instead of living in isolated silos.</td></tr>
+<tr><td><b>Memory Quality Pipeline</b></td><td>Formation, compaction, retention, and source-aware retrieval work together instead of acting like isolated tools.</td></tr>
+</table>
 
 ## Supported Clients
 
@@ -111,36 +101,11 @@ Then pick the path that matches what you want to do:
 | Dashboard + long-lived HTTP MCP in the background | `memorix background start` | Daily use, multiple agents, collaboration, dashboard |
 | Foreground HTTP mode for debugging or a custom port | `memorix serve-http --port 3211` | Manual supervision, debugging, custom launch control |
 
-Most users should choose **one** of the first two options:
+Most users should choose **one** of the first two options above.
 
-- `memorix serve` if you just want Memorix available inside your IDE as fast as possible
-- `memorix background start` if you want the dashboard and a shared HTTP control plane running in the background
+Companion commands: `memorix background status|logs|stop`. For multi-workspace HTTP sessions, bind with `memorix_session_start(projectRoot=...)`.
 
-Optional local UI:
-
-```bash
-memorix
-```
-
-Use bare `memorix` only when you want the interactive local workbench in a TTY. It is not the main setup path for most users.
-
-Companion commands:
-
-```bash
-memorix background status
-memorix background logs
-memorix background stop
-```
-
-If you need the HTTP control plane in the foreground for debugging, manual supervision, or a custom port, use:
-
-```bash
-memorix serve-http --port 3211
-```
-
-If you are using the HTTP control plane across multiple workspaces or agents, make sure each session binds with `memorix_session_start(projectRoot=...)`.
-
-The deeper details around startup root selection, project binding, config precedence, and agent/operator workflows live in [docs/SETUP.md](docs/SETUP.md) and the [Agent Operator Playbook](docs/AGENT_OPERATOR_PLAYBOOK.md).
+Deeper details on startup, project binding, config precedence, and agent workflows: [docs/SETUP.md](docs/SETUP.md) and the [Agent Operator Playbook](docs/AGENT_OPERATOR_PLAYBOOK.md).
 
 Add Memorix to your MCP client:
 
@@ -169,8 +134,6 @@ Add Memorix to your MCP client:
   }
 }
 ```
-
-If you use the HTTP control plane across multiple workspaces or agents, the client or agent should also call `memorix_session_start(projectRoot=ABSOLUTE_WORKSPACE_PATH)` at the beginning of each project session.
 
 The per-client examples below show the simplest stdio shape. If you prefer the shared HTTP control plane, keep the generic HTTP block above and use the client-specific variants in [docs/SETUP.md](docs/SETUP.md).
 
@@ -360,18 +323,17 @@ Memorix is not a single linear pipeline. It accepts memory from multiple ingress
 
 ## Documentation
 
-Start with the [Docs Map](docs/README.md) if you want the fastest route to the right document.
+📖 **[Docs Map](docs/README.md)** — fastest route to the right document.
 
-| If you want to... | Read this |
+| Section | What's Covered |
 | --- | --- |
-| Install Memorix and choose the right runtime mode | [Setup Guide](docs/SETUP.md) |
-| Configure `memorix.yml`, `.env`, and project overrides | [Configuration Guide](docs/CONFIGURATION.md) |
-| Operate Memorix correctly as an AI coding agent | [Agent Operator Playbook](docs/AGENT_OPERATOR_PLAYBOOK.md) |
-| Understand the system shape and runtime surfaces | [Architecture](docs/ARCHITECTURE.md) |
-| Learn the MCP / HTTP / CLI command surface | [API Reference](docs/API_REFERENCE.md) |
-| Understand Git memory and retrieval semantics | [Git Memory Guide](docs/GIT_MEMORY.md) |
-| Contribute to Memorix itself | [Development Guide](docs/DEVELOPMENT.md) |
-| Browse the full document map | [docs/README.md](docs/README.md) |
+| [Setup Guide](docs/SETUP.md) | Install, stdio vs HTTP control plane, per-client config |
+| [Configuration](docs/CONFIGURATION.md) | `memorix.yml`, `.env`, project overrides |
+| [Agent Operator Playbook](docs/AGENT_OPERATOR_PLAYBOOK.md) | Canonical AI-facing guide for installation, binding, hooks, troubleshooting |
+| [Architecture](docs/ARCHITECTURE.md) | System shape, memory layers, data flows, module map |
+| [API Reference](docs/API_REFERENCE.md) | MCP / HTTP / CLI command surface |
+| [Git Memory Guide](docs/GIT_MEMORY.md) | Ingestion, noise filtering, retrieval semantics |
+| [Development Guide](docs/DEVELOPMENT.md) | Contributor workflow, build, test, release |
 
 Additional deep references:
 
@@ -382,6 +344,18 @@ Additional deep references:
 - [AI Context Note](docs/AI_CONTEXT.md)
 - [`llms.txt`](llms.txt)
 - [`llms-full.txt`](llms-full.txt)
+
+---
+
+## What's New in 1.0.7
+
+Version `1.0.7` adds multi-agent coordination, SQLite canonical storage, and team identity.
+
+- **Multi-Agent Coordinator**: `memorix orchestrate` runs a structured coordination loop — plan → parallel execution → verify gates → fix loops → review → merge. Supports Claude, Codex, Gemini CLI, and OpenCode with capability routing, worktree isolation, and agent fallback.
+- **SQLite Canonical Store**: Observations, mini-skills, sessions, and archives now use SQLite as the single source of truth with shared DB handle and freshness-safe retrieval.
+- **Team Identity**: Agent registration, heartbeat, task board, handoff artifacts, and stale detection for multi-agent collaboration.
+- **Configurable Timeouts**: `MEMORIX_LLM_TIMEOUT_MS` (default 30s) and `MEMORIX_RERANK_TIMEOUT_MS` (default 5s) for slow API providers.
+- **Cursor stdio fix**: No longer exits when workspace root is unavailable — starts in deferred-binding mode instead.
 
 ---
 

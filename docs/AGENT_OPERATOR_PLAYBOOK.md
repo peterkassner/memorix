@@ -33,6 +33,8 @@ If you used Memorix before `1.0.7`, the operator-visible changes worth knowing a
 - obvious credentials are sanitized on write and redacted on retrieval surfaces
 - retention, stale review, audit, and resolve now form a clearer cleanup/remediation loop
 - OpenCode compaction guidance now preserves structured continuation context without falsely implying automatic MCP tool calls
+- `memorix_session_start` now **auto-registers** the agent in the team with a default role derived from `agentType` via `AGENT_TYPE_ROLE_MAP` — no separate `team_manage(join)` call needed
+- Team page is a **project collaboration space** (not an org backend): shows active agents, open tasks, handoffs, and a "Continue This Project" resume area
 
 ---
 
