@@ -15,6 +15,7 @@ Memorix docs are intentionally split by **user intent**, not by a giant flat lis
 | Configure `memorix.yml`, `.env`, and project overrides | [CONFIGURATION.md](CONFIGURATION.md) |
 | Operate Memorix correctly as an AI coding agent | [AGENT_OPERATOR_PLAYBOOK.md](AGENT_OPERATOR_PLAYBOOK.md) |
 | Understand the MCP / HTTP / CLI command surface | [API_REFERENCE.md](API_REFERENCE.md) |
+| Operate sessions, memory, tasks, locks, and team state from a terminal | [API_REFERENCE.md](API_REFERENCE.md) |
 
 ---
 
@@ -25,6 +26,10 @@ Memorix docs are intentionally split by **user intent**, not by a giant flat lis
 | System shape, control plane, storage, and retrieval architecture | [ARCHITECTURE.md](ARCHITECTURE.md) |
 | Memory formation, enrichment, and quality pipeline | [MEMORY_FORMATION_PIPELINE.md](MEMORY_FORMATION_PIPELINE.md) |
 | Git-derived engineering memory | [GIT_MEMORY.md](GIT_MEMORY.md) |
+| Team collaboration: agents, tasks, messages, locks, poll | [API_REFERENCE.md §8](API_REFERENCE.md#8-team-collaboration-tools) |
+| Multi-agent orchestration loop | [API_REFERENCE.md](API_REFERENCE.md) — `memorix orchestrate` |
+| Workspace & rules sync across agents | [API_REFERENCE.md §7](API_REFERENCE.md#7-workspace-and-rules-tools) |
+| Project skills and mini-skill promotion | [API_REFERENCE.md §6](API_REFERENCE.md#6-skills-and-promotion-tools) |
 
 ---
 

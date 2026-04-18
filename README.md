@@ -18,7 +18,7 @@
 </p>
 
 <p align="center">
-  <strong>Git Memory</strong> | <strong>Reasoning Memory</strong> | <strong>Cross-Agent Recall</strong> | <strong>Control Plane Dashboard</strong>
+  <strong>Three-Layer Memory</strong> | <strong>Team Collaboration</strong> | <strong>Workspace Sync</strong> | <strong>Multi-Agent Orchestration</strong> | <strong>Dashboard</strong>
 </p>
 
 <p align="center">
@@ -53,10 +53,16 @@ That playbook is the canonical AI-facing guide for:
 Most coding agents remember only the current thread. Memorix gives them a shared, persistent memory layer across IDEs, sessions, and projects.
 
 <table>
-<tr><td><b>Git Memory</b></td><td>Turn <code>git commit</code> into searchable engineering memory with noise filtering and commit provenance.</td></tr>
-<tr><td><b>Reasoning Memory</b></td><td>Store why a decision was made, not just what changed — alternatives, trade-offs, risks.</td></tr>
-<tr><td><b>Cross-Agent Recall</b></td><td>Multiple IDEs and agents read the same local memory base instead of living in isolated silos.</td></tr>
-<tr><td><b>Memory Quality Pipeline</b></td><td>Formation, compaction, retention, and source-aware retrieval work together instead of acting like isolated tools.</td></tr>
+<tr><td><b>🧠 Three-Layer Memory</b></td><td>Observation (what/how), Reasoning (why/trade-offs), Git Memory (immutable commit-derived facts with noise filtering)</td></tr>
+<tr><td><b>🔍 Source-Aware Retrieval</b></td><td>"What changed" queries favor Git Memory; "why" queries favor reasoning; project-scoped by default, global on demand</td></tr>
+<tr><td><b>⚙️ Memory Quality Pipeline</b></td><td>Formation (LLM-assisted evaluation), dedup, consolidation, retention with exponential decay — memory stays clean, not noisy</td></tr>
+<tr><td><b>🔄 Workspace & Rules Sync</b></td><td>One command to migrate MCP configs, workflows, rules, and skills across Cursor, Windsurf, Claude Code, Codex, Copilot, Kiro, etc.</td></tr>
+<tr><td><b>👥 Team Collaboration</b></td><td>Agent registration, heartbeat, task board with role-based claiming, inter-agent messaging, advisory file locks, situational-awareness poll</td></tr>
+<tr><td><b>🤖 Multi-Agent Orchestration</b></td><td><code>memorix orchestrate</code> runs a structured coordination loop — plan → parallel execution → verify → fix → review — with capability routing and worktree isolation</td></tr>
+<tr><td><b>📋 Session Lifecycle</b></td><td>Session start/end with handoff summaries, watermark tracking (new memories since last session), cross-session context recovery</td></tr>
+<tr><td><b>🎯 Project Skills</b></td><td>Auto-generate SKILL.md from memory patterns; promote observations to permanent mini-skills injected at session start</td></tr>
+<tr><td><b>📊 Dashboard</b></td><td>Local web UI for browsing memories, Git history, team roster, task board — runs on the HTTP control plane</td></tr>
+<tr><td><b>🔒 Local & Private</b></td><td>SQLite as canonical store, Orama for search, no cloud dependency — everything stays on your machine</td></tr>
 </table>
 
 ## Supported Clients
@@ -107,6 +113,31 @@ Most users should choose **one** of the first two options above.
 Companion commands: `memorix background status|logs|stop`. For multi-workspace HTTP sessions, bind with `memorix_session_start(projectRoot=...)`.
 
 Deeper details on startup, project binding, config precedence, and agent workflows: [docs/SETUP.md](docs/SETUP.md) and the [Agent Operator Playbook](docs/AGENT_OPERATOR_PLAYBOOK.md).
+
+### Operator CLI
+
+Memorix now exposes an operator-oriented CLI surface for the most common human workflows. Use it when you want to inspect or control the current project directly from a terminal without going through MCP tool calls.
+
+```bash
+memorix session start --agent codex-main --agentType codex
+memorix memory search --query "docker control plane"
+memorix team status
+memorix task list
+memorix message inbox --agentId <agent-id>
+memorix lock status --file src/cli/index.ts
+memorix poll --agentId <agent-id>
+```
+
+The CLI is intentionally **human-shaped**, not a 1:1 mirror of MCP tool names. MCP remains the full agent/tool API; the CLI groups the main operator actions into readable namespaces:
+
+- `memorix session ...`
+- `memorix memory ...`
+- `memorix team ...`
+- `memorix task ...`
+- `memorix message ...`
+- `memorix lock ...`
+- `memorix handoff ...`
+- `memorix poll`
 
 ## Docker
 
@@ -253,6 +284,65 @@ memorix serve-http --port 3211
 This HTTP mode gives you collaboration tools, project identity diagnostics, config provenance, Git Memory views, and the dashboard in one place.
 
 When multiple HTTP sessions are open at once, each session should bind itself with `memorix_session_start(projectRoot=...)` before using project-scoped memory tools.
+
+### 4. Team collaboration
+
+Requires the HTTP control plane (`background start` or `serve-http`).
+
+```bash
+# Register an agent
+memorix team join --name cursor-frontend --agent-type cursor
+
+# Create and claim tasks
+memorix task create --description "Fix auth redirect loop"
+memorix task claim --task-id <id> --agent-id <agent-id>
+
+# Send messages between agents
+memorix message send --from <agent-id> --to <agent-id> --type info --content "Auth module is done"
+```
+
+MCP tools: `team_manage`, `team_task`, `team_message`, `team_file_lock`, `memorix_poll`.
+
+### 5. Multi-agent orchestration
+
+Run a structured coordination loop across multiple agents:
+
+```bash
+memorix orchestrate --goal "Add user authentication" --agents claude-code,cursor,codex
+```
+
+The loop: plan → parallel execution → verify gates → fix loops → review → merge. Supports capability routing, worktree isolation, agent fallback, and cost tracking.
+
+### 6. Sync workspace across agents
+
+Migrate MCP configs, rules, workflows, and skills from one agent to another:
+
+```bash
+# Scan what's installed across all agents
+memorix sync scan
+
+# Preview migration to a new agent
+memorix sync migrate --target cursor
+
+# Apply (writes configs with backup/rollback)
+memorix sync apply --target cursor
+```
+
+MCP tools: `memorix_workspace_sync`, `memorix_rules_sync`.
+
+### 7. Project skills
+
+Auto-generate SKILL.md files from your project's memory patterns, or promote important observations to permanent mini-skills:
+
+```bash
+# List discovered skills
+memorix skills list
+
+# Generate skills from memory
+memorix skills generate --target cursor
+```
+
+MCP tools: `memorix_skills`, `memorix_promote`.
 
 ---
 

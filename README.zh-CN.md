@@ -18,7 +18,7 @@
 </p>
 
 <p align="center">
-  <strong>Git Memory</strong> | <strong>Reasoning Memory</strong> | <strong>跨 Agent 召回</strong> | <strong>Control Plane Dashboard</strong>
+  <strong>三层记忆</strong> | <strong>团队协作</strong> | <strong>工作区同步</strong> | <strong>多 Agent 编排</strong> | <strong>Dashboard</strong>
 </p>
 
 <p align="center">
@@ -53,10 +53,16 @@
 大多数 Coding Agent 只记得当前线程。Memorix 提供的是一层共享、持久、可检索的项目记忆，让不同 IDE、不同 Agent、不同会话都能在同一套本地记忆库上继续工作。
 
 <table>
-<tr><td><b>Git Memory</b></td><td>把 <code>git commit</code> 变成可检索的工程记忆，保留提交来源、变更文件和噪音过滤结果。</td></tr>
-<tr><td><b>Reasoning Memory</b></td><td>不只记录“改了什么”，还记录“为什么这么做”——替代方案、权衡、风险。</td></tr>
-<tr><td><b>跨 Agent 召回</b></td><td>多个 IDE 和 Agent 读取同一套本地记忆，而不是各自形成孤岛。</td></tr>
-<tr><td><b>记忆质量管线</b></td><td>formation、压缩、保留衰减和 source-aware retrieval 协同工作，而不是一堆彼此独立的小功能。</td></tr>
+<tr><td><b>🧠 三层记忆</b></td><td>Observation（what/how）、Reasoning（why/权衡）、Git Memory（不可变 commit 事实 + 噪音过滤）</td></tr>
+<tr><td><b>🔍 Source-Aware 检索</b></td><td>"改了什么"倾向 Git Memory；"为什么"倾向推理记忆；默认项目作用域，可切全局</td></tr>
+<tr><td><b>⚙️ 记忆质量管线</b></td><td>Formation（LLM 评估）、去重、合并、保留衰减——记忆保持干净，不会越积越噪</td></tr>
+<tr><td><b>🔄 工作区 & 规则同步</b></td><td>一条命令迁移 MCP 配置、工作流、规则、技能到 Cursor/Windsurf/Claude Code/Codex/Copilot/Kiro 等</td></tr>
+<tr><td><b>👥 团队协作</b></td><td>Agent 注册、心跳、任务板（角色认领）、Agent 间消息、文件锁、态势感知 poll</td></tr>
+<tr><td><b>🤖 多 Agent 编排</b></td><td><code>memorix orchestrate</code> 运行结构化协作循环——计划→并行执行→验证→修复→审查——带能力路由和 worktree 隔离</td></tr>
+<tr><td><b>📋 Session 生命周期</b></td><td>Session start/end + 交接摘要、水位线追踪（上次以来的新记忆）、跨 session 上下文恢复</td></tr>
+<tr><td><b>🎯 项目技能</b></td><td>从记忆模式自动生成 SKILL.md；将观察提升为永久 mini-skill，session 启动时自动注入</td></tr>
+<tr><td><b>📊 Dashboard</b></td><td>本地 Web UI：浏览记忆、Git 历史、团队花名册、任务板——运行在 HTTP 控制面</td></tr>
+<tr><td><b>🔒 本地 & 私有</b></td><td>SQLite 为权威存储、Orama 为检索引擎、无云依赖——一切留在你的机器上</td></tr>
 </table>
 
 ## 支持的客户端
@@ -107,6 +113,31 @@ Memorix 使用两类文件：
 配套命令：`memorix background status|logs|stop`。多工作区 HTTP session 需用 `memorix_session_start(projectRoot=...)` 绑定。
 
 更细的启动根路径选择、项目绑定、配置优先级和 agent 操作说明：[docs/SETUP.md](docs/SETUP.md) 和 [Agent Operator Playbook](docs/AGENT_OPERATOR_PLAYBOOK.md)。
+
+### Operator CLI
+
+Memorix 现在也提供一组更适合人类 operator 直接在终端里使用的命令面，不必什么都通过 MCP tool call 才能完成。
+
+```bash
+memorix session start --agent codex-main --agentType codex
+memorix memory search --query "docker control plane"
+memorix team status
+memorix task list
+memorix message inbox --agentId <agent-id>
+memorix lock status --file src/cli/index.ts
+memorix poll --agentId <agent-id>
+```
+
+这组 CLI 故意做成“人类可读”的命名空间，而不是把 MCP 工具名原样搬出来。当前主入口包括：
+
+- `memorix session ...`
+- `memorix memory ...`
+- `memorix team ...`
+- `memorix task ...`
+- `memorix message ...`
+- `memorix lock ...`
+- `memorix handoff ...`
+- `memorix poll`
 
 把 Memorix 加进你的 MCP 客户端：
 
@@ -234,6 +265,65 @@ memorix serve-http --port 3211
 这一模式会把 dashboard、配置诊断、项目身份、团队协作和 Git Memory 视图统一到一个控制面入口里。
 
 当多个 HTTP session 同时存在时，每个 session 都应先用 `memorix_session_start(projectRoot=...)` 显式绑定当前工作区，再去调用项目级记忆工具。
+
+### 4. 团队协作
+
+需要 HTTP 控制面（`background start` 或 `serve-http`）。
+
+```bash
+# 注册 Agent
+memorix team join --name cursor-frontend --agent-type cursor
+
+# 创建和认领任务
+memorix task create --description "Fix auth redirect loop"
+memorix task claim --task-id <id> --agent-id <agent-id>
+
+# Agent 间发消息
+memorix message send --from <agent-id> --to <agent-id> --type info --content "Auth module is done"
+```
+
+MCP 工具：`team_manage`、`team_task`、`team_message`、`team_file_lock`、`memorix_poll`。
+
+### 5. 多 Agent 编排
+
+跨多个 Agent 运行结构化协作循环：
+
+```bash
+memorix orchestrate --goal "Add user authentication" --agents claude-code,cursor,codex
+```
+
+循环流程：计划 → 并行执行 → 验证门 → 修复循环 → 审查 → 合并。支持能力路由、worktree 隔离、Agent 回退和成本追踪。
+
+### 6. 跨 Agent 同步工作区
+
+将 MCP 配置、规则、工作流和技能从一个 Agent 迁移到另一个：
+
+```bash
+# 扫描所有 Agent 已安装的配置
+memorix sync scan
+
+# 预览迁移到新 Agent
+memorix sync migrate --target cursor
+
+# 应用（写入配置，自动备份/回滚）
+memorix sync apply --target cursor
+```
+
+MCP 工具：`memorix_workspace_sync`、`memorix_rules_sync`。
+
+### 7. 项目技能
+
+从项目记忆模式自动生成 SKILL.md，或将重要观察提升为永久 mini-skill：
+
+```bash
+# 列出已发现的技能
+memorix skills list
+
+# 从记忆生成技能
+memorix skills generate --target cursor
+```
+
+MCP 工具：`memorix_skills`、`memorix_promote`。
 
 ---
 
