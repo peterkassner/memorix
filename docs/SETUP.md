@@ -18,15 +18,16 @@ For the smoothest multi-project setup, use `memorix background start` as the mai
 
 ## Current Release Context
 
-The current published release line is **1.0.7**.
+This guide targets the **1.0.8** working release line.
 
-If you are setting up Memorix on a fresh machine or upgrading from an older install, the most visible operator-facing changes in 1.0.7 are:
+If you are setting up Memorix on a fresh machine or upgrading from an older install, the most visible operator-facing changes in 1.0.8 are:
 
 - provenance-aware memory fields and layered retrieval surfaces
 - stronger evidence semantics and citation-lite compact output
 - task-line scoping plus secret-safe storage/retrieval behavior
 - attribution auditing, retention explainability, and a cleaner remediation loop
 - OpenCode compaction using structured continuation context and `post_compact`
+- official Docker deployment for the HTTP control plane
 
 ### Support Tiers
 
@@ -146,6 +147,35 @@ Generic HTTP MCP config:
 ```
 
 Some clients use a different key than `transport`. The per-client examples below show the exact shape where that differs.
+
+### Option C: Dockerized HTTP Control Plane
+
+If you want Memorix as a long-lived containerized control plane:
+
+```bash
+docker compose up --build -d
+```
+
+This repo now ships:
+
+- an official `Dockerfile`
+- an example `compose.yaml`
+- a healthchecked HTTP deployment on port `3211`
+
+Docker mode is for:
+
+- `memorix serve-http`
+- dashboard access
+- HTTP MCP clients pointing at `http://localhost:3211/mcp`
+
+It is not a containerized form of stdio MCP.
+
+Important path truth:
+
+- project-scoped Git/config behavior only works when the container can see the repo path it is asked to bind
+- if you run Memorix in Docker on a different machine than your IDE, you must mount the relevant repos into the container or accept reduced project-scoped semantics
+
+See [DOCKER.md](DOCKER.md) for the full deployment guide.
 
 ---
 

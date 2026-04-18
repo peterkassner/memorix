@@ -23,6 +23,7 @@
 
 <p align="center">
   <a href="README.md">English</a> |
+  <a href="#docker">Docker</a> |
   <a href="#快速开始">快速开始</a> |
   <a href="#支持的客户端">支持的客户端</a> |
   <a href="#核心工作流">核心工作流</a> |
@@ -347,9 +348,28 @@ Memorix 不是一条单线流水线。它从多个入口接收记忆，把内容
 
 ---
 
-## 1.0.7 更新亮点
+## Docker
 
-`1.0.7` 新增多 Agent 协调、SQLite 统一存储和团队身份。
+Memorix 现在提供了面向 **HTTP control plane** 的官方 Docker 部署路径。
+
+快速启动：
+
+```bash
+docker compose up --build -d
+```
+
+启动后可访问：
+
+- Dashboard：`http://localhost:3211`
+- MCP：`http://localhost:3211/mcp`
+
+需要注意：Docker 支持的是 `serve-http`，不是 `memorix serve`。如果容器看不到你要绑定的仓库路径，那么项目级 Git / 配置语义不会完整生效。
+
+完整说明见：[docs/DOCKER.md](docs/DOCKER.md)
+
+## 1.0.8 更新亮点
+
+`1.0.8` 延续 1.0.7 的多 Agent 协调 / SQLite / 团队身份基线，并新增面向 HTTP control plane 的官方 Docker 部署路径。
 
 - **多 Agent 协调器**：`memorix orchestrate` 运行结构化协调循环 — 计划 → 并行执行 → 验证关卡 → 修复循环 → 审查 → 合并。支持 Claude、Codex、Gemini CLI 和 OpenCode，含能力路由、worktree 隔离和 Agent 回退。
 - **SQLite 统一存储**：Observation、mini-skill、session 和 archive 现在全部使用 SQLite 作为唯一数据源，共享 DB 句柄，检索前自动刷新索引。

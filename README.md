@@ -24,6 +24,7 @@
 <p align="center">
   <a href="README.zh-CN.md">Chinese</a> |
   <a href="#quick-start">Quick Start</a> |
+  <a href="#docker">Docker</a> |
   <a href="#supported-clients">Supported Clients</a> |
   <a href="#core-workflows">Core Workflows</a> |
   <a href="#documentation">Documentation</a> |
@@ -106,6 +107,25 @@ Most users should choose **one** of the first two options above.
 Companion commands: `memorix background status|logs|stop`. For multi-workspace HTTP sessions, bind with `memorix_session_start(projectRoot=...)`.
 
 Deeper details on startup, project binding, config precedence, and agent workflows: [docs/SETUP.md](docs/SETUP.md) and the [Agent Operator Playbook](docs/AGENT_OPERATOR_PLAYBOOK.md).
+
+## Docker
+
+Memorix now includes an official Docker path for the **HTTP control plane**.
+
+Quick start:
+
+```bash
+docker compose up --build -d
+```
+
+Then connect to:
+
+- dashboard: `http://localhost:3211`
+- MCP: `http://localhost:3211/mcp`
+
+Important: Docker support is for `serve-http`, not `memorix serve`. Project-scoped Git/config behavior only works when the container can see the repositories it is asked to bind.
+
+Full Docker guide: [docs/DOCKER.md](docs/DOCKER.md)
 
 Add Memorix to your MCP client:
 
@@ -328,6 +348,7 @@ Memorix is not a single linear pipeline. It accepts memory from multiple ingress
 | Section | What's Covered |
 | --- | --- |
 | [Setup Guide](docs/SETUP.md) | Install, stdio vs HTTP control plane, per-client config |
+| [Docker Deployment](docs/DOCKER.md) | Official container image path, compose, healthcheck, and path caveats |
 | [Configuration](docs/CONFIGURATION.md) | `memorix.yml`, `.env`, project overrides |
 | [Agent Operator Playbook](docs/AGENT_OPERATOR_PLAYBOOK.md) | Canonical AI-facing guide for installation, binding, hooks, troubleshooting |
 | [Architecture](docs/ARCHITECTURE.md) | System shape, memory layers, data flows, module map |
@@ -347,13 +368,14 @@ Additional deep references:
 
 ---
 
-## What's New in 1.0.7
+## What's New in 1.0.8
 
-Version `1.0.7` adds multi-agent coordination, SQLite canonical storage, and team identity.
+Version `1.0.8` keeps the 1.0.7 coordination/storage/team baseline and adds an official Docker deployment path for the HTTP control plane.
 
 - **Multi-Agent Coordinator**: `memorix orchestrate` runs a structured coordination loop — plan → parallel execution → verify gates → fix loops → review → merge. Supports Claude, Codex, Gemini CLI, and OpenCode with capability routing, worktree isolation, and agent fallback.
 - **SQLite Canonical Store**: Observations, mini-skills, sessions, and archives now use SQLite as the single source of truth with shared DB handle and freshness-safe retrieval.
 - **Team Identity**: Agent registration, heartbeat, task board, handoff artifacts, and stale detection for multi-agent collaboration.
+- **Docker Deployment**: Official `Dockerfile`, `compose.yaml`, healthcheck, and explicit path-truth docs for running the HTTP control plane in a container.
 - **Configurable Timeouts**: `MEMORIX_LLM_TIMEOUT_MS` (default 30s) and `MEMORIX_RERANK_TIMEOUT_MS` (default 5s) for slow API providers.
 - **Cursor stdio fix**: No longer exits when workspace root is unavailable — starts in deferred-binding mode instead.
 

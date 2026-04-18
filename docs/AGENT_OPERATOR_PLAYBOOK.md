@@ -23,9 +23,9 @@ It supports:
 - local-first project-scoped memory
 - cross-agent recall across Cursor, Claude Code, Codex, Windsurf, Gemini CLI, GitHub Copilot, Kiro, OpenCode, Antigravity, and Trae
 
-### 1.0.7 operator delta
+### 1.0.8 operator delta
 
-If you used Memorix before `1.0.7`, the operator-visible changes worth knowing are:
+If you used Memorix before `1.0.8`, the operator-visible changes worth knowing are:
 
 - session, search, detail, and timeline now expose a clearer `L1 / L2 / L3` retrieval model
 - compact evidence surfaces better distinguish repository-backed signals, synthesized analysis, and citation-lite support
@@ -35,6 +35,7 @@ If you used Memorix before `1.0.7`, the operator-visible changes worth knowing a
 - OpenCode compaction guidance now preserves structured continuation context without falsely implying automatic MCP tool calls
 - `memorix_session_start` now **auto-registers** the agent in the team with a default role derived from `agentType` via `AGENT_TYPE_ROLE_MAP` — no separate `team_manage(join)` call needed
 - Team page is a **project collaboration space** (not an org backend): shows active agents, open tasks, handoffs, and a "Continue This Project" resume area
+- Docker now has an official HTTP control-plane deployment path; when running in a container, `projectRoot` must be visible inside that container or project-scoped semantics will fail closed
 
 ---
 
@@ -632,3 +633,10 @@ If a user asks any of these:
 read this document first, then act.
 
 This playbook is the canonical AI-facing operator guide for installation, project binding, integration, hooks, troubleshooting, and safe usage.
+## Docker Note
+
+When Memorix runs in Docker, treat it as an **HTTP control-plane deployment**, not a stdio MCP process.
+
+- Connect IDEs and agents to `http://host:3211/mcp`
+- Use `memorix_session_start(projectRoot=...)` with a path that is visible **inside** the container
+- If the repo is not mounted into the container, project-scoped Git/config semantics will fail closed

@@ -2,7 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
-## [1.0.7] - Unreleased
+## [1.0.8] - Unreleased
+
+### Added -- Official Docker Deployment
+- **Official HTTP control-plane container path** -- `Dockerfile` now builds a real `serve-http` runtime image instead of defaulting to stdio MCP.
+- **Compose example** -- added `compose.yaml` with port `3211`, persistent data volume, and `/health` healthcheck.
+- **Docker docs** -- added `docs/DOCKER.md` and linked Docker deployment from README / setup docs.
+- **Runtime truth** -- documentation now explicitly states that Docker support is for the HTTP control plane and that project-scoped Git/config behavior requires the container to see the bound repo path.
 
 ### Visual Semantic Layering (dashboard follow-up)
 - Team page headline is now **active-only**; `recent`/`historical` shown as secondary subtitle only.

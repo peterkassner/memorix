@@ -11,6 +11,7 @@ Memorix docs are intentionally split by **user intent**, not by a giant flat lis
 | You want to... | Read this |
 | --- | --- |
 | Install Memorix and choose between stdio vs HTTP control-plane mode | [SETUP.md](SETUP.md) |
+| Run Memorix in Docker / compose as an HTTP control plane | [DOCKER.md](DOCKER.md) |
 | Configure `memorix.yml`, `.env`, and project overrides | [CONFIGURATION.md](CONFIGURATION.md) |
 | Operate Memorix correctly as an AI coding agent | [AGENT_OPERATOR_PLAYBOOK.md](AGENT_OPERATOR_PLAYBOOK.md) |
 | Understand the MCP / HTTP / CLI command surface | [API_REFERENCE.md](API_REFERENCE.md) |
@@ -50,9 +51,10 @@ Memorix docs are intentionally split by **user intent**, not by a giant flat lis
 
 ## Release Truth vs Historical Reference
 
-For `1.0.7`, treat the following as the **release-truth** docs:
+For `1.0.8`, treat the following as the **release-truth** docs:
 
 - [SETUP.md](SETUP.md)
+- [DOCKER.md](DOCKER.md)
 - [CONFIGURATION.md](CONFIGURATION.md)
 - [AGENT_OPERATOR_PLAYBOOK.md](AGENT_OPERATOR_PLAYBOOK.md)
 - [API_REFERENCE.md](API_REFERENCE.md)

@@ -34,6 +34,11 @@ export default defineCommand({
       description: 'HTTP port to listen on (default: 3211)',
       required: false,
     },
+    host: {
+      type: 'string',
+      description: 'Host interface to bind (default: 127.0.0.1)',
+      required: false,
+    },
     cwd: {
       type: 'string',
       description: 'Project working directory (defaults to process.cwd())',
@@ -56,6 +61,7 @@ export default defineCommand({
     const earlyPath = await import('node:path');
 
     const port = parseInt(args.port || '3211', 10);
+    const host = args.host || '127.0.0.1';
 
     // Priority: explicit --cwd arg > MEMORIX_PROJECT_ROOT env > last-project-root fallback > process.cwd()
     let safeCwd: string;
@@ -78,7 +84,7 @@ export default defineCommand({
       } catch { /* ignore */ }
     }
 
-    console.error(`[memorix] HTTP transport starting on port ${port}`);
+    console.error(`[memorix] HTTP transport starting on ${host}:${port}`);
     console.error(`[memorix] Project root: ${projectRoot}`);
 
     // Per-project TeamStore cache (Option B) — each dataDir gets its own TeamStore instance.
@@ -684,7 +690,7 @@ export default defineCommand({
           const { projectId: pid, projectName: pname } = await resolveRequestProject(url);
           const isResolved = pid !== '__unresolved__';
           const rootPath = isResolved && defaultProject.rootPath && pid === defaultProject.id ? defaultProject.rootPath : null;
-          sendJson({ id: pid, name: pname, resolved: isResolved, rootPath, mode: 'control-plane', port, mcpEndpoint: `http://127.0.0.1:${port}/mcp` });
+            sendJson({ id: pid, name: pname, resolved: isResolved, rootPath, mode: 'control-plane', host, port, mcpEndpoint: `http://${host}:${port}/mcp` });
           return;
         }
 
@@ -1300,7 +1306,7 @@ export default defineCommand({
       await serveDashStatic(req, res);
     });
 
-    httpServer.listen(port, '127.0.0.1', () => {
+    httpServer.listen(port, host, () => {
       // Write readiness file — background start polls this for out-of-band readiness detection
       try {
         const memorixDir = (process.env.HOME || process.env.USERPROFILE || '').replace(/\\/g, '/') + '/.memorix';
@@ -1310,9 +1316,9 @@ export default defineCommand({
 
       console.error(`[memorix] ═══════════════════════════════════════════════════`);
       console.error(`[memorix] Mode: Control Plane (HTTP MCP + Dashboard + Team)`);
-      console.error(`[memorix] MCP Server listening on http://127.0.0.1:${port}/mcp`);
-      console.error(`[memorix] Dashboard:     http://127.0.0.1:${port}/`);
-      console.error(`[memorix] Team API:      http://127.0.0.1:${port}/api/team`);
+      console.error(`[memorix] MCP Server listening on http://${host}:${port}/mcp`);
+      console.error(`[memorix] Dashboard:     http://${host}:${port}/`);
+      console.error(`[memorix] Team API:      http://${host}:${port}/api/team`);
       console.error(`[memorix] Port:          ${port}`);
       console.error(`[memorix] ═══════════════════════════════════════════════════`);
       console.error(`[memorix] Sessions at startup: ${sessions.size} (live count available at /api/team)`);
