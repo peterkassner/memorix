@@ -67,6 +67,7 @@ export function runGate(
     const proc = spawn(command, {
       cwd,
       shell: true,
+      detached: process.platform !== 'win32',
       stdio: ['ignore', 'pipe', 'pipe'],
       env: { ...process.env, FORCE_COLOR: '0', NO_COLOR: '1' },
     });
