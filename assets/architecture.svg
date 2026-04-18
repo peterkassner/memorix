@@ -1,205 +1,235 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 700" font-family="Inter,Segoe UI,system-ui,-apple-system,sans-serif">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1140 580" font-family="Inter,Segoe UI,system-ui,-apple-system,sans-serif">
   <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="#1e293b"/>
-      <stop offset="100%" stop-color="#0f172a"/>
-    </linearGradient>
-    <filter id="s"><feDropShadow dx="0" dy="1" stdDeviation="3" flood-color="#000" flood-opacity="0.18"/></filter>
-    <marker id="a" viewBox="0 0 8 6" refX="8" refY="3" markerWidth="7" markerHeight="5" orient="auto-start-reverse">
-      <path d="M0 0L8 3L0 6z" fill="#64748b"/>
+    <filter id="ds" x="-3%" y="-3%" width="106%" height="112%">
+      <feDropShadow dx="0" dy="1.5" stdDeviation="2.5" flood-color="#94a3b8" flood-opacity="0.18"/>
+    </filter>
+    <marker id="arr" viewBox="0 0 10 7" refX="9" refY="3.5" markerWidth="8" markerHeight="6" orient="auto-start-reverse">
+      <path d="M0 0.5L8.5 3.5L0 6.5z" fill="#94a3b8"/>
     </marker>
   </defs>
-  <rect width="1200" height="700" rx="12" fill="url(#bg)"/>
-  <text x="600" y="42" text-anchor="middle" fill="#f1f5f9" font-size="18" font-weight="700" letter-spacing="3">MEMORIX ARCHITECTURE</text>
-  <rect x="530" y="50" width="140" height="2" rx="1" fill="#6366f1" opacity="0.6"/>
 
-  <!-- INGRESS -->
-  <g transform="translate(40,80)">
-    <rect width="180" height="28" rx="6" fill="#6366f1"/>
-    <text x="90" y="19" text-anchor="middle" fill="#fff" font-size="11" font-weight="600" letter-spacing="1.5">INGRESS</text>
-    <g transform="translate(0,40)">
-      <rect width="180" height="56" rx="8" fill="#334155" stroke="#475569" stroke-width="0.5" filter="url(#s)"/>
-      <g transform="translate(14,16)"><rect width="24" height="24" rx="5" fill="#6366f1" opacity="0.15"/><path d="M6 8h12M6 12h12M6 16h8" stroke="#818cf8" stroke-width="1.5" stroke-linecap="round" fill="none"/></g>
-      <text x="50" y="28" fill="#f1f5f9" font-size="12" font-weight="500">Git Hooks</text>
-      <text x="50" y="44" fill="#94a3b8" font-size="10">post-commit / ingest</text>
+  <!-- White background -->
+  <rect width="1140" height="580" rx="12" fill="#fff"/>
+
+  <!-- Title -->
+  <text x="570" y="36" text-anchor="middle" fill="#1e293b" font-size="16" font-weight="700" letter-spacing="1.5">MEMORIX ARCHITECTURE</text>
+  <rect x="508" y="42" width="124" height="2.5" rx="1.2" fill="#818cf8" opacity="0.5"/>
+
+  <!-- ═══════ COLUMN 1: INGRESS (Indigo) ═══════ -->
+  <g transform="translate(30,62)">
+    <rect width="186" height="30" rx="8" fill="#eef2ff" stroke="#c7d2fe" stroke-width="1"/>
+    <text x="93" y="20" text-anchor="middle" fill="#4338ca" font-size="11" font-weight="700" letter-spacing="1.5">INGRESS</text>
+
+    <g transform="translate(0,42)">
+      <rect width="186" height="54" rx="10" fill="#eef2ff" stroke="#c7d2fe" stroke-width="1" filter="url(#ds)"/>
+      <g transform="translate(13,15)"><rect width="24" height="24" rx="6" fill="#c7d2fe"/><path d="M6 8h12M6 12h12M6 16h8" stroke="#4338ca" stroke-width="1.4" stroke-linecap="round" fill="none"/></g>
+      <text x="48" y="25" fill="#1e293b" font-size="11.5" font-weight="600">Git Hooks</text>
+      <text x="48" y="41" fill="#64748b" font-size="9.5">post-commit / ingest</text>
     </g>
-    <g transform="translate(0,108)">
-      <rect width="180" height="56" rx="8" fill="#334155" stroke="#475569" stroke-width="0.5" filter="url(#s)"/>
-      <g transform="translate(14,16)"><rect width="24" height="24" rx="5" fill="#6366f1" opacity="0.15"/><path d="M12 6v12M6 12h12" stroke="#818cf8" stroke-width="1.5" stroke-linecap="round" fill="none"/></g>
-      <text x="50" y="28" fill="#f1f5f9" font-size="12" font-weight="500">MCP Tools</text>
-      <text x="50" y="44" fill="#94a3b8" font-size="10">30+ registered tools</text>
+
+    <g transform="translate(0,106)">
+      <rect width="186" height="54" rx="10" fill="#eef2ff" stroke="#c7d2fe" stroke-width="1" filter="url(#ds)"/>
+      <g transform="translate(13,15)"><rect width="24" height="24" rx="6" fill="#c7d2fe"/><path d="M12 6v12M6 12h12" stroke="#4338ca" stroke-width="1.4" stroke-linecap="round" fill="none"/></g>
+      <text x="48" y="25" fill="#1e293b" font-size="11.5" font-weight="600">MCP Tools</text>
+      <text x="48" y="41" fill="#64748b" font-size="9.5">30+ registered tools</text>
     </g>
-    <g transform="translate(0,176)">
-      <rect width="180" height="56" rx="8" fill="#334155" stroke="#475569" stroke-width="0.5" filter="url(#s)"/>
-      <g transform="translate(14,16)"><rect width="24" height="24" rx="5" fill="#6366f1" opacity="0.15"/><path d="M7 8l5 4-5 4M14 16h4" stroke="#818cf8" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/></g>
-      <text x="50" y="28" fill="#f1f5f9" font-size="12" font-weight="500">CLI / TUI</text>
-      <text x="50" y="44" fill="#94a3b8" font-size="10">Operator commands</text>
+
+    <g transform="translate(0,170)">
+      <rect width="186" height="54" rx="10" fill="#eef2ff" stroke="#c7d2fe" stroke-width="1" filter="url(#ds)"/>
+      <g transform="translate(13,15)"><rect width="24" height="24" rx="6" fill="#c7d2fe"/><path d="M7 8l5 4-5 4M14 16h4" stroke="#4338ca" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" fill="none"/></g>
+      <text x="48" y="25" fill="#1e293b" font-size="11.5" font-weight="600">CLI / TUI</text>
+      <text x="48" y="41" fill="#64748b" font-size="9.5">Operator commands</text>
     </g>
-    <g transform="translate(0,244)">
-      <rect width="180" height="56" rx="8" fill="#334155" stroke="#475569" stroke-width="0.5" filter="url(#s)"/>
-      <g transform="translate(14,16)"><rect width="24" height="24" rx="5" fill="#6366f1" opacity="0.15"/><rect x="5" y="5" width="14" height="10" rx="2" stroke="#818cf8" stroke-width="1.5" fill="none"/><path d="M9 19h6" stroke="#818cf8" stroke-width="1.5" stroke-linecap="round" fill="none"/></g>
-      <text x="50" y="28" fill="#f1f5f9" font-size="12" font-weight="500">HTTP Dashboard</text>
-      <text x="50" y="44" fill="#94a3b8" font-size="10">Web UI :3211</text>
+
+    <g transform="translate(0,234)">
+      <rect width="186" height="54" rx="10" fill="#eef2ff" stroke="#c7d2fe" stroke-width="1" filter="url(#ds)"/>
+      <g transform="translate(13,15)"><rect width="24" height="24" rx="6" fill="#c7d2fe"/><rect x="5" y="5" width="14" height="10" rx="2" stroke="#4338ca" stroke-width="1.4" fill="none"/><path d="M9 19h6" stroke="#4338ca" stroke-width="1.4" stroke-linecap="round" fill="none"/></g>
+      <text x="48" y="25" fill="#1e293b" font-size="11.5" font-weight="600">HTTP Dashboard</text>
+      <text x="48" y="41" fill="#64748b" font-size="9.5">Web UI :3211</text>
     </g>
   </g>
 
-  <!-- RUNTIME -->
-  <g transform="translate(270,80)">
-    <rect width="180" height="28" rx="6" fill="#8b5cf6"/>
-    <text x="90" y="19" text-anchor="middle" fill="#fff" font-size="11" font-weight="600" letter-spacing="1.5">RUNTIME</text>
-    <g transform="translate(0,40)">
-      <rect width="180" height="56" rx="8" fill="#334155" stroke="#475569" stroke-width="0.5" filter="url(#s)"/>
-      <g transform="translate(14,16)"><rect width="24" height="24" rx="5" fill="#8b5cf6" opacity="0.15"/><path d="M8 8v8M16 8v8M8 12h8" stroke="#a78bfa" stroke-width="1.5" stroke-linecap="round" fill="none"/></g>
-      <text x="50" y="28" fill="#f1f5f9" font-size="12" font-weight="500">stdio MCP Server</text>
-      <text x="50" y="44" fill="#94a3b8" font-size="10">memorix serve</text>
+  <!-- ═══════ COLUMN 2: RUNTIME (Purple) ═══════ -->
+  <g transform="translate(256,62)">
+    <rect width="186" height="30" rx="8" fill="#f5f3ff" stroke="#ddd6fe" stroke-width="1"/>
+    <text x="93" y="20" text-anchor="middle" fill="#6d28d9" font-size="11" font-weight="700" letter-spacing="1.5">RUNTIME</text>
+
+    <g transform="translate(0,42)">
+      <rect width="186" height="54" rx="10" fill="#f5f3ff" stroke="#ddd6fe" stroke-width="1" filter="url(#ds)"/>
+      <g transform="translate(13,15)"><rect width="24" height="24" rx="6" fill="#ddd6fe"/><path d="M8 8v8M16 8v8M8 12h8" stroke="#6d28d9" stroke-width="1.4" stroke-linecap="round" fill="none"/></g>
+      <text x="48" y="25" fill="#1e293b" font-size="11.5" font-weight="600">stdio MCP Server</text>
+      <text x="48" y="41" fill="#64748b" font-size="9.5">memorix serve</text>
     </g>
-    <g transform="translate(0,108)">
-      <rect width="180" height="56" rx="8" fill="#334155" stroke="#475569" stroke-width="0.5" filter="url(#s)"/>
-      <g transform="translate(14,16)"><rect width="24" height="24" rx="5" fill="#8b5cf6" opacity="0.15"/><circle cx="12" cy="12" r="6" stroke="#a78bfa" stroke-width="1.5" fill="none"/><circle cx="12" cy="12" r="2" fill="#a78bfa"/></g>
-      <text x="50" y="28" fill="#f1f5f9" font-size="12" font-weight="500">HTTP Control Plane</text>
-      <text x="50" y="44" fill="#94a3b8" font-size="10">serve-http / background</text>
+
+    <g transform="translate(0,106)">
+      <rect width="186" height="54" rx="10" fill="#f5f3ff" stroke="#ddd6fe" stroke-width="1" filter="url(#ds)"/>
+      <g transform="translate(13,15)"><rect width="24" height="24" rx="6" fill="#ddd6fe"/><circle cx="12" cy="12" r="6" stroke="#6d28d9" stroke-width="1.4" fill="none"/><circle cx="12" cy="12" r="2" fill="#6d28d9"/></g>
+      <text x="48" y="25" fill="#1e293b" font-size="11.5" font-weight="600">HTTP Control Plane</text>
+      <text x="48" y="41" fill="#64748b" font-size="9.5">serve-http / background</text>
     </g>
-    <g transform="translate(0,176)">
-      <rect width="180" height="56" rx="8" fill="#334155" stroke="#475569" stroke-width="0.5" filter="url(#s)"/>
-      <g transform="translate(14,16)"><rect width="24" height="24" rx="5" fill="#8b5cf6" opacity="0.15"/><path d="M12 6l2 4h4l-3 3 1 4-4-2-4 2 1-4-3-3h4z" stroke="#a78bfa" stroke-width="1.2" fill="none" stroke-linejoin="round"/></g>
-      <text x="50" y="28" fill="#f1f5f9" font-size="12" font-weight="500">Project Binding</text>
-      <text x="50" y="44" fill="#94a3b8" font-size="10">Git root + config</text>
+
+    <g transform="translate(0,170)">
+      <rect width="186" height="54" rx="10" fill="#f5f3ff" stroke="#ddd6fe" stroke-width="1" filter="url(#ds)"/>
+      <g transform="translate(13,15)"><rect width="24" height="24" rx="6" fill="#ddd6fe"/><path d="M7 7h10v10H7z" stroke="#6d28d9" stroke-width="1.4" fill="none" rx="2"/><path d="M10 7v-2h4v2" stroke="#6d28d9" stroke-width="1.2" fill="none"/></g>
+      <text x="48" y="25" fill="#1e293b" font-size="11.5" font-weight="600">Project Binding</text>
+      <text x="48" y="41" fill="#64748b" font-size="9.5">Git root + config</text>
     </g>
-    <g transform="translate(0,256)">
-      <rect width="180" height="32" rx="16" fill="#8b5cf6" opacity="0.1" stroke="#8b5cf6" stroke-width="1" stroke-dasharray="4 3"/>
-      <text x="90" y="21" text-anchor="middle" fill="#c4b5fd" font-size="10" font-weight="500">memorix orchestrate</text>
+
+    <g transform="translate(12,248)">
+      <rect width="162" height="30" rx="15" fill="#f5f3ff" stroke="#c4b5fd" stroke-width="1" stroke-dasharray="5 3"/>
+      <text x="81" y="20" text-anchor="middle" fill="#7c3aed" font-size="10" font-weight="500">memorix orchestrate</text>
     </g>
   </g>
 
-  <!-- MEMORY -->
-  <g transform="translate(500,80)">
-    <rect width="180" height="28" rx="6" fill="#0891b2"/>
-    <text x="90" y="19" text-anchor="middle" fill="#fff" font-size="11" font-weight="600" letter-spacing="1.5">MEMORY</text>
-    <g transform="translate(0,40)">
-      <rect width="180" height="56" rx="8" fill="#334155" stroke="#475569" stroke-width="0.5" filter="url(#s)"/>
-      <g transform="translate(14,16)"><rect width="24" height="24" rx="5" fill="#0891b2" opacity="0.15"/><circle cx="12" cy="12" r="4" stroke="#22d3ee" stroke-width="1.5" fill="none"/><circle cx="12" cy="12" r="1.5" fill="#22d3ee"/></g>
-      <text x="50" y="28" fill="#f1f5f9" font-size="12" font-weight="500">Observation</text>
-      <text x="50" y="44" fill="#94a3b8" font-size="10">what / how / gotchas</text>
+  <!-- ═══════ COLUMN 3: MEMORY (Cyan) ═══════ -->
+  <g transform="translate(482,62)">
+    <rect width="186" height="30" rx="8" fill="#ecfeff" stroke="#a5f3fc" stroke-width="1"/>
+    <text x="93" y="20" text-anchor="middle" fill="#0e7490" font-size="11" font-weight="700" letter-spacing="1.5">MEMORY</text>
+
+    <g transform="translate(0,42)">
+      <rect width="186" height="54" rx="10" fill="#ecfeff" stroke="#a5f3fc" stroke-width="1" filter="url(#ds)"/>
+      <g transform="translate(13,15)"><rect width="24" height="24" rx="6" fill="#a5f3fc"/><circle cx="12" cy="12" r="4" stroke="#0e7490" stroke-width="1.4" fill="none"/><circle cx="12" cy="12" r="1.5" fill="#0e7490"/></g>
+      <text x="48" y="25" fill="#1e293b" font-size="11.5" font-weight="600">Observation</text>
+      <text x="48" y="41" fill="#64748b" font-size="9.5">what / how / gotchas</text>
     </g>
-    <g transform="translate(0,108)">
-      <rect width="180" height="56" rx="8" fill="#334155" stroke="#475569" stroke-width="0.5" filter="url(#s)"/>
-      <g transform="translate(14,16)"><rect width="24" height="24" rx="5" fill="#0891b2" opacity="0.15"/><path d="M8 17l4-10 4 10M9.5 14h5" stroke="#22d3ee" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/></g>
-      <text x="50" y="28" fill="#f1f5f9" font-size="12" font-weight="500">Reasoning</text>
-      <text x="50" y="44" fill="#94a3b8" font-size="10">why / trade-offs / risks</text>
+
+    <g transform="translate(0,106)">
+      <rect width="186" height="54" rx="10" fill="#ecfeff" stroke="#a5f3fc" stroke-width="1" filter="url(#ds)"/>
+      <g transform="translate(13,15)"><rect width="24" height="24" rx="6" fill="#a5f3fc"/><path d="M8 17l4-10 4 10M9.5 14h5" stroke="#0e7490" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" fill="none"/></g>
+      <text x="48" y="25" fill="#1e293b" font-size="11.5" font-weight="600">Reasoning</text>
+      <text x="48" y="41" fill="#64748b" font-size="9.5">why / trade-offs / risks</text>
     </g>
-    <g transform="translate(0,176)">
-      <rect width="180" height="56" rx="8" fill="#334155" stroke="#475569" stroke-width="0.5" filter="url(#s)"/>
-      <g transform="translate(14,16)"><rect width="24" height="24" rx="5" fill="#0891b2" opacity="0.15"/><circle cx="9" cy="9" r="3" stroke="#22d3ee" stroke-width="1.5" fill="none"/><circle cx="15" cy="15" r="3" stroke="#22d3ee" stroke-width="1.5" fill="none"/><path d="M12 9v3M12 15v-3" stroke="#22d3ee" stroke-width="1" fill="none"/></g>
-      <text x="50" y="28" fill="#f1f5f9" font-size="12" font-weight="500">Git Memory</text>
-      <text x="50" y="44" fill="#94a3b8" font-size="10">immutable commit facts</text>
+
+    <g transform="translate(0,170)">
+      <rect width="186" height="54" rx="10" fill="#ecfeff" stroke="#a5f3fc" stroke-width="1" filter="url(#ds)"/>
+      <g transform="translate(13,15)"><rect width="24" height="24" rx="6" fill="#a5f3fc"/><circle cx="9" cy="9" r="3" stroke="#0e7490" stroke-width="1.4" fill="none"/><circle cx="15" cy="15" r="3" stroke="#0e7490" stroke-width="1.4" fill="none"/><path d="M11.5 10.5l1 1" stroke="#0e7490" stroke-width="1" fill="none"/></g>
+      <text x="48" y="25" fill="#1e293b" font-size="11.5" font-weight="600">Git Memory</text>
+      <text x="48" y="41" fill="#64748b" font-size="9.5">immutable commit facts</text>
     </g>
-    <g transform="translate(0,244)">
-      <rect width="180" height="56" rx="8" fill="#334155" stroke="#475569" stroke-width="0.5" filter="url(#s)"/>
-      <g transform="translate(14,16)"><rect width="24" height="24" rx="5" fill="#0891b2" opacity="0.15"/><circle cx="10" cy="10" r="3" stroke="#22d3ee" stroke-width="1.5" fill="none"/><circle cx="16" cy="10" r="3" stroke="#22d3ee" stroke-width="1.5" fill="none"/><path d="M7 18c0-2 2.5-3 5-3s5 1 5 3" stroke="#22d3ee" stroke-width="1.2" fill="none" stroke-linecap="round"/></g>
-      <text x="50" y="28" fill="#f1f5f9" font-size="12" font-weight="500">Session + Team</text>
-      <text x="50" y="44" fill="#94a3b8" font-size="10">agents / tasks / locks</text>
+
+    <g transform="translate(0,234)">
+      <rect width="186" height="54" rx="10" fill="#ecfeff" stroke="#a5f3fc" stroke-width="1" filter="url(#ds)"/>
+      <g transform="translate(13,15)"><rect width="24" height="24" rx="6" fill="#a5f3fc"/><circle cx="10" cy="10" r="3" stroke="#0e7490" stroke-width="1.4" fill="none"/><circle cx="16" cy="10" r="3" stroke="#0e7490" stroke-width="1.4" fill="none"/><path d="M7 18c0-2 2.5-3 5.5-3s5.5 1 5.5 3" stroke="#0e7490" stroke-width="1.2" fill="none" stroke-linecap="round"/></g>
+      <text x="48" y="25" fill="#1e293b" font-size="11.5" font-weight="600">Session + Team</text>
+      <text x="48" y="41" fill="#64748b" font-size="9.5">agents / tasks / locks</text>
     </g>
-    <g transform="translate(15,316)">
-      <rect width="150" height="24" rx="12" fill="#0891b2" opacity="0.12" stroke="#0891b2" stroke-width="0.5"/>
-      <text x="75" y="16" text-anchor="middle" fill="#67e8f9" font-size="9" font-weight="500">SQLite · Orama · Local</text>
+
+    <g transform="translate(24,304)">
+      <rect width="138" height="22" rx="11" fill="#ecfeff" stroke="#67e8f9" stroke-width="1"/>
+      <text x="69" y="15" text-anchor="middle" fill="#0e7490" font-size="9" font-weight="500">SQLite · Orama · Local</text>
     </g>
   </g>
 
-  <!-- PROCESSING -->
-  <g transform="translate(730,80)">
-    <rect width="180" height="28" rx="6" fill="#d97706"/>
-    <text x="90" y="19" text-anchor="middle" fill="#fff" font-size="11" font-weight="600" letter-spacing="1.5">PROCESSING</text>
-    <g transform="translate(0,40)">
-      <rect width="180" height="56" rx="8" fill="#334155" stroke="#475569" stroke-width="0.5" filter="url(#s)"/>
-      <g transform="translate(14,16)"><rect width="24" height="24" rx="5" fill="#d97706" opacity="0.15"/><path d="M12 6v4M12 14v4M8 10l4 4 4-4" stroke="#fbbf24" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/></g>
-      <text x="50" y="28" fill="#f1f5f9" font-size="12" font-weight="500">Formation Pipeline</text>
-      <text x="50" y="44" fill="#94a3b8" font-size="10">LLM-assisted quality</text>
+  <!-- ═══════ COLUMN 4: PROCESSING (Amber) ═══════ -->
+  <g transform="translate(708,62)">
+    <rect width="186" height="30" rx="8" fill="#fffbeb" stroke="#fde68a" stroke-width="1"/>
+    <text x="93" y="20" text-anchor="middle" fill="#92400e" font-size="11" font-weight="700" letter-spacing="1.5">PROCESSING</text>
+
+    <g transform="translate(0,42)">
+      <rect width="186" height="54" rx="10" fill="#fffbeb" stroke="#fde68a" stroke-width="1" filter="url(#ds)"/>
+      <g transform="translate(13,15)"><rect width="24" height="24" rx="6" fill="#fde68a"/><path d="M12 6v4M12 14v4M8 10l4 4 4-4" stroke="#92400e" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" fill="none"/></g>
+      <text x="48" y="25" fill="#1e293b" font-size="11.5" font-weight="600">Formation Pipeline</text>
+      <text x="48" y="41" fill="#64748b" font-size="9.5">LLM-assisted quality</text>
     </g>
-    <g transform="translate(0,108)">
-      <rect width="180" height="56" rx="8" fill="#334155" stroke="#475569" stroke-width="0.5" filter="url(#s)"/>
-      <g transform="translate(14,16)"><rect width="24" height="24" rx="5" fill="#d97706" opacity="0.15"/><path d="M6 12h12M12 6v12" stroke="#fbbf24" stroke-width="1.5" stroke-linecap="round" fill="none"/><circle cx="12" cy="12" r="8" stroke="#fbbf24" stroke-width="1" fill="none" opacity="0.4"/></g>
-      <text x="50" y="28" fill="#f1f5f9" font-size="12" font-weight="500">Embedding + Index</text>
-      <text x="50" y="44" fill="#94a3b8" font-size="10">hybrid search + rerank</text>
+
+    <g transform="translate(0,106)">
+      <rect width="186" height="54" rx="10" fill="#fffbeb" stroke="#fde68a" stroke-width="1" filter="url(#ds)"/>
+      <g transform="translate(13,15)"><rect width="24" height="24" rx="6" fill="#fde68a"/><circle cx="12" cy="12" r="7" stroke="#92400e" stroke-width="1" fill="none" opacity="0.4"/><path d="M6 12h12M12 6v12" stroke="#92400e" stroke-width="1.4" stroke-linecap="round" fill="none"/></g>
+      <text x="48" y="25" fill="#1e293b" font-size="11.5" font-weight="600">Embedding + Index</text>
+      <text x="48" y="41" fill="#64748b" font-size="9.5">hybrid search + rerank</text>
     </g>
-    <g transform="translate(0,176)">
-      <rect width="180" height="56" rx="8" fill="#334155" stroke="#475569" stroke-width="0.5" filter="url(#s)"/>
-      <g transform="translate(14,16)"><rect width="24" height="24" rx="5" fill="#d97706" opacity="0.15"/><circle cx="8" cy="8" r="2.5" fill="#fbbf24" opacity="0.6"/><circle cx="16" cy="8" r="2.5" fill="#fbbf24" opacity="0.6"/><circle cx="12" cy="16" r="2.5" fill="#fbbf24" opacity="0.6"/><path d="M8 8l8 0M8 8l4 8M16 8l-4 8" stroke="#fbbf24" stroke-width="1" fill="none" opacity="0.5"/></g>
-      <text x="50" y="28" fill="#f1f5f9" font-size="12" font-weight="500">Graph Linking</text>
-      <text x="50" y="44" fill="#94a3b8" font-size="10">entity + relation edges</text>
+
+    <g transform="translate(0,170)">
+      <rect width="186" height="54" rx="10" fill="#fffbeb" stroke="#fde68a" stroke-width="1" filter="url(#ds)"/>
+      <g transform="translate(13,15)"><rect width="24" height="24" rx="6" fill="#fde68a"/><circle cx="8" cy="8" r="2.5" fill="#d97706" opacity="0.5"/><circle cx="16" cy="8" r="2.5" fill="#d97706" opacity="0.5"/><circle cx="12" cy="16" r="2.5" fill="#d97706" opacity="0.5"/><path d="M8 8h8M8 8l4 8M16 8l-4 8" stroke="#92400e" stroke-width="0.8" fill="none" opacity="0.5"/></g>
+      <text x="48" y="25" fill="#1e293b" font-size="11.5" font-weight="600">Graph Linking</text>
+      <text x="48" y="41" fill="#64748b" font-size="9.5">entity + relation edges</text>
     </g>
-    <g transform="translate(0,244)">
-      <rect width="180" height="56" rx="8" fill="#334155" stroke="#475569" stroke-width="0.5" filter="url(#s)"/>
-      <g transform="translate(14,16)"><rect width="24" height="24" rx="5" fill="#d97706" opacity="0.15"/><path d="M8 8h8v8H8z" stroke="#fbbf24" stroke-width="1.5" fill="none"/><path d="M12 8v8M8 12h8" stroke="#fbbf24" stroke-width="1" opacity="0.5" fill="none"/></g>
-      <text x="50" y="28" fill="#f1f5f9" font-size="12" font-weight="500">Dedup + Retention</text>
-      <text x="50" y="44" fill="#94a3b8" font-size="10">decay + consolidate</text>
+
+    <g transform="translate(0,234)">
+      <rect width="186" height="54" rx="10" fill="#fffbeb" stroke="#fde68a" stroke-width="1" filter="url(#ds)"/>
+      <g transform="translate(13,15)"><rect width="24" height="24" rx="6" fill="#fde68a"/><path d="M8 8h8v8H8z" stroke="#92400e" stroke-width="1.4" fill="none"/><path d="M12 8v8M8 12h8" stroke="#92400e" stroke-width="0.8" opacity="0.5" fill="none"/></g>
+      <text x="48" y="25" fill="#1e293b" font-size="11.5" font-weight="600">Dedup + Retention</text>
+      <text x="48" y="41" fill="#64748b" font-size="9.5">decay + consolidate</text>
     </g>
   </g>
 
-  <!-- CONSUMPTION -->
-  <g transform="translate(960,80)">
-    <rect width="180" height="28" rx="6" fill="#059669"/>
-    <text x="90" y="19" text-anchor="middle" fill="#fff" font-size="11" font-weight="600" letter-spacing="1.5">CONSUMPTION</text>
-    <g transform="translate(0,40)">
-      <rect width="180" height="56" rx="8" fill="#334155" stroke="#475569" stroke-width="0.5" filter="url(#s)"/>
-      <g transform="translate(14,16)"><rect width="24" height="24" rx="5" fill="#059669" opacity="0.15"/><circle cx="11" cy="11" r="5" stroke="#34d399" stroke-width="1.5" fill="none"/><path d="M15 15l4 4" stroke="#34d399" stroke-width="1.5" stroke-linecap="round" fill="none"/></g>
-      <text x="50" y="28" fill="#f1f5f9" font-size="12" font-weight="500">Search / Timeline</text>
-      <text x="50" y="44" fill="#94a3b8" font-size="10">detail + source-aware</text>
+  <!-- ═══════ COLUMN 5: CONSUMPTION (Emerald) ═══════ -->
+  <g transform="translate(934,62)">
+    <rect width="186" height="30" rx="8" fill="#ecfdf5" stroke="#a7f3d0" stroke-width="1"/>
+    <text x="93" y="20" text-anchor="middle" fill="#065f46" font-size="11" font-weight="700" letter-spacing="1.5">CONSUMPTION</text>
+
+    <g transform="translate(0,42)">
+      <rect width="186" height="54" rx="10" fill="#ecfdf5" stroke="#a7f3d0" stroke-width="1" filter="url(#ds)"/>
+      <g transform="translate(13,15)"><rect width="24" height="24" rx="6" fill="#a7f3d0"/><circle cx="11" cy="11" r="5" stroke="#065f46" stroke-width="1.4" fill="none"/><path d="M15 15l4 4" stroke="#065f46" stroke-width="1.4" stroke-linecap="round" fill="none"/></g>
+      <text x="48" y="25" fill="#1e293b" font-size="11.5" font-weight="600">Search / Timeline</text>
+      <text x="48" y="41" fill="#64748b" font-size="9.5">detail + source-aware</text>
     </g>
-    <g transform="translate(0,108)">
-      <rect width="180" height="56" rx="8" fill="#334155" stroke="#475569" stroke-width="0.5" filter="url(#s)"/>
-      <g transform="translate(14,16)"><rect width="24" height="24" rx="5" fill="#059669" opacity="0.15"/><rect x="5" y="5" width="6" height="6" rx="1" stroke="#34d399" stroke-width="1.2" fill="none"/><rect x="13" y="5" width="6" height="6" rx="1" stroke="#34d399" stroke-width="1.2" fill="none"/><rect x="5" y="13" width="14" height="6" rx="1" stroke="#34d399" stroke-width="1.2" fill="none"/></g>
-      <text x="50" y="28" fill="#f1f5f9" font-size="12" font-weight="500">Dashboard / Team</text>
-      <text x="50" y="44" fill="#94a3b8" font-size="10">roster + task board</text>
+
+    <g transform="translate(0,106)">
+      <rect width="186" height="54" rx="10" fill="#ecfdf5" stroke="#a7f3d0" stroke-width="1" filter="url(#ds)"/>
+      <g transform="translate(13,15)"><rect width="24" height="24" rx="6" fill="#a7f3d0"/><rect x="5" y="5" width="6" height="6" rx="1.5" stroke="#065f46" stroke-width="1.2" fill="none"/><rect x="13" y="5" width="6" height="6" rx="1.5" stroke="#065f46" stroke-width="1.2" fill="none"/><rect x="5" y="13" width="14" height="6" rx="1.5" stroke="#065f46" stroke-width="1.2" fill="none"/></g>
+      <text x="48" y="25" fill="#1e293b" font-size="11.5" font-weight="600">Dashboard / Team</text>
+      <text x="48" y="41" fill="#64748b" font-size="9.5">roster + task board</text>
     </g>
-    <g transform="translate(0,176)">
-      <rect width="180" height="56" rx="8" fill="#334155" stroke="#475569" stroke-width="0.5" filter="url(#s)"/>
-      <g transform="translate(14,16)"><rect width="24" height="24" rx="5" fill="#059669" opacity="0.15"/><path d="M17 7a6 6 0 11-1.5 3" stroke="#34d399" stroke-width="1.5" stroke-linecap="round" fill="none"/><path d="M17 3v4h-4" stroke="#34d399" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/></g>
-      <text x="50" y="28" fill="#f1f5f9" font-size="12" font-weight="500">Agent Recall</text>
-      <text x="50" y="44" fill="#94a3b8" font-size="10">handoff + watermark</text>
+
+    <g transform="translate(0,170)">
+      <rect width="186" height="54" rx="10" fill="#ecfdf5" stroke="#a7f3d0" stroke-width="1" filter="url(#ds)"/>
+      <g transform="translate(13,15)"><rect width="24" height="24" rx="6" fill="#a7f3d0"/><path d="M17 7a6 6 0 11-1.5 3" stroke="#065f46" stroke-width="1.4" stroke-linecap="round" fill="none"/><path d="M17 3v4h-4" stroke="#065f46" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" fill="none"/></g>
+      <text x="48" y="25" fill="#1e293b" font-size="11.5" font-weight="600">Agent Recall</text>
+      <text x="48" y="41" fill="#64748b" font-size="9.5">handoff + watermark</text>
     </g>
-    <g transform="translate(0,244)">
-      <rect width="180" height="56" rx="8" fill="#334155" stroke="#475569" stroke-width="0.5" filter="url(#s)"/>
-      <g transform="translate(14,16)"><rect width="24" height="24" rx="5" fill="#059669" opacity="0.15"/><path d="M8 8h3v3H8zM13 8h3v3h-3zM8 13h3v3H8zM13 13h3v3h-3z" stroke="#34d399" stroke-width="1" fill="none"/></g>
-      <text x="50" y="28" fill="#f1f5f9" font-size="12" font-weight="500">Skills / Sync</text>
-      <text x="50" y="44" fill="#94a3b8" font-size="10">SKILL.md + workspace</text>
+
+    <g transform="translate(0,234)">
+      <rect width="186" height="54" rx="10" fill="#ecfdf5" stroke="#a7f3d0" stroke-width="1" filter="url(#ds)"/>
+      <g transform="translate(13,15)"><rect width="24" height="24" rx="6" fill="#a7f3d0"/><path d="M8 8h3v3H8zM13 8h3v3h-3zM8 13h3v3H8zM13 13h3v3h-3z" stroke="#065f46" stroke-width="1" fill="none"/></g>
+      <text x="48" y="25" fill="#1e293b" font-size="11.5" font-weight="600">Skills / Sync</text>
+      <text x="48" y="41" fill="#64748b" font-size="9.5">SKILL.md + workspace</text>
     </g>
   </g>
 
-  <!-- FLOW ARROWS — Y aligned to card centers: 148, 216, 284, 352 -->
-  <path d="M220 148h40" stroke="#64748b" stroke-width="1.5" fill="none" marker-end="url(#a)"/>
-  <path d="M220 216h40" stroke="#64748b" stroke-width="1.5" fill="none" marker-end="url(#a)"/>
-  <path d="M220 284h40" stroke="#64748b" stroke-width="1.5" fill="none" marker-end="url(#a)"/>
-  <path d="M220 352h40" stroke="#64748b" stroke-width="1.5" fill="none" marker-end="url(#a)"/>
-  <path d="M450 148h40" stroke="#64748b" stroke-width="1.5" fill="none" marker-end="url(#a)"/>
-  <path d="M450 216h40" stroke="#64748b" stroke-width="1.5" fill="none" marker-end="url(#a)"/>
-  <path d="M450 284h40" stroke="#64748b" stroke-width="1.5" fill="none" marker-end="url(#a)"/>
-  <path d="M680 148h40" stroke="#64748b" stroke-width="1.5" fill="none" marker-end="url(#a)"/>
-  <path d="M680 216h40" stroke="#64748b" stroke-width="1.5" fill="none" marker-end="url(#a)"/>
-  <path d="M680 284h40" stroke="#64748b" stroke-width="1.5" fill="none" marker-end="url(#a)"/>
-  <path d="M680 352h40" stroke="#64748b" stroke-width="1.5" fill="none" marker-end="url(#a)"/>
-  <path d="M910 148h40" stroke="#64748b" stroke-width="1.5" fill="none" marker-end="url(#a)"/>
-  <path d="M910 216h40" stroke="#64748b" stroke-width="1.5" fill="none" marker-end="url(#a)"/>
-  <path d="M910 284h40" stroke="#64748b" stroke-width="1.5" fill="none" marker-end="url(#a)"/>
-  <path d="M910 352h40" stroke="#64748b" stroke-width="1.5" fill="none" marker-end="url(#a)"/>
+  <!-- ═══════ FLOW ARROWS — card center Y: 131, 195, 259, 323 ═══════ -->
+  <!-- Ingress → Runtime -->
+  <path d="M216 131h30" stroke="#94a3b8" stroke-width="1.5" fill="none" marker-end="url(#arr)"/>
+  <path d="M216 195h30" stroke="#94a3b8" stroke-width="1.5" fill="none" marker-end="url(#arr)"/>
+  <path d="M216 259h30" stroke="#94a3b8" stroke-width="1.5" fill="none" marker-end="url(#arr)"/>
+  <path d="M216 323h30" stroke="#94a3b8" stroke-width="1.5" fill="none" marker-end="url(#arr)"/>
+  <!-- Runtime → Memory -->
+  <path d="M442 131h30" stroke="#94a3b8" stroke-width="1.5" fill="none" marker-end="url(#arr)"/>
+  <path d="M442 195h30" stroke="#94a3b8" stroke-width="1.5" fill="none" marker-end="url(#arr)"/>
+  <path d="M442 259h30" stroke="#94a3b8" stroke-width="1.5" fill="none" marker-end="url(#arr)"/>
+  <!-- Memory → Processing -->
+  <path d="M668 131h30" stroke="#94a3b8" stroke-width="1.5" fill="none" marker-end="url(#arr)"/>
+  <path d="M668 195h30" stroke="#94a3b8" stroke-width="1.5" fill="none" marker-end="url(#arr)"/>
+  <path d="M668 259h30" stroke="#94a3b8" stroke-width="1.5" fill="none" marker-end="url(#arr)"/>
+  <path d="M668 323h30" stroke="#94a3b8" stroke-width="1.5" fill="none" marker-end="url(#arr)"/>
+  <!-- Processing → Consumption -->
+  <path d="M894 131h30" stroke="#94a3b8" stroke-width="1.5" fill="none" marker-end="url(#arr)"/>
+  <path d="M894 195h30" stroke="#94a3b8" stroke-width="1.5" fill="none" marker-end="url(#arr)"/>
+  <path d="M894 259h30" stroke="#94a3b8" stroke-width="1.5" fill="none" marker-end="url(#arr)"/>
+  <path d="M894 323h30" stroke="#94a3b8" stroke-width="1.5" fill="none" marker-end="url(#arr)"/>
 
-  <!-- SUPPORTED CLIENTS -->
-  <g transform="translate(40,590)">
-    <rect width="1120" height="80" rx="10" fill="#1e293b" stroke="#334155" stroke-width="1" filter="url(#s)"/>
-    <text x="24" y="24" fill="#6366f1" font-size="10" font-weight="700" letter-spacing="1.5">SUPPORTED CLIENTS</text>
-    <g transform="translate(24,36)">
-      <rect width="64" height="20" rx="10" fill="#6366f1" opacity="0.2" stroke="#6366f1" stroke-width="0.5"/>
-      <text x="32" y="14" text-anchor="middle" fill="#a5b4fc" font-size="9" font-weight="600">CORE</text>
+  <!-- ═══════ BOTTOM: SUPPORTED CLIENTS ═══════ -->
+  <g transform="translate(30,480)">
+    <rect width="1080" height="72" rx="10" fill="#f8fafc" stroke="#e2e8f0" stroke-width="1" filter="url(#ds)"/>
+    <text x="24" y="22" fill="#4338ca" font-size="10" font-weight="700" letter-spacing="1.5">SUPPORTED CLIENTS</text>
+
+    <g transform="translate(24,32)">
+      <rect width="58" height="20" rx="10" fill="#eef2ff" stroke="#c7d2fe" stroke-width="1"/>
+      <text x="29" y="14" text-anchor="middle" fill="#4338ca" font-size="8.5" font-weight="600">CORE</text>
     </g>
-    <text x="100" y="50" fill="#cbd5e1" font-size="10">Claude Code · Cursor · Windsurf</text>
-    <g transform="translate(310,36)">
-      <rect width="84" height="20" rx="10" fill="#8b5cf6" opacity="0.2" stroke="#8b5cf6" stroke-width="0.5"/>
-      <text x="42" y="14" text-anchor="middle" fill="#c4b5fd" font-size="9" font-weight="600">EXTENDED</text>
+    <text x="92" y="46" fill="#475569" font-size="10">Claude Code · Cursor · Windsurf</text>
+
+    <g transform="translate(310,32)">
+      <rect width="78" height="20" rx="10" fill="#f5f3ff" stroke="#ddd6fe" stroke-width="1"/>
+      <text x="39" y="14" text-anchor="middle" fill="#6d28d9" font-size="8.5" font-weight="600">EXTENDED</text>
     </g>
-    <text x="406" y="50" fill="#cbd5e1" font-size="10">Copilot · Kiro · Codex</text>
-    <g transform="translate(600,36)">
-      <rect width="96" height="20" rx="10" fill="#0891b2" opacity="0.2" stroke="#0891b2" stroke-width="0.5"/>
-      <text x="48" y="14" text-anchor="middle" fill="#67e8f9" font-size="9" font-weight="600">COMMUNITY</text>
+    <text x="398" y="46" fill="#475569" font-size="10">Copilot · Kiro · Codex</text>
+
+    <g transform="translate(580,32)">
+      <rect width="94" height="20" rx="10" fill="#ecfeff" stroke="#a5f3fc" stroke-width="1"/>
+      <text x="47" y="14" text-anchor="middle" fill="#0e7490" font-size="8.5" font-weight="600">COMMUNITY</text>
     </g>
-    <text x="708" y="50" fill="#cbd5e1" font-size="10">Gemini CLI · OpenCode · Antigravity · Trae</text>
+    <text x="684" y="46" fill="#475569" font-size="10">Gemini CLI · OpenCode · Antigravity · Trae</text>
   </g>
 </svg>
