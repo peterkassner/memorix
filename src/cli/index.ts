@@ -13,12 +13,9 @@
  */
 
 import { defineCommand, runMain } from 'citty';
-import { createRequire } from 'node:module';
 import * as p from '@clack/prompts';
 import { execSync, spawn } from 'node:child_process';
-
-const require = createRequire(import.meta.url);
-const pkg = require('../../package.json') as { version: string };
+import { getCliVersion } from './version.js';
 
 const NO_GIT_MSG = 'Memorix requires a git repo to establish project identity. Run `git init` in this workspace first.';
 
@@ -51,7 +48,7 @@ function createSpinnerForCurrentOutput(): SpinnerLike {
 
 async function getWorkbenchHeader(): Promise<string[]> {
   const lines: string[] = [];
-  const ver = `v${pkg.version}`;
+  const ver = `v${getCliVersion()}`;
 
   // Detect project
   let projectLabel = `${YELLOW}no git repo${RESET} ${DIM}— run \`git init\` to enable${RESET}`;
@@ -901,7 +898,7 @@ async function runCommand(cmd: string, _args: string[] = []): Promise<void> {
 const main = defineCommand({
   meta: {
     name: 'memorix',
-    version: pkg.version,
+    version: getCliVersion(),
     description: 'Local-first memory control plane for AI coding agents via MCP',
   },
   subCommands: {
@@ -1007,7 +1004,7 @@ const main = defineCommand({
       await startWorkbench();
     } else {
       // Non-interactive mode: show usage hint
-      console.error(`Memorix v${pkg.version} — Local-first memory control plane\n`);
+      console.error(`Memorix v${getCliVersion()} — Local-first memory control plane\n`);
       console.error('Usage: memorix <command>\n');
       console.error('Commands:');
       console.error('  ask "q"    Ask Memorix a question (single-shot chat)');

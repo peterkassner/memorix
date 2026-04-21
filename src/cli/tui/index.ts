@@ -5,10 +5,7 @@
  * All commands are now Ink-native — no interactive fallback needed.
  */
 
-import { createRequire } from 'node:module';
-
-const require = createRequire(import.meta.url);
-const pkg = require('../../../package.json') as { version: string };
+import { getCliVersion } from '../version.js';
 
 const ALT_ON = '\x1b[?1049h\x1b[?25l';
 const ALT_OFF = '\x1b[?25h\x1b[?1049l';
@@ -25,7 +22,7 @@ export async function startWorkbench(): Promise<void> {
   process.stdout.write(ALT_ON);
 
   const app = React.createElement(WorkbenchApp, {
-    version: pkg.version,
+    version: getCliVersion(),
     onExitForInteractive: () => {
       // No-op: all commands are now Ink-native.
       // Kept for interface compatibility but never called.

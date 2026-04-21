@@ -14,7 +14,7 @@ import type { ExecFileException } from 'node:child_process';
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { join } from 'node:path';
 import { homedir } from 'node:os';
-import { createRequire } from 'node:module';
+import { getCliVersion } from './version.js';
 
 const PACKAGE_NAME = 'memorix';
 const CHECK_INTERVAL_MS = 24 * 60 * 60 * 1000; // 24 hours
@@ -44,9 +44,7 @@ export interface UpdateCache {
  */
 export function getCurrentVersion(): string {
   try {
-    const require = createRequire(import.meta.url);
-    const pkg = require('../../package.json');
-    return pkg.version;
+    return getCliVersion();
   } catch {
     return '0.0.0';
   }
