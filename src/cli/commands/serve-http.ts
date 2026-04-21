@@ -1329,8 +1329,13 @@ export default defineCommand({
       import('../update-checker.js').then(m => m.checkForUpdates()).catch(() => {});
     });
 
-    // Session timeout GC — close sessions idle for 30 minutes
-    const SESSION_TIMEOUT_MS = 30 * 60 * 1000;
+    // Session timeout GC — close idle sessions. Configurable via
+    // MEMORIX_SESSION_TIMEOUT_MS (ms) for clients that do not transparently
+    // re-initialize after a server-side 404 on a stale Mcp-Session-Id
+    // (e.g. Codex/rmcp — see openai/codex#12869, #13969). Default 30 minutes.
+    const envTimeout = Number(process.env.MEMORIX_SESSION_TIMEOUT_MS);
+    const SESSION_TIMEOUT_MS =
+      Number.isFinite(envTimeout) && envTimeout > 0 ? envTimeout : 30 * 60 * 1000;
     const gcInterval = setInterval(() => {
       maybeProbeSummary(); // Flush suppressed probe count periodically
       const now = Date.now();
