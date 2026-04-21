@@ -479,7 +479,7 @@ Memorix is designed around a few guiding ideas:
 
 ---
 
-## 10. Related Docs
+## 11. Related Docs
 
 - [Setup Guide](SETUP.md)
 - [Configuration Guide](CONFIGURATION.md)

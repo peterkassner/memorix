@@ -53,9 +53,11 @@ describe('Standalone Dashboard Project Scope', () => {
       { id: 2, entityName: 'auth-module', type: 'gotcha', title: 'Token expiry', narrative: 'Tokens expire silently', facts: [], projectId: PROJECT_A, status: 'active', createdAt: new Date().toISOString() },
       { id: 3, entityName: 'billing-service', type: 'decision', title: 'Use Stripe', narrative: 'Chose Stripe for billing', facts: [], projectId: PROJECT_B, status: 'active', createdAt: new Date().toISOString() },
       { id: 4, entityName: 'billing-service', type: 'problem-solution', title: 'Webhook retry', narrative: 'Fixed webhook retries', facts: [], projectId: PROJECT_B, status: 'active', createdAt: new Date().toISOString() },
+      { id: 5, entityName: 'auth-module', type: 'session-request', title: 'Old handoff', narrative: 'Superseded request', facts: [], projectId: PROJECT_A, status: 'resolved', createdAt: new Date().toISOString() },
+      { id: 6, entityName: 'billing-service', type: 'session-request', title: 'Archived note', narrative: 'No longer current', facts: [], projectId: PROJECT_B, status: 'resolved', createdAt: new Date().toISOString() },
     ];
     await fs.writeFile(path.join(dataDir, 'observations.json'), JSON.stringify(observations));
-    await fs.writeFile(path.join(dataDir, 'counter.json'), JSON.stringify({ nextId: 5 }));
+    await fs.writeFile(path.join(dataDir, 'counter.json'), JSON.stringify({ nextId: 7 }));
 
     // Seed graph with entities from both projects
     const graphLines = [
@@ -116,6 +118,32 @@ describe('Standalone Dashboard Project Scope', () => {
     // The cross-project relation (auth-module → billing-service) should NOT appear
     // when viewing project A (only auth-module is in scope)
     expect(body.relations).toHaveLength(0);
+  });
+
+  it('GET /api/observations excludes resolved observations', async () => {
+    const { status, body } = await fetchJson('/api/observations');
+    expect(status).toBe(200);
+
+    const ids = body.map((o: any) => o.id);
+    expect(ids).toEqual([1, 2]);
+  });
+
+  it('GET /api/stats counts only active project observations', async () => {
+    const { status, body } = await fetchJson('/api/stats');
+    expect(status).toBe(200);
+
+    expect(body.observations).toBe(2);
+    expect(body.nextId).toBe(7);
+  });
+
+  it('GET /api/projects counts only active observations per project', async () => {
+    const { status, body } = await fetchJson('/api/projects');
+    expect(status).toBe(200);
+
+    const projectA = body.find((p: any) => p.id === PROJECT_A);
+    const projectB = body.find((p: any) => p.id === PROJECT_B);
+    expect(projectA?.count).toBe(2);
+    expect(projectB?.count).toBe(2);
   });
 
   // ── Bug 2: /export should have project-filtered graph ──

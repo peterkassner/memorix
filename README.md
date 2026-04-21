@@ -142,7 +142,7 @@ memorix audit project
 memorix sync workspace --action scan
 ```
 
-The CLI is intentionally **task-shaped**, not a 1:1 mirror of MCP tool names. Native capabilities are available through `session`, `memory`, `reasoning`, `retention`, `formation`, `audit`, `transfer`, `skills`, `team`, `task`, `message`, `lock`, `handoff`, `poll`, `sync`, and `ingest`. MCP stays available for IDEs, agents, and optional graph-compatibility tools.
+The CLI is intentionally **task-shaped**, not a 1:1 mirror of MCP tool names. Native capabilities are available through these namespaces: `session`, `memory`, `reasoning`, `retention`, `formation`, `audit`, `transfer`, `skills`, `team`, `task`, `message`, `lock`, `handoff`, `poll`, `sync`, `ingest`. MCP stays available for IDEs, agents, and optional graph-compatibility tools.
 
 ## Docker
 
@@ -370,7 +370,7 @@ Additional deep references:
 
 Version `1.0.8` builds on the 1.0.7 coordination/storage/team baseline with a CLI-first operator surface, official Docker path, dashboard refinements, and broad hooks fixes.
 
-- **CLI-First Product Surface**: Every Memorix-native operator capability now has a task-oriented CLI route (`session`, `memory`, `reasoning`, `retention`, `formation`, `audit`, `transfer`, `skills`, `team`, `task`, `message`, `lock`, `handoff`, `poll`, `sync`, `ingest`). MCP remains the integration protocol and optional graph-compatibility layer.
+- **CLI-First Product Surface**: Every Memorix-native operator capability now has a task-oriented CLI route — `session`, `memory`, `reasoning`, `retention`, `formation`, `audit`, `transfer`, `skills`, `team`, `task`, `message`, `lock`, `handoff`, `poll`, `sync`, `ingest`. MCP remains the integration protocol and optional graph-compatibility layer.
 - **Docker Deployment**: Official `Dockerfile`, `compose.yaml`, healthcheck, `--host` binding, and [DOCKER.md](docs/DOCKER.md) for running the HTTP control plane in a container.
 - **Multi-Agent Orchestrator**: `memorix orchestrate` runs plan, parallel execution, verification, fix, review, and merge loops across Claude, Codex, Gemini CLI, and OpenCode with capability routing, worktree isolation, and agent fallback.
 - **SQLite Canonical Store**: Observations, mini-skills, sessions, and archives in SQLite. Shared DB handle, freshness-safe retrieval, dead `JsonBackend` removed.

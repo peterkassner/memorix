@@ -54,6 +54,14 @@ function filterByProject<T extends { projectId?: string }>(items: T[], projectId
     return items.filter(item => item.projectId === projectId);
 }
 
+function isActiveStatus(status?: string): boolean {
+    return (status ?? 'active') === 'active';
+}
+
+function filterActiveByProject<T extends { projectId?: string; status?: string }>(items: T[], projectId: string): T[] {
+    return items.filter(item => item.projectId === projectId && isActiveStatus(item.status));
+}
+
 /**
  * Compute project-scoped graph counts from observations.
  * Only entities referenced by this project's active observations are counted.
@@ -113,11 +121,12 @@ async function handleApi(
         switch (apiPath) {
             case '/projects': {
                 // List all unique project IDs from observations data (flat storage)
-                // Deduplicate using alias registry — aliased IDs are merged under canonical
+                // Deduplicate using alias registry – aliased IDs are merged under canonical
                 try {
-                    const allObs = await getObservationStore().loadAll() as Array<{ projectId?: string }>;
+                    const allObs = await getObservationStore().loadAll() as Array<{ projectId?: string; status?: string }>;
                     const projectSet = new Map<string, number>();
                     for (const obs of allObs) {
+                        if (!isActiveStatus(obs.status)) continue;
                         if (obs.projectId) {
                             projectSet.set(obs.projectId, (projectSet.get(obs.projectId) || 0) + 1);
                         }
@@ -187,7 +196,7 @@ async function handleApi(
 
             case '/observations': {
                 const allObs = await getObservationStore().loadAll();
-                const observations = filterByProject(allObs as Array<{ projectId?: string }>, effectiveProjectId);
+                const observations = filterActiveByProject(allObs as Array<{ projectId?: string; status?: string }>, effectiveProjectId);
                 sendJson(res, observations);
                 break;
             }
@@ -203,7 +212,10 @@ async function handleApi(
                 await initGraphStore(effectiveDataDir);
                 const graph = { entities: getGraphStore().loadEntities(), relations: getGraphStore().loadRelations() };
                 const allObs = await getObservationStore().loadAll();
-                const observations = filterByProject(allObs as Array<{ projectId?: string; type?: string; id?: number; createdAt?: string; title?: string; entityName?: string }>, effectiveProjectId);
+                const observations = filterActiveByProject(
+                    allObs as Array<{ projectId?: string; status?: string; type?: string; id?: number; createdAt?: string; title?: string; entityName?: string }>,
+                    effectiveProjectId,
+                );
                 const nextId = await getObservationStore().loadIdCounter();
 
                 // Project-scoped graph counts (must match /api/graph and /api/export)
@@ -314,8 +326,9 @@ async function handleApi(
                     createdAt?: string;
                     entityName?: string;
                     projectId?: string;
+                    status?: string;
                 }>;
-                const observations = filterByProject(allObs, effectiveProjectId);
+                const observations = filterActiveByProject(allObs, effectiveProjectId);
 
                 const now = Date.now();
                 const scored = observations.map((obs) => {
@@ -593,7 +606,7 @@ async function handleApi(
                     await initGraphStore(effectiveDataDir);
                     const fullGraph = { entities: getGraphStore().loadEntities(), relations: getGraphStore().loadRelations() };
                     const allObs = await getObservationStore().loadAll();
-                    const observations = filterByProject(allObs as Array<{ projectId?: string; entityName?: string; status?: string }>, effectiveProjectId);
+                    const observations = filterActiveByProject(allObs as Array<{ projectId?: string; entityName?: string; status?: string }>, effectiveProjectId);
                     const nextId = await getObservationStore().loadIdCounter();
                     // Project-scope the graph: only entities referenced by this project's observations
                     const exportEntityNames = new Set(
