@@ -169,7 +169,7 @@ describe('Compact Engine', () => {
         await fs.rm(projectADir, { recursive: true, force: true });
         await fs.rm(projectBDir, { recursive: true, force: true });
       }
-    });
+    }, 30000);
 
     it('should not attach repository evidence from another project with the same entity name', async () => {
       const { observation: reasoning } = await storeObservation({

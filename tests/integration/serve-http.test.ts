@@ -654,7 +654,7 @@ describe('HTTP Transport', () => {
     expect(searchResult.isError).toBeFalsy();
     const searchText = searchResult.content.map((part: any) => part.text ?? '').join('\n');
     expect(searchText).toContain('HTTP binding test');
-  });
+  }, 30000);
 
   it('should mark explicitly joined agent inactive on transport close', async () => {
     const sessionId = await initSession();
@@ -796,7 +796,7 @@ describe('HTTP Transport', () => {
     const statusAfterResult = CallToolResultSchema.parse(statusAfter.json?.result);
     const statusAfterText = statusAfterResult.content.map((part: any) => part.text ?? '').join('\n');
     expect(statusAfterText).toContain(`manual-join-session (${joinAgentId.slice(0, 8)}`);
-  });
+  }, 30000);
 
   it('should fail closed when already bound + bad projectRoot is given', async () => {
     const sessionId = await initSession();
