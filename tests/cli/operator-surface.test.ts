@@ -113,7 +113,7 @@ describe('CLI operator surface', () => {
     expect(joinedParsed.agent.agentType).toBe('codex');
   });
 
-  it('team status keeps historical agents out of the default collaborator list', async () => {
+  it('team status keeps historical agents out of the default agent list', async () => {
     const active = JSON.parse((await runCommand(sessionCommand, {
       _: ['start'],
       agent: 'codex-active',
@@ -139,14 +139,14 @@ describe('CLI operator surface', () => {
     });
 
     const status = await runCommand(teamCommand, { _: ['status'] });
-    expect(status.stdout).toContain('Active collaborators:');
+    expect(status.stdout).toContain('Active agents:');
     expect(status.stdout).toContain('codex-active');
     expect(status.stdout).not.toContain('windsurf-old');
-    expect(status.stdout).toContain('Historical/inactive collaborators: 1');
+    expect(status.stdout).toContain('Historical/inactive agents: 1');
     expect(status.stdout).toContain('use --all to list');
 
     const statusAll = await runCommand(teamCommand, { _: ['status'], all: true });
-    expect(statusAll.stdout).toContain('All collaborators:');
+    expect(statusAll.stdout).toContain('All agents:');
     expect(statusAll.stdout).toContain('codex-active');
     expect(statusAll.stdout).toContain('windsurf-old');
     expect(statusAll.stdout).toContain('(inactive)');

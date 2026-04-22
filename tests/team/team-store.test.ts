@@ -1,5 +1,5 @@
 /**
- * TeamStore — SQLite-backed team collaboration store tests.
+ * TeamStore - SQLite-backed autonomous Agent Team store tests.
  *
  * Covers: agent registration, messages, atomic task claims, locks,
  * cross-process safety, and team-state.json migration.

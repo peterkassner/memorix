@@ -75,9 +75,9 @@ export default defineCommand({
         false, // project-level
       );
       if (ok) {
-        console.log(`✅ ${agent}: hooks removed`);
+        console.log(`[OK] ${agent}: hooks removed`);
       } else {
-        console.log(`⏭️ ${agent}: no hooks found`);
+        console.log(`[SKIP] ${agent}: no hooks found`);
       }
     }
 

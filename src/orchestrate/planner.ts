@@ -443,7 +443,7 @@ export function buildReviewIterationHint(
   budgetRemaining: number,
 ): string {
   if (iteration >= maxIterations) {
-    return `\n\n⚠️ This is the FINAL review iteration (${iteration}/${maxIterations}). Do NOT create more tasks. Summarize remaining issues and exit.`;
+    return `\n\n[WARN] This is the FINAL review iteration (${iteration}/${maxIterations}). Do NOT create more tasks. Summarize remaining issues and exit.`;
   }
   return `\n\nReview iteration: ${iteration}/${maxIterations}. Budget remaining: ~${budgetRemaining} tasks. You may create fix tasks if needed.`;
 }

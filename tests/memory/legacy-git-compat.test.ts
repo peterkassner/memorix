@@ -81,7 +81,7 @@ function makeEntry(id: number, overrides: Partial<IndexEntry> = {}): IndexEntry 
   return {
     time: '1d ago',
     type: 'what-changed',
-    icon: '🟢',
+    icon: '[CHANGE]',
     title: `Entry ${id}`,
     tokens: 80,
     projectId: 'test/project',
@@ -161,10 +161,10 @@ describe('formatObservationDetail: legacy source=git', () => {
     expect(out.indexOf('Git Repository Evidence')).toBeLessThan(out.indexOf('#55'));
   });
 
-  it('source=git + valueCategory=core → shows Git Evidence header + ★ Core', () => {
+  it('source=git + valueCategory=core → shows Git Evidence header + [CORE] Core', () => {
     const out = formatObservationDetail(makeDoc({ source: 'git', valueCategory: 'core' }));
     expect(out).toContain('Git Repository Evidence');
-    expect(out).toContain('★ Core');
+    expect(out).toContain('[CORE] Core');
   });
 
   it('modern sourceDetail=git-ingest still works (no regression)', () => {

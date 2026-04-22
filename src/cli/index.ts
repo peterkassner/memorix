@@ -351,7 +351,7 @@ async function runCleanupMenu(): Promise<void> {
     options: [
       { value: 'project-artifacts', label: 'Uninstall project artifacts', hint: 'remove hook files only' },
       { value: 'project-memory', label: 'Purge project memory', hint: 'delete current project memories' },
-      { value: 'all-memory', label: 'Purge all memory', hint: '⚠️ delete ALL memories' },
+      { value: 'all-memory', label: 'Purge all memory', hint: '[WARN] delete ALL memories' },
       { value: 'back', label: '← Back', hint: 'return to main menu' },
     ],
   });
@@ -742,7 +742,7 @@ async function runAsk(question: string): Promise<void> {
     // Show warnings
     if (result.warning) {
       console.log('');
-      console.log(`${YELLOW}⚠ ${result.warning}${RESET}`);
+      console.log(`${YELLOW}[WARN] ${result.warning}${RESET}`);
     }
 
     // Metadata footer
@@ -1018,7 +1018,7 @@ const main = defineCommand({
       console.error('  audit      Audit trail and project attribution checks');
       console.error('  transfer   Export/import memory snapshots');
       console.error('  skills     List/generate/show project skills');
-      console.error('  team       Join/status/role operations for project collaboration');
+      console.error('  team       Join/status/role operations for autonomous agent teams');
       console.error('  task       Create/claim/complete/list team tasks');
       console.error('  message    Send/broadcast/read team messages');
       console.error('  lock       Manage advisory file locks');

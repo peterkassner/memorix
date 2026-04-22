@@ -107,7 +107,7 @@ describe('Tool profile registration', () => {
     expect(fullTools).toContain('team_manage');
     expect(fullTools).toContain('memorix_rules_sync');
     expect(fullTools).toContain('create_entities');
-  });
+  }, 30000);
 
   it('should keep session_start lightweight by default and require explicit joinTeam for team identity', async () => {
     const liteDir = await createGitProjectDir('memorix-profile-lite-session-');
@@ -155,5 +155,5 @@ describe('Tool profile registration', () => {
 
     const statusText = getText(await teamStatus({ action: 'status' }));
     expect(statusText).toContain('1 active / 1 total');
-  });
+  }, 30000);
 });

@@ -5,7 +5,7 @@ import { emitError, emitResult, getCliProjectContext, parseCsvList, parsePositiv
 export default defineCommand({
   meta: {
     name: 'team',
-    description: 'Manage project-scoped team collaboration state',
+    description: 'Manage project-scoped autonomous agent team state',
   },
   args: {
     name: { type: 'string', description: 'Agent display name' },
@@ -19,7 +19,7 @@ export default defineCommand({
     description: { type: 'string', description: 'Description text' },
     preferredAgentTypes: { type: 'string', description: 'Comma-separated preferred agent types' },
     maxConcurrent: { type: 'string', description: 'Maximum concurrent agents for a role' },
-    all: { type: 'boolean', description: 'Show inactive/historical collaborators in status output' },
+    all: { type: 'boolean', description: 'Show inactive/historical agents in status output' },
     json: { type: 'boolean', description: 'Emit machine-readable JSON output' },
   },
   run: async ({ args }) => {
@@ -46,7 +46,7 @@ export default defineCommand({
           });
           emitResult(
             { project, agent },
-            `Joined project collaboration space as ${agent.name} (${agent.role})`,
+            `Joined project agent team as ${agent.name} (${agent.role})`,
             asJson,
           );
           return;
@@ -146,7 +146,7 @@ export default defineCommand({
               historicalCount: historicalAgents.length,
             },
             [
-              `Project collaboration: ${activeAgents.length} active collaborator(s) / ${historicalAgents.length} historical or inactive`,
+              `Project agent team: ${activeAgents.length} active agent(s) / ${historicalAgents.length} historical or inactive`,
               '',
               occupancy.length > 0
                 ? `Role occupancy:\n${occupancy
@@ -158,10 +158,10 @@ export default defineCommand({
                 : 'Role occupancy: none',
               '',
               visibleAgents.length > 0
-                ? `${showAll ? 'All collaborators' : 'Active collaborators'}:\n${visibleAgents.map(formatAgent).join('\n')}`
-                : `${showAll ? 'All collaborators' : 'Active collaborators'}: none`,
+                ? `${showAll ? 'All agents' : 'Active agents'}:\n${visibleAgents.map(formatAgent).join('\n')}`
+                : `${showAll ? 'All agents' : 'Active agents'}: none`,
               !showAll && historicalAgents.length > 0
-                ? `\nHistorical/inactive collaborators: ${historicalAgents.length} (use --all to list).`
+                ? `\nHistorical/inactive agents: ${historicalAgents.length} (use --all to list).`
                 : '',
             ].join('\n'),
             asJson,

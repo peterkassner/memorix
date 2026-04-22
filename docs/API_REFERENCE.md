@@ -8,7 +8,7 @@ Memorix exposes:
 - reasoning and session tools
 - maintenance and retention tools
 - workspace and rules sync tools
-- team collaboration tools
+- autonomous Agent Team tools
 - dashboard and optional graph compatibility tools
 
 It also exposes a **human/operator CLI surface** for terminal workflows. The CLI is not a raw mirror of MCP tool names; it is the primary product surface for human operators, while MCP remains the integration protocol for IDEs and agents.
@@ -298,7 +298,7 @@ Start a new coding session and load recent context.
 Important inputs:
 
 - optional `agent` — display name (e.g. `"cursor-frontend"`)
-- optional `agentType` — agent type for optional collaboration identity mapping (e.g. `"windsurf"`, `"cursor"`, `"claude-code"`, `"codex"`, `"gemini-cli"`)
+- optional `agentType` — agent type for optional Agent Team identity mapping (e.g. `"windsurf"`, `"cursor"`, `"claude-code"`, `"codex"`, `"gemini-cli"`)
 - optional `projectRoot`
 - optional `sessionId`
 - optional `instanceId`
@@ -312,9 +312,9 @@ Behavior:
 - returns recent session context and project binding state
 - **does not join the team by default**
 - if you only need memory/search/reasoning/session recovery, stop here; no team identity is required
-- when `joinTeam=true`, it also registers a collaboration identity using the default role derived from `agentType` via `AGENT_TYPE_ROLE_MAP`
-- `team_manage(join)` remains the formal explicit join entrypoint if you want to separate session start from collaboration identity
-- team-specific outputs such as agent ID, watermark, and available tasks appear only when the session explicitly joins collaboration
+- when `joinTeam=true`, it also registers an Agent Team identity using the default role derived from `agentType` via `AGENT_TYPE_ROLE_MAP`
+- `team_manage(join)` remains the formal explicit join entrypoint if you want to separate session start from Agent Team identity
+- team-specific outputs such as agent ID, watermark, and available tasks appear only when the session explicitly joins the Agent Team
 
 In HTTP control-plane mode, pass `projectRoot` as the absolute workspace or repo root whenever the client knows it. `projectRoot` is the detection anchor; Git remains the source of truth for the final project identity.
 
@@ -488,17 +488,18 @@ Typical actions:
 
 ---
 
-## 9. Team Collaboration Tools
+## 9. Agent Team Tools
 
-These tools are most meaningful in HTTP transport mode:
+These tools are the explicit autonomous-agent coordination surface. They are available through MCP profiles that expose team tools and through the CLI operator surface. HTTP is optional: use it when you want a shared MCP control plane or live dashboard endpoint, not because Agent Team state requires HTTP.
 
 ```bash
-memorix background start
+memorix team status
+memorix orchestrate --goal "..."
 ```
 
-Use `memorix serve-http --port 3211` when you want the same HTTP control plane in the foreground for debugging or manual supervision.
+Use `memorix background start` or `memorix serve-http --port 3211` only when you want the HTTP control plane in the background or foreground.
 
-Team collaboration is opt-in project coordination for tasks, messages, locks, and autonomous agent workflows. It is not required for normal memory use, and it should not be treated as an automatic chat room between separate IDE conversations. For production multi-agent execution, use `memorix orchestrate`; the team tools provide the coordination substrate.
+Agent Team is opt-in project coordination for tasks, messages, locks, and autonomous agent workflows. It is not required for normal memory use, and it should not be treated as an automatic chat room between separate IDE conversations. For production multi-agent execution, use `memorix orchestrate`; the team tools provide the coordination substrate.
 
 Runtime environment:
 
@@ -556,7 +557,7 @@ Important inputs:
 
 ### `memorix_poll`
 
-Return a compact situational-awareness snapshot for an explicitly joined collaborator.
+Return a compact situational-awareness snapshot for an explicitly joined autonomous agent.
 
 Important inputs:
 
@@ -564,7 +565,7 @@ Important inputs:
 
 Use it for:
 
-- active collaborator overview
+- active autonomous agent overview
 - available tasks
 - unread messages
 - active file locks
@@ -574,7 +575,7 @@ If `agentId` is omitted, it returns a project-level overview only.
 
 ### `memorix_handoff`
 
-Create, claim, complete, or inspect handoff artifacts between collaborators.
+Create, claim, complete, or inspect handoff artifacts between autonomous agents.
 
 Important inputs:
 

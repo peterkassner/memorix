@@ -23,7 +23,7 @@ export default defineCommand({
     },
     mode: {
       type: 'string',
-      description: 'Tool profile to expose (lite, team, full; default: lite; collaboration join remains explicit)',
+      description: 'Tool profile to expose (lite, team, full; default: lite; Agent Team join remains explicit)',
       required: false,
     },
   },
@@ -75,7 +75,7 @@ export default defineCommand({
     }
 
     if (!resolution.detectedProject) {
-      console.error(`[memorix] ⚠️ ${resolution.error}`);
+      console.error(`[memorix] [WARN] ${resolution.error}`);
       console.error(`[memorix] Starting in deferred-binding mode — project will bind via MCP roots or memorix_session_start.`);
       console.error(`[memorix] For non-git directories, use --allow-untracked to enable untracked/ fallback.`);
       // Don't exit — allow deferred binding via session_start or MCP roots (fixes Cursor stdio #75)
@@ -140,7 +140,7 @@ export default defineCommand({
           if (rootDetected) {
             const switched = await switchProject(rootPath);
             if (switched) {
-              console.error(`[memorix] 🔄 Project updated via MCP roots: ${rootDetected.id}`);
+              console.error(`[memorix] [UPDATED] Project updated via MCP roots: ${rootDetected.id}`);
               await persistRoot(rootDetected.rootPath);
             }
             return; // use first valid root
@@ -150,7 +150,7 @@ export default defineCommand({
           if (subGit) {
             const switched = await switchProject(subGit);
             if (switched) {
-              console.error(`[memorix] 🔄 Project updated via MCP roots (subdir): ${subGit}`);
+              console.error(`[memorix] [UPDATED] Project updated via MCP roots (subdir): ${subGit}`);
               const subDetected = detectProject(subGit);
               if (subDetected) await persistRoot(subDetected.rootPath);
             }

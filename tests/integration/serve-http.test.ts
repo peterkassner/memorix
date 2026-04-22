@@ -687,7 +687,7 @@ describe('HTTP Transport', () => {
     }, sessionId);
     const statusBeforeResult = CallToolResultSchema.parse(statusBefore.json?.result);
     const statusBeforeText = statusBeforeResult.content.map((part: any) => part.text ?? '').join('\n');
-    expect(statusBeforeText).toContain('● close-cleanup-test');
+    expect(statusBeforeText).toContain('[active] close-cleanup-test');
 
     const deleteRes = await fetch(`${BASE_URL}/mcp`, {
       method: 'DELETE',
@@ -722,7 +722,7 @@ describe('HTTP Transport', () => {
     }, observerSessionId);
     const statusAfterResult = CallToolResultSchema.parse(statusAfter.json?.result);
     const statusAfterText = statusAfterResult.content.map((part: any) => part.text ?? '').join('\n');
-    expect(statusAfterText).toContain(`○ close-cleanup-test (${agentId.slice(0, 8)}…)`);
+    expect(statusAfterText).toContain(`[inactive] close-cleanup-test (${agentId.slice(0, 8)})`);
   });
 
   it('should treat team_manage join as the current session identity source', async () => {

@@ -23,10 +23,10 @@ const FACT_PATTERNS: Array<{ pattern: RegExp; format: (m: RegExpMatchArray) => s
     pattern: /\b([A-Z][a-zA-Z_-]{2,30})\s*[:=]\s*([^\n,;]{2,60})/g,
     format: (m) => `${m[1]}: ${m[2].trim()}`,
   },
-  // Arrow notation (e.g., "MySQL → PostgreSQL", "v1.0 → v2.0")
+  // Arrow notation (e.g., "MySQL -> PostgreSQL", "v1.0 -> v2.0")
   {
-    pattern: /\b(\S{2,30})\s*[→➜\->]+\s*(\S{2,30})/g,
-    format: (m) => `${m[1]} → ${m[2]}`,
+    pattern: /\b(\S{2,30})\s*(?:->|=>|>)\s*(\S{2,30})/g,
+    format: (m) => `${m[1]} -> ${m[2]}`,
   },
   // Version numbers (e.g., "v1.2.3", "version 2.0")
   {

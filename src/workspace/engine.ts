@@ -397,30 +397,30 @@ export class WorkspaceSyncEngine {
     // Build summary
     const lines: string[] = [];
     if (applyResult.success) {
-      lines.push(`✅ Applied ${applyResult.filesWritten.length} file(s) for ${target}`);
+      lines.push(`[OK] Applied ${applyResult.filesWritten.length} file(s) for ${target}`);
       for (const f of applyResult.filesWritten) {
         lines.push(`  → ${f}`);
       }
       if (skillResult.copied.length > 0) {
-        lines.push(`\n🧩 Copied ${skillResult.copied.length} skill(s):`);
+        lines.push(`\n[SKILL] Copied ${skillResult.copied.length} skill(s):`);
         for (const sk of skillResult.copied) {
           lines.push(`  → ${sk}`);
         }
       }
       if (skillResult.skipped.length > 0) {
-        lines.push(`\n⏭️ Skipped ${skillResult.skipped.length} skill(s):`);
+        lines.push(`\n[SKIP] Skipped ${skillResult.skipped.length} skill(s):`);
         for (const sk of skillResult.skipped) {
           lines.push(`  → ${sk}`);
         }
       }
       if (syncResult.skills.conflicts.length > 0) {
-        lines.push(`\n⚠️ Name conflicts (${syncResult.skills.conflicts.length}):`);
+        lines.push(`\n[WARN] Name conflicts (${syncResult.skills.conflicts.length}):`);
         for (const c of syncResult.skills.conflicts) {
           lines.push(`  → "${c.name}": kept ${c.kept.sourceAgent}, skipped ${c.skipped.sourceAgent}`);
         }
       }
       if (applyResult.backups.length > 0) {
-        lines.push(`\n📦 Backups created (${applyResult.backups.length}):`);
+        lines.push(`\n[PACKAGE] Backups created (${applyResult.backups.length}):`);
         for (const b of applyResult.backups) {
           lines.push(`  ${b.originalPath} → ${b.backupPath}`);
         }
@@ -428,12 +428,12 @@ export class WorkspaceSyncEngine {
       // Clean up backups after successful apply
       applier.cleanBackups(applyResult.backups);
     } else {
-      lines.push(`❌ Apply failed for ${target}`);
+      lines.push(`[ERROR] Apply failed for ${target}`);
       for (const e of applyResult.errors) {
         lines.push(`  Error: ${e}`);
       }
       if (applyResult.backups.length > 0) {
-        lines.push(`\n🔄 Rolled back ${applyResult.backups.length} file(s)`);
+        lines.push(`\n[UPDATED] Rolled back ${applyResult.backups.length} file(s)`);
       }
     }
 

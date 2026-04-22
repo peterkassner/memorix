@@ -194,7 +194,7 @@ export function formatMiniSkillsForInjection(skills: MiniSkill[]): string {
   if (skills.length === 0) return '';
 
   const lines = [
-    `## 🎯 Project Mini-Skills (${skills.length} active)`,
+    `## [SESSION] Project Mini-Skills (${skills.length} active)`,
     '',
   ];
 

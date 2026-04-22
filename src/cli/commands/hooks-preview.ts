@@ -125,7 +125,7 @@ export default defineCommand({
     console.log('');
 
     for (const item of previewItems) {
-      const icon = item.action === 'create' ? '➕' : '✏️';
+      const icon = item.action === 'create' ? '[ADD]' : '[EDIT]';
       console.log(`${icon} ${item.path}`);
       console.log(`   ${item.action} (${item.size})`);
       console.log('');

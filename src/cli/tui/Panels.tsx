@@ -205,7 +205,7 @@ export function SearchResultsView({ results, query, loading }: SearchResultsView
   const relevanceBar = (score: number): string => {
     const ratio = topScore > 0 ? score / topScore : 0;
     const filled = Math.round(ratio * 3);
-    return '●'.repeat(filled) + '○'.repeat(3 - filled);
+    return '#'.repeat(filled) + '-'.repeat(3 - filled);
   };
 
   return (

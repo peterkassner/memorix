@@ -17,6 +17,7 @@ import { getBaseDataDir } from '../store/persistence.js';
 import { getObservationStore, initObservationStore } from '../store/obs-store.js';
 import { getSessionStore, initSessionStore } from '../store/session-store.js';
 import { initGraphStore, getGraphStore } from '../store/graph-store.js';
+import type { TeamStore } from '../team/team-store.js';
 
 // MIME types for static file serving
 const MIME_TYPES: Record<string, string> = {
@@ -704,12 +705,142 @@ interface DashboardState {
     port: number;
 }
 
-/** Optional team collaboration instances passed from MCP server */
+/** Optional Agent Team instances passed from MCP server */
 export interface TeamInstances {
     registry: { listAgents: (filter?: any) => any[]; getActiveCount: () => number; getAgent: (id: string) => any };
     fileLocks: { listLocks: (agentId?: string) => any[]; cleanExpired: () => void };
     taskManager: { list: (filter?: any) => any[]; getAvailable: () => any[] };
     messageBus: { getUnreadCount: (agentId: string) => number };
+}
+
+function parseJsonField(value: unknown, fallback: unknown): unknown {
+    if (typeof value !== 'string') return value ?? fallback;
+    try {
+        return JSON.parse(value || JSON.stringify(fallback));
+    } catch {
+        return fallback;
+    }
+}
+
+function normalizeDashboardAgent(teamStore: TeamStore, projectId: string, agent: any) {
+    const id = agent.agent_id ?? agent.id ?? '';
+    const agentProjectId = agent.project_id ?? agent.projectId ?? projectId;
+    return {
+        id,
+        projectId: agentProjectId,
+        instanceId: agent.instance_id ?? agent.instanceId,
+        agentType: agent.agent_type ?? agent.agentType,
+        name: agent.name,
+        role: agent.role,
+        capabilities: parseJsonField(agent.capabilities, []),
+        status: agent.status,
+        joinedAt: agent.joined_at ?? agent.joinedAt,
+        lastSeenAt: agent.last_heartbeat ?? agent.last_seen_at ?? agent.lastSeenAt,
+        leftAt: agent.left_at ?? agent.leftAt,
+        unread: id ? teamStore.getUnreadCount(agentProjectId, id) : 0,
+        source: agent.source || 'sqlite',
+    };
+}
+
+function normalizeDashboardLock(lock: any) {
+    return {
+        file: lock.file,
+        projectId: lock.project_id ?? lock.projectId,
+        lockedBy: lock.locked_by ?? lock.lockedBy,
+        lockedAt: lock.locked_at ?? lock.lockedAt,
+        expiresAt: lock.expires_at ?? lock.expiresAt,
+    };
+}
+
+function normalizeDashboardTask(task: any) {
+    return {
+        id: task.task_id ?? task.id,
+        projectId: task.project_id ?? task.projectId,
+        description: task.description,
+        status: task.status,
+        assignee: task.assignee_agent_id ?? task.assignee,
+        result: task.result,
+        metadata: parseJsonField(task.metadata, null),
+        createdBy: task.created_by ?? task.createdBy,
+        createdAt: task.created_at ?? task.createdAt,
+        updatedAt: task.updated_at ?? task.updatedAt,
+        deps: task.deps || [],
+        requiredRole: task.required_role ?? task.requiredRole ?? null,
+        preferredRole: task.preferred_role ?? task.preferredRole ?? null,
+    };
+}
+
+async function buildTeamSnapshot(dataDir: string, projectId: string, scope: string, mode: DashboardState['mode']) {
+    try {
+        const { initTeamStore } = await import('../team/team-store.js');
+        const teamStore = await initTeamStore(dataDir);
+        const effectiveProjectId = scope === 'global' ? undefined : projectId;
+        const rawAgents = effectiveProjectId ? teamStore.listAgents(effectiveProjectId) : teamStore.listAllAgents();
+        const rawLocks = effectiveProjectId ? teamStore.listLocks(effectiveProjectId) : teamStore.listAllLocks();
+        const rawTasks = effectiveProjectId ? teamStore.listTasks(effectiveProjectId) : teamStore.listAllTasks();
+        const available = effectiveProjectId ? teamStore.listTasks(effectiveProjectId, { available: true }) : teamStore.listAllTasks({ available: true });
+        const agents = rawAgents.map((agent: any) => normalizeDashboardAgent(teamStore, projectId, agent));
+        const locks = rawLocks.map(normalizeDashboardLock);
+        const tasks = rawTasks.map(normalizeDashboardTask);
+        const recentWindowMs = 7 * 24 * 60 * 60 * 1000;
+        const now = Date.now();
+        const withTier = agents.map((agent: any) => {
+            if (agent.status === 'active') return { ...agent, activityTier: 'active' };
+            const seen = Date.parse(agent.lastSeenAt ?? '') || 0;
+            return { ...agent, activityTier: now - seen <= recentWindowMs ? 'recent' : 'historical' };
+        });
+        const activeCount = withTier.filter((agent: any) => agent.activityTier === 'active').length;
+        const recentCount = withTier.filter((agent: any) => agent.activityTier === 'recent').length;
+        const historicalCount = withTier.filter((agent: any) => agent.activityTier === 'historical').length;
+        const roles = effectiveProjectId ? teamStore.listRoles(effectiveProjectId) : [];
+        const roleOccupancy = effectiveProjectId ? teamStore.getRoleOccupancy(effectiveProjectId) : [];
+        const handoffs = effectiveProjectId ? teamStore.listHandoffs(effectiveProjectId) : [];
+        return {
+            mode,
+            readOnly: mode === 'standalone',
+            scope,
+            agents: withTier,
+            activeCount,
+            recentCount,
+            historicalCount,
+            totalAgents: withTier.length,
+            recentWindowDays: 7,
+            locks,
+            tasks,
+            availableTasks: available.length,
+            sessions: 0,
+            roles,
+            roleOccupancy,
+            handoffs,
+            openTasks: tasks.filter((task: any) => task.status === 'pending' || task.status === 'in_progress').length,
+            openHandoffs: handoffs.filter((handoff: any) => handoff.handoff_status === 'open' || handoff.handoffStatus === 'open').length,
+            totalUnread: withTier.reduce((sum: number, agent: any) => sum + (agent.unread || 0), 0),
+            activeSessions: activeCount,
+        };
+    } catch {
+        return {
+            mode,
+            readOnly: mode === 'standalone',
+            scope,
+            agents: [],
+            activeCount: 0,
+            recentCount: 0,
+            historicalCount: 0,
+            totalAgents: 0,
+            recentWindowDays: 7,
+            locks: [],
+            tasks: [],
+            availableTasks: 0,
+            sessions: 0,
+            roles: [],
+            roleOccupancy: [],
+            handoffs: [],
+            openTasks: 0,
+            openHandoffs: 0,
+            totalUnread: 0,
+            activeSessions: 0,
+        };
+    }
 }
 
 /** Read full POST body as string */
@@ -770,7 +901,9 @@ export async function startDashboard(
 
         if (url.startsWith('/api/team')) {
             if (!teamInstances) {
-                sendJson(res, { unavailable: true, reason: 'http-transport-required' });
+                const parsedUrl = new URL(url, `http://127.0.0.1:${port}`);
+                const scope = parsedUrl.searchParams.get('scope') || 'project';
+                sendJson(res, await buildTeamSnapshot(state.dataDir, state.projectId, scope, state.mode));
                 return;
             }
             try {

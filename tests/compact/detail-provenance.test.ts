@@ -60,28 +60,28 @@ describe('Provenance header: sourceDetail', () => {
 });
 
 describe('Provenance header: valueCategory', () => {
-  it('explicit + core → shows ★ Core', () => {
+  it('explicit + core → shows [CORE] Core', () => {
     const out = formatObservationDetail(makeDoc({ sourceDetail: 'explicit', valueCategory: 'core' }));
-    expect(out).toContain('★ Core');
+    expect(out).toContain('[CORE] Core');
     expect(out).toContain('immune to decay');
   });
 
-  it('git-ingest + core → shows ★ Core (core promotes to L2 but header still present)', () => {
+  it('git-ingest + core → shows [CORE] Core (core promotes to L2 but header still present)', () => {
     const out = formatObservationDetail(makeDoc({ sourceDetail: 'git-ingest', valueCategory: 'core' }));
     expect(out).toContain('Git Repository Evidence');
-    expect(out).toContain('★ Core');
+    expect(out).toContain('[CORE] Core');
   });
 
-  it('hook + ephemeral → shows ⚠ Ephemeral', () => {
+  it('hook + ephemeral → shows [WARN] Ephemeral', () => {
     const out = formatObservationDetail(makeDoc({ sourceDetail: 'hook', valueCategory: 'ephemeral' }));
-    expect(out).toContain('⚠ Ephemeral');
+    expect(out).toContain('[WARN] Ephemeral');
     expect(out).toContain('short-lived signal');
   });
 
   it('explicit + contextual → no valueCategory annotation (neutral)', () => {
     const out = formatObservationDetail(makeDoc({ sourceDetail: 'explicit', valueCategory: 'contextual' }));
-    expect(out).not.toContain('★');
-    expect(out).not.toContain('⚠');
+    expect(out).not.toContain('[CORE]');
+    expect(out).not.toContain('[WARN]');
   });
 });
 

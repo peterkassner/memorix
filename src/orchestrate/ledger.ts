@@ -98,7 +98,7 @@ export function ledgerToPromptSection(
 // ── Internals ──────────────────────────────────────────────────────
 
 function formatEntry(entry: LedgerEntry): string {
-  const icon = entry.status === 'completed' ? '✅' : '❌';
+  const icon = entry.status === 'completed' ? '[OK]' : '[ERROR]';
   const files = entry.outputFiles.length > 0
     ? ` → ${entry.outputFiles.join(', ')}`
     : '';

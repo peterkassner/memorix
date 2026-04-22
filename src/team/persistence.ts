@@ -1,5 +1,5 @@
 /**
- * Team State Persistence — File-based shared state for cross-IDE team collaboration
+ * Team State Persistence - File-based shared state for autonomous Agent Team coordination
  *
  * In stdio mode, each IDE spawns its own MCP process with isolated in-memory team state.
  * This persistence layer writes team state to a shared JSON file so all MCP processes

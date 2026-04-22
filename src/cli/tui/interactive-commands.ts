@@ -194,7 +194,7 @@ export async function runCleanupInline(): Promise<void> {
     options: [
       { value: 'project-artifacts', label: 'Uninstall project artifacts', hint: 'remove hook files' },
       { value: 'project-memory', label: 'Purge project memory', hint: 'delete current project memories' },
-      { value: 'all-memory', label: 'Purge all memory', hint: '⚠️ delete ALL memories' },
+      { value: 'all-memory', label: 'Purge all memory', hint: '[WARN] delete ALL memories' },
       { value: 'back', label: '← Back', hint: 'return to workbench' },
     ],
   });

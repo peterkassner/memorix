@@ -18,7 +18,7 @@
 </p>
 
 <p align="center">
-  <strong>Three-Layer Memory</strong> | <strong>Team Collaboration</strong> | <strong>Workspace Sync</strong> | <strong>Multi-Agent Orchestration</strong> | <strong>Dashboard</strong>
+  <strong>Three-Layer Memory</strong> | <strong>Agent Team</strong> | <strong>Workspace Sync</strong> | <strong>Multi-Agent Orchestration</strong> | <strong>Dashboard</strong>
 </p>
 
 <p align="center">
@@ -39,9 +39,9 @@
 
 **Memorix is a local-first memory control plane for coding agents.**
 
-It keeps project memory, reasoning context, Git-derived facts, and optional collaboration state in one place so you can continue work across IDEs, sessions, terminals, and autonomous agent runs without losing project truth.
+It keeps project memory, reasoning context, Git-derived facts, and optional autonomous-agent state in one place so you can continue work across IDEs, sessions, terminals, and agent runs without losing project truth.
 
-For most users, the default path is simple: use the local TUI/CLI or connect one IDE over stdio MCP. Treat HTTP as the shared-control-plane mode you opt into when you specifically want the dashboard, one long-lived background service, or collaboration state shared across multiple clients.
+For most users, the default path is simple: use the local TUI/CLI or connect one IDE over stdio MCP. Treat HTTP as the shared-control-plane mode you opt into when you specifically want one long-lived background service, shared MCP access, or a live dashboard endpoint.
 
 ## Why Memorix
 
@@ -52,11 +52,11 @@ Most coding agents remember only the current thread. Memorix gives them a shared
 <tr><td><b>🔍 Source-Aware Retrieval</b></td><td>"What changed" queries favor Git Memory; "why" queries favor reasoning; project-scoped by default, global on demand</td></tr>
 <tr><td><b>⚙️ Memory Quality Pipeline</b></td><td>Formation (LLM-assisted evaluation), dedup, consolidation, retention with exponential decay — memory stays clean, not noisy</td></tr>
 <tr><td><b>🔄 Workspace & Rules Sync</b></td><td>One command to migrate MCP configs, workflows, rules, and skills across Cursor, Windsurf, Claude Code, Codex, Copilot, Kiro, etc.</td></tr>
-<tr><td><b>👥 Team Collaboration</b></td><td>Opt-in collaboration state for autonomous agents: task board with role-based claiming, inter-agent messaging, advisory file locks, situational-awareness poll</td></tr>
+<tr><td><b>👥 Agent Team</b></td><td>Opt-in autonomous-agent state: task board with role-based claiming, inter-agent messaging, advisory file locks, situational-awareness poll</td></tr>
 <tr><td><b>🤖 Multi-Agent Orchestration</b></td><td><code>memorix orchestrate</code> runs a structured coordination loop — plan → parallel execution → verify → fix → review — with capability routing and worktree isolation</td></tr>
 <tr><td><b>📋 Session Lifecycle</b></td><td>Session start/end with handoff summaries, watermark tracking (new memories since last session), cross-session context recovery</td></tr>
 <tr><td><b>🎯 Project Skills</b></td><td>Auto-generate SKILL.md from memory patterns; promote observations to permanent mini-skills injected at session start</td></tr>
-<tr><td><b>📊 Dashboard</b></td><td>Local web UI for browsing memories, Git history, active collaboration state, and task board — team views require the HTTP control plane</td></tr>
+<tr><td><b>📊 Dashboard</b></td><td>Local web UI for browsing memories, Git history, sessions, and read-only autonomous agent team state</td></tr>
 <tr><td><b>🔒 Local & Private</b></td><td>SQLite as canonical store, Orama for search, no cloud dependency — everything stays on your machine</td></tr>
 </table>
 
@@ -101,19 +101,19 @@ Then pick the path that matches what you want to do:
 | --- | --- | --- |
 | Interactive terminal workbench | `memorix` | Default starting point for local search, chat, memory capture, and diagnostics |
 | Quick MCP setup inside one IDE | `memorix serve` | Default MCP path for Cursor, Claude Code, Codex, Windsurf, Gemini CLI, and other stdio clients |
-| Dashboard + shared HTTP MCP in the background | `memorix background start` | A long-lived shared control plane for the dashboard, multiple clients, or collaboration state |
+| Dashboard + shared HTTP MCP in the background | `memorix background start` | A long-lived shared control plane for multiple clients and a live dashboard endpoint |
 | Foreground HTTP mode for debugging or a custom port | `memorix serve-http --port 3211` | Manual supervision, debugging, custom launch control |
 
-Most users should choose **one** of the first two options above. Move to HTTP only when you intentionally want the dashboard, one shared background service, or multi-client collaboration.
+Most users should choose **one** of the first two options above. Move to HTTP only when you intentionally want one shared background service, multi-client MCP access, or a live dashboard endpoint.
 
 Common paths:
 
 | Goal | Use | Why |
 | --- | --- | --- |
 | Work directly in the terminal | `memorix` or `memorix <command>` | CLI/TUI is the primary product surface. |
-| Connect an IDE or coding agent over MCP | `memorix serve` first; HTTP + `memorix_session_start` when needed | Start a lightweight memory session without joining team by default. |
+| Connect an IDE or coding agent over MCP | `memorix serve` first; HTTP + `memorix_session_start` when needed | Start a lightweight memory session without joining Agent Team by default. |
 | Run autonomous multi-agent execution | `memorix orchestrate` | Structured plan → spawn → verify → fix → review loop with CLI agents. |
-| Watch shared project memory in the browser | `memorix background start` + dashboard | Shared HTTP control plane plus dashboard for memory and opt-in collaboration state. |
+| Watch project memory and agent state in the browser | `memorix dashboard` | Standalone read-mostly dashboard for memory, sessions, and autonomous agent team state. |
 
 Companion commands: `memorix background status|logs|stop`. For multi-workspace HTTP sessions, bind with `memorix_session_start(projectRoot=...)`.
 
@@ -239,7 +239,7 @@ For the full IDE matrix, Windows notes, and troubleshooting, see [docs/SETUP.md]
 | Capture Git truth | `memorix git-hook --force`, `memorix ingest commit`, `memorix ingest log` | [Git Memory Guide](docs/GIT_MEMORY.md) |
 | Run dashboard + HTTP MCP | `memorix background start` | [Setup Guide](docs/SETUP.md), [Docker](docs/DOCKER.md) |
 | Keep memory-only sessions lightweight | `memorix_session_start(projectRoot=...)` or `memorix session start` | [Agent Operator Playbook](docs/AGENT_OPERATOR_PLAYBOOK.md#8-what-an-agent-should-do-at-session-start) |
-| Join opt-in collaboration | `memorix session start --joinTeam` or `memorix team join` | [TEAM.md](TEAM.md), [API Reference](docs/API_REFERENCE.md#9-team-collaboration-tools) |
+| Join the autonomous agent team | `memorix session start --joinTeam` or `memorix team join` | [TEAM.md](TEAM.md), [API Reference](docs/API_REFERENCE.md#9-agent-team-tools) |
 | Run autonomous multi-agent work | `memorix orchestrate --goal "..."` | [API Reference](docs/API_REFERENCE.md) |
 | Sync agent configs/rules | `memorix sync workspace ...`, `memorix sync rules ...` | [Setup Guide](docs/SETUP.md) |
 | Use Memorix from code | `import { createMemoryClient } from 'memorix/sdk'` | [API Reference](docs/API_REFERENCE.md) |
@@ -260,7 +260,7 @@ HTTP MCP sessions idle out after 30 minutes by default. If your client does not 
 MEMORIX_SESSION_TIMEOUT_MS=86400000 memorix background start  # 24h
 ```
 
-Team collaboration is **not** the normal memory startup path and it is **not** a chat room between IDE windows. Join team only when you need tasks, messages, locks, or a structured autonomous-agent workflow. For real multi-agent execution, prefer:
+Agent Team is **not** the normal memory startup path and it is **not** a chat room between IDE windows. Join only when you need tasks, messages, locks, or a structured autonomous-agent workflow. For real multi-agent execution, prefer:
 
 ```bash
 memorix orchestrate --goal "Add user authentication" --agents claude-code,cursor,codex
@@ -321,7 +321,7 @@ Three subpath exports:
   <img src="assets/architecture.svg" alt="Memorix Architecture" width="960">
 </p>
 
-Memorix is not a single linear pipeline. It accepts memory from multiple ingress surfaces, persists it across multiple substrates, runs several asynchronous quality/indexing branches, and exposes the results through different retrieval and collaboration surfaces.
+Memorix is not a single linear pipeline. It accepts memory from multiple ingress surfaces, persists it across multiple substrates, runs several asynchronous quality/indexing branches, and exposes the results through retrieval, dashboard, and explicit Agent Team surfaces.
 
 ### Memory Layers
 
@@ -374,7 +374,7 @@ Version `1.0.8` builds on the 1.0.7 coordination/storage/team baseline with a CL
 - **Docker Deployment**: Official `Dockerfile`, `compose.yaml`, healthcheck, `--host` binding, and [DOCKER.md](docs/DOCKER.md) for running the HTTP control plane in a container.
 - **Multi-Agent Orchestrator**: `memorix orchestrate` runs plan, parallel execution, verification, fix, review, and merge loops across Claude, Codex, Gemini CLI, and OpenCode with capability routing, worktree isolation, and agent fallback.
 - **SQLite Canonical Store**: Observations, mini-skills, sessions, and archives in SQLite. Shared DB handle, freshness-safe retrieval, dead `JsonBackend` removed.
-- **Opt-in Collaboration**: task board, messages, file locks, handoff artifacts, and collaborator heartbeat state. `session_start` is lightweight by default; collaboration identity is opt-in via `joinTeam` or `team_manage join`.
+- **Opt-in Agent Team**: task board, messages, file locks, handoff artifacts, and autonomous-agent heartbeat state. `session_start` is lightweight by default; team identity is opt-in via `joinTeam` or `team_manage join`.
 - **Dashboard Semantic Layering**: Team page filter tabs (Active/Recent/Historical), de-emphasized historical agents, project switcher grouped by real/temporary/placeholder, identity page cleanup.
 - **Hooks Fixes**: OpenCode event-name key mapping + `Bun.spawn` → `spawnSync`; Copilot `pwsh` fallback + global-hooks guard; hook handler diagnostic logging.
 - **Programmatic SDK**: `import { createMemoryClient } from 'memorix/sdk'` to store, search, get, and resolve observations directly from your own code without MCP or CLI. Also exports `createMemorixServer` and `detectProject`.

@@ -123,8 +123,8 @@ export function formatTimeline(timeline: TimelineContext): string {
   if (hasSrc && anchorEffectiveSource) {
     const anchorBasis = resolveEvidenceBasis({ sourceDetail: anchor.sourceDetail, source: anchor.source });
     const basisSuffix =
-      anchorBasis === 'repository' ? ' — ✓ repository-backed' :
-      anchorBasis === 'synthesized' ? ' — ◈ synthesized' :
+      anchorBasis === 'repository' ? ' — [OK] repository-backed' :
+      anchorBasis === 'synthesized' ? ' — [SYNTHESIZED] synthesized' :
       '';
     lines.push(`*Expanding: ${sourceKindLabel(anchorEffectiveSource)}${basisSuffix}*`);
   }
@@ -258,9 +258,9 @@ function buildProvenanceHeader(
   }
 
   if (valueCategory === 'core') {
-    lines.push('★ Core — immune to decay');
+    lines.push('[CORE] Core — immune to decay');
   } else if (valueCategory === 'ephemeral') {
-    lines.push('⚠ Ephemeral — short-lived signal');
+    lines.push('[WARN] Ephemeral — short-lived signal');
   }
 
   return lines.join('\n');
@@ -268,33 +268,33 @@ function buildProvenanceHeader(
 
 /** Short label for a resolved sourceDetail value, used in headers and timeline annotations. */
 function sourceKindLabel(sd: string): string {
-  if (sd === 'git-ingest') return '📌 Git Repository Evidence';
-  if (sd === 'hook') return '🔗 Hook Trace';
-  return '💾 Explicit Working Memory';
+  if (sd === 'git-ingest') return '[PIN] Git Repository Evidence';
+  if (sd === 'hook') return '[HOOK] Hook Trace';
+  return '[STORE] Explicit Working Memory';
 }
 
 function getTypeIcon(type: string): string {
   const icons: Record<string, string> = {
-    'session-request': '🎯',
-    'gotcha': '🔴',
-    'problem-solution': '🟡',
-    'how-it-works': '🔵',
-    'what-changed': '🟢',
-    'discovery': '🟣',
-    'why-it-exists': '🟠',
-    'decision': '🟤',
-    'trade-off': '⚖️',
-    'reasoning': '🧠',
+    'session-request': '[SESSION]',
+    'gotcha': '[GOTCHA]',
+    'problem-solution': '[FIX]',
+    'how-it-works': '[INFO]',
+    'what-changed': '[CHANGE]',
+    'discovery': '[DISCOVERY]',
+    'why-it-exists': '[WHY]',
+    'decision': '[DECISION]',
+    'trade-off': '[TRADEOFF]',
+    'reasoning': '[REASONING]',
   };
-  return icons[type] ?? '❓';
+  return icons[type] ?? '[UNKNOWN]';
 }
 
 function getProgressiveDisclosureHint(hasProject: boolean): string {
   const lines = [
-    '💡 **Progressive Disclosure:** This index shows WHAT exists and retrieval COST.',
+    '[TIP] **Progressive Disclosure:** This index shows WHAT exists and retrieval COST.',
     '- Use `memorix_detail` with typed refs (obs:42, skill:3) to fetch full details',
     '- Use `memorix_timeline` to see chronological context around an observation',
-    '- Critical types (🔴 gotcha, 🟤 decision, ⚖️ trade-off) are often worth fetching immediately',
+    '- Critical types ([GOTCHA] gotcha, [DECISION] decision, [TRADEOFF] trade-off) are often worth fetching immediately',
   ];
 
   if (hasProject) {
@@ -313,7 +313,7 @@ function formatEntryRef(entry: IndexEntry): string {
 
 /** Short badge for knowledge layer */
 function formatLayerBadge(layer?: string): string {
-  if (layer === 'promoted') return '★';
+  if (layer === 'promoted') return 'core';
   if (layer === 'evidence') return 'ev';
   return '-';
 }

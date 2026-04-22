@@ -36,7 +36,7 @@ If you used Memorix before `1.0.8`, the operator-visible changes worth knowing a
 - `memorix_session_start` is now **lightweight by default**: it binds the project, opens the session, and restores context without auto-registering a team identity
 - team participation is now explicit: use `joinTeam: true` on `memorix_session_start` or call `team_manage(join)` directly
 - Memorix is now **CLI-first for operators**: every Memorix-native operator capability has a terminal route, while MCP remains the integration protocol for IDEs and agents
-- Team page is a **project collaboration space** (not an org backend or IDE-window chat room): shows explicitly joined active collaborators, open tasks, handoffs, and a "Continue This Project" resume area
+- Agent Team page is an **autonomous CLI agents status surface** (not an org backend or IDE-window chat room): shows explicitly joined autonomous agents, open tasks, handoffs, and a "Continue This Project" resume area
 - Docker now has an official HTTP control-plane deployment path; when running in a container, `projectRoot` must be visible inside that container or project-scoped semantics will fail closed
 
 ---
@@ -47,7 +47,7 @@ If you used Memorix before `1.0.8`, the operator-visible changes worth knowing a
 
 For human operators, prefer `memorix ...` commands first. In 1.0.8, the CLI covers all Memorix-native operator capabilities across session, memory, reasoning, retention, formation, audit, transfer, skills, team, task, message, lock, handoff, poll, sync, and ingest workflows.
 
-Do not ask memory-only users to join team collaboration. A lightweight session is enough for memory, retrieval, reasoning, and continuation. Join team only for task/message/lock coordination or for autonomous CLI-agent work managed by `memorix orchestrate`.
+Do not ask memory-only users to join the Agent Team. A lightweight session is enough for memory, retrieval, reasoning, and continuation. Join only for explicit task/message/lock coordination or for autonomous CLI-agent work managed by `memorix orchestrate`.
 
 Use MCP when:
 
@@ -115,7 +115,7 @@ when the user wants:
 - team/task/message features
 - one shared control-plane process
 
-Default recommendation: if the user just wants memory inside one IDE or terminal, start with `memorix` or `memorix serve`. Reach for HTTP only when the dashboard, a shared background service, or explicit collaboration features are actually needed.
+Default recommendation: if the user just wants memory inside one IDE or terminal, start with `memorix` or `memorix serve`. Reach for HTTP only when a shared background service, multi-client MCP access, or a live dashboard endpoint is actually needed.
 
 Use:
 
@@ -375,7 +375,7 @@ Choose:
 - "I want dashboard"
 - "I want HTTP MCP"
 - "I want multiple agents / IDEs at once"
-- "I want team features"
+- "I want shared HTTP MCP or a live dashboard endpoint"
 
 Choose:
 
@@ -483,10 +483,10 @@ In HTTP control-plane mode:
 1. Call `memorix_session_start`
 2. Pass:
    - `agent` — display name (e.g. `"cursor-frontend"`)
-   - `agentType` — optional agent type for collaboration role mapping (e.g. `"windsurf"`, `"cursor"`, `"claude-code"`, `"codex"`, `"gemini-cli"`)
+   - `agentType` — optional agent type for Agent Team role mapping (e.g. `"windsurf"`, `"cursor"`, `"claude-code"`, `"codex"`, `"gemini-cli"`)
    - `projectRoot` = absolute workspace path
 3. By default this only starts a lightweight session. It does **not** auto-register a team identity.
-4. If the user wants collaboration features, either:
+4. If the user wants autonomous Agent Team features, either:
    - call `memorix_session_start` with `joinTeam: true`
    - or call `team_manage(join)` explicitly
 5. If project binding fails, stop using project-scoped tools until the path is corrected
@@ -594,7 +594,7 @@ On Windows, some hosts behave better with `memorix.cmd` than bare `memorix`.
 
 **serverUrl vs command mode:**
 - `serverUrl` (HTTP) requires the background to already be running — it cannot auto-start
-- `command` (stdio) launches `memorix serve` on demand — no background needed, but no dashboard/team
+- `command` (stdio) launches `memorix serve` on demand — no background needed; use `memorix dashboard` for a standalone read-mostly dashboard and CLI/team tools for autonomous agent workflows
 
 If using `serverUrl` and the background keeps disappearing, consider switching to stdio mode as a fallback.
 

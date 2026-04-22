@@ -57,7 +57,7 @@ describe('End-to-End: Store → Search → Detail', () => {
     const searchResult = await compactSearch({ query: 'JWT', projectId: PROJECT_ID });
     expect(searchResult.entries).toHaveLength(1);
     expect(searchResult.entries[0].id).toBe(obs.id);
-    expect(searchResult.entries[0].icon).toBe('🟤'); // decision icon
+    expect(searchResult.entries[0].icon).toBe('[DECISION]');
     expect(searchResult.entries[0].title).toBe('Use JWT for API authentication');
 
     // Detail (Layer 3)
@@ -105,7 +105,7 @@ describe('End-to-End: Store → Search → Detail', () => {
       projectId: PROJECT_ID,
     });
     // Should find at least the port gotcha
-    expect(gotchaResults.entries.some(e => e.icon === '🔴')).toBe(true);
+    expect(gotchaResults.entries.some(e => e.icon === '[GOTCHA]')).toBe(true);
   });
 
   it('should support timeline (Layer 2) with chronological context', async () => {
@@ -157,7 +157,7 @@ describe('End-to-End: Store → Search → Detail', () => {
     // Verify search finds it
     const searchResult = await compactSearch({ query: 'Express Fastify', projectId: PROJECT_ID });
     expect(searchResult.entries.length).toBeGreaterThanOrEqual(1);
-    expect(searchResult.entries[0].icon).toBe('⚖️'); // trade-off icon
+    expect(searchResult.entries[0].icon).toBe('[TRADEOFF]');
   });
 
   it('should produce formatted output with Progressive Disclosure hints', async () => {

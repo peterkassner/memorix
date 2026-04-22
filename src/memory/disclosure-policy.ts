@@ -74,10 +74,10 @@ export function resolveEvidenceBasis(fields: {
 export function evidenceBasisLine(basis: EvidenceBasis, commitHash?: string): string {
   if (basis === 'repository') {
     const commit = commitHash ? ` — commit ${commitHash.substring(0, 7)}` : '';
-    return `✓ Repository-backed${commit}`;
+    return `[OK] Repository-backed${commit}`;
   }
   if (basis === 'synthesized') {
-    return '◈ Synthesized — explicit analysis citing repository evidence';
+    return '[SYNTHESIZED] Synthesized — explicit analysis citing repository evidence';
   }
   return '';
 }

@@ -185,7 +185,7 @@ export default defineCommand({
 
     const conflicts = syncer.detectConflicts(deduped);
     if (conflicts.length > 0) {
-      p.log.warn(`⚠ ${conflicts.length} conflict(s) detected:`);
+      p.log.warn(`[WARN] ${conflicts.length} conflict(s) detected:`);
       for (const conflict of conflicts) {
         p.log.warn(`  ${conflict.ruleA.source} vs ${conflict.ruleB.source}: ${conflict.reason}`);
       }

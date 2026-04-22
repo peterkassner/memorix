@@ -16,7 +16,7 @@ The default memory path uses local SQLite as the canonical store and Orama for s
 
 ## What Is Lightweight
 
-- `memorix_session_start` is lightweight by default. It opens a memory/session context and does not join team collaboration unless `joinTeam: true` is explicitly set.
+- `memorix_session_start` is lightweight by default. It opens a memory/session context and does not join the Agent Team unless `joinTeam: true` is explicitly set.
 - stdio MCP starts on demand and exits with the client.
 - HTTP background mode idles as a single local process.
 - LLM enrichment is optional. Without `MEMORIX_LLM_API_KEY` or `OPENAI_API_KEY`, Memorix uses local heuristic dedup/search behavior.
@@ -45,7 +45,7 @@ On the release development machine used for this check, the healthy HTTP control
 
 ## Operator Guidance
 
-- For memory-only use, prefer stdio MCP or a lightweight `memorix_session_start`; do not join team collaboration by default.
+- For memory-only use, prefer stdio MCP or a lightweight `memorix_session_start`; do not join the Agent Team by default.
 - For long-lived IDE sessions over HTTP, set `MEMORIX_SESSION_TIMEOUT_MS=86400000` before `memorix background start` if your client is stale-session-sensitive.
 - For Docker, use it when you want a managed HTTP control plane. Do not use image size alone as the runtime memory estimate.
 - For autonomous multi-agent work, expect CPU and disk activity proportional to the spawned agents and verification commands.

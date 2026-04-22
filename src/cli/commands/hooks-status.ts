@@ -2,11 +2,11 @@
  * CLI Command: memorix hooks status
  *
  * Show hook installation status for all agents.
- * Icons:
- *   [OK]  — installed and verified (config-based agent, file read directly)
- *   [??]  — installed but unverified (plugin-based agent, runtime load not confirmed)
- *   [!!]  — installed but outdated
- *   [ ]   — not installed
+ * Status marks:
+ *   [OK]  - installed and verified (config-based agent, file read directly)
+ *   [??]  - installed but unverified (plugin-based agent, runtime load not confirmed)
+ *   [!!]  - installed but outdated
+ *   [ ]   - not installed
  */
 
 import { defineCommand } from 'citty';
@@ -26,7 +26,7 @@ export default defineCommand({
     const statuses = await getHookStatus(cwd);
 
     console.log('\nMemorix Hooks Status');
-    console.log('═'.repeat(50));
+    console.log('-'.repeat(50));
 
     let hasOutdated = false;
     let hasUnverified = false;
@@ -37,7 +37,7 @@ export default defineCommand({
         : '[ ]';
       const label = agent.charAt(0).toUpperCase() + agent.slice(1);
       const tier = AGENT_SUPPORT_TIER[agent];
-      const tierLabel = tier === 'core' ? '★' : tier === 'extended' ? '◆' : '○';
+      const tierLabel = tier === 'core' ? '[core]' : tier === 'extended' ? '[extended]' : '[community]';
       const suffix = !runtimeReady && installed
         ? ' (installed but runtime NOT ready — missing pwsh on Windows)'
         : outdated
@@ -49,7 +49,7 @@ export default defineCommand({
       if (!runtimeReady && installed) hasRuntimeIssue = true;
     }
 
-    console.log('\nSupport tiers: ★ core | ◆ extended | ○ community');
+    console.log('\nSupport tiers: [core] core | [extended] extended | [community] community');
 
     if (hasOutdated) {
       console.log('\n[warn] Outdated hooks detected. Run `memorix hooks install` to update.');

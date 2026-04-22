@@ -57,7 +57,7 @@ export default defineCommand({
     const availableAgents = detectedAgents.filter((agent) => !installedAgents.has(agent));
 
     if (availableAgents.length === 0) {
-      console.log('✅ All detected agents already have hooks installed.');
+      console.log('[OK] All detected agents already have hooks installed.');
       return;
     }
 
@@ -103,7 +103,7 @@ export default defineCommand({
       await installSingleAgent(agent, cwd, args.global ?? false);
     }
 
-    p.outro('✅ Hooks installed! Restart your IDE to apply.');
+    p.outro('[OK] Hooks installed! Restart your IDE to apply.');
   },
 });
 
@@ -115,7 +115,7 @@ async function installSingleAgent(agent: string, cwd: string, global: boolean): 
       cwd,
       global,
     );
-    console.log(`✅ ${agent}: hooks installed -> ${config.configPath}`);
+    console.log(`[OK] ${agent}: hooks installed -> ${config.configPath}`);
     console.log(`   Events: ${config.events.join(', ')}`);
 
     // Copilot on Windows without pwsh: warn about runtime compatibility
@@ -124,7 +124,7 @@ async function installSingleAgent(agent: string, cwd: string, global: boolean): 
         const { execSync } = await import('node:child_process');
         execSync('pwsh --version', { encoding: 'utf-8', timeout: 3000, stdio: ['pipe', 'pipe', 'ignore'] });
       } catch {
-        console.warn(`⚠️  ${agent}: pwsh (PowerShell v7+) not found. Copilot hooks will use the bash field via Git Bash.`);
+        console.warn(`[WARN]  ${agent}: pwsh (PowerShell v7+) not found. Copilot hooks will use the bash field via Git Bash.`);
         console.warn(`   For best Windows support, install PowerShell v7+: winget install Microsoft.PowerShell`);
       }
     }
@@ -132,10 +132,10 @@ async function installSingleAgent(agent: string, cwd: string, global: boolean): 
     // Copilot global not supported
     if (agent === 'copilot' && global) {
       const note = (config.generated as Record<string, unknown>)?.note;
-      if (note) console.warn(`⚠️  ${note}`);
+      if (note) console.warn(`[WARN]  ${note}`);
     }
   } catch (err) {
-    console.error(`❌ ${agent}: failed - ${err}`);
+    console.error(`[ERROR] ${agent}: failed - ${err}`);
   }
 }
 

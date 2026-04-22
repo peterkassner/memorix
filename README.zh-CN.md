@@ -39,9 +39,9 @@
 
 **Memorix 是一个面向 Coding Agent 的、本地优先的记忆控制面。**
 
-它把项目记忆、推理上下文、Git 导出的工程事实，以及可选的协作状态放在同一套本地系统里，让你可以在 IDE、终端、不同 session 和自主 agent 运行之间持续推进同一个项目，而不丢失项目真相。
+它把项目记忆、推理上下文、Git 导出的工程事实，以及可选的自主 Agent Team 状态放在同一套本地系统里，让你可以在 IDE、终端、不同 session 和自主 agent 运行之间持续推进同一个项目，而不丢失项目真相。
 
-对大多数用户来说，默认路径其实很简单：直接用本地 TUI/CLI，或者把一个 IDE 通过 stdio MCP 接进来。HTTP 更适合作为你主动启用的共享控制面模式，用在 dashboard、长驻后台服务，或多个客户端共享协作状态的场景里。
+对大多数用户来说，默认路径其实很简单：直接用本地 TUI/CLI，或者把一个 IDE 通过 stdio MCP 接进来。HTTP 更适合作为你主动启用的共享控制面模式，用在长驻后台服务、多个客户端共享 MCP、或需要 live dashboard endpoint 的场景里。
 
 ## 为什么选择 Memorix
 
@@ -52,11 +52,11 @@
 <tr><td><b>🔍 Source-Aware 检索</b></td><td>"改了什么"倾向 Git Memory；"为什么"倾向推理记忆；默认项目作用域，可切全局</td></tr>
 <tr><td><b>⚙️ 记忆质量管线</b></td><td>Formation（LLM 评估）、去重、合并、保留衰减——记忆保持干净，不会越积越噪</td></tr>
 <tr><td><b>🔄 工作区 & 规则同步</b></td><td>一条命令迁移 MCP 配置、工作流、规则、技能到 Cursor/Windsurf/Claude Code/Codex/Copilot/Kiro 等</td></tr>
-<tr><td><b>👥 团队协作</b></td><td>面向自主 Agent 的显式协作状态：任务板（角色认领）、Agent 间消息、文件锁、态势感知 poll</td></tr>
+<tr><td><b>👥 Agent Team</b></td><td>面向自主 CLI Agent 的显式状态：任务板（角色认领）、Agent 间消息、文件锁、态势感知 poll</td></tr>
 <tr><td><b>🤖 多 Agent 编排</b></td><td><code>memorix orchestrate</code> 运行结构化协作循环——计划→并行执行→验证→修复→审查——带能力路由和 worktree 隔离</td></tr>
 <tr><td><b>📋 Session 生命周期</b></td><td>Session start/end + 交接摘要、水位线追踪（上次以来的新记忆）、跨 session 上下文恢复</td></tr>
 <tr><td><b>🎯 项目技能</b></td><td>从记忆模式自动生成 SKILL.md；将观察提升为永久 mini-skill，session 启动时自动注入</td></tr>
-<tr><td><b>📊 Dashboard</b></td><td>本地 Web UI：浏览记忆、Git 历史、活跃协作状态和任务板；Team 视图需要 HTTP 控制面</td></tr>
+<tr><td><b>📊 Dashboard</b></td><td>本地 Web UI：浏览记忆、Git 历史、会话，以及只读自主 Agent Team 状态</td></tr>
 <tr><td><b>🔒 本地 & 私有</b></td><td>SQLite 为权威存储、Orama 为检索引擎、无云依赖——一切留在你的机器上</td></tr>
 </table>
 
@@ -101,19 +101,19 @@ Memorix 使用两类文件：
 | --- | --- | --- |
 | 交互式终端工作台 | `memorix` | 默认起手式：本地搜索、聊天、记忆录入、诊断都在一个全屏 TUI 里完成 |
 | 先把 Memorix 快速接到一个 IDE 里 | `memorix serve` | 默认 MCP 路径，适合 Cursor、Claude Code、Codex、Windsurf、Gemini CLI 等 stdio 客户端 |
-| 在后台长期运行 HTTP MCP + Dashboard | `memorix background start` | 当你明确需要共享控制面、dashboard、多个客户端或协作状态时再启用 |
+| 在后台长期运行 HTTP MCP + Dashboard | `memorix background start` | 当你明确需要共享控制面、多个客户端 MCP 或 live dashboard endpoint 时再启用 |
 | 把 HTTP 模式放在前台调试或自定义端口 | `memorix serve-http --port 3211` | 调试、手动观察日志、自定义启动方式 |
 
-对大多数用户来说，选上面前两条之一就够了。只有在你明确想要 dashboard、共享后台服务或多客户端协作时，再切到 HTTP。
+对大多数用户来说，选上面前两条之一就够了。只有在你明确想要共享后台服务、多客户端 MCP 或 live dashboard endpoint 时，再切到 HTTP。
 
 常见路径：
 
 | 目标 | 使用 | 原因 |
 | --- | --- | --- |
 | 在终端里直接操作 | `memorix` 或 `memorix <command>` | CLI/TUI 是主要产品入口。 |
-| 通过 MCP 接入 IDE 或 Coding Agent | 优先 `memorix serve`；需要时再用 HTTP + `memorix_session_start` | 启动轻量记忆会话；默认不加入 team。 |
+| 通过 MCP 接入 IDE 或 Coding Agent | 优先 `memorix serve`；需要时再用 HTTP + `memorix_session_start` | 启动轻量记忆会话；默认不加入 Agent Team。 |
 | 运行自主多 Agent 执行 | `memorix orchestrate` | 结构化计划→启动→验证→修复→审查循环。 |
-| 在浏览器里观察共享项目记忆 | `memorix background start` + Dashboard | 共享 HTTP 控制面 + Dashboard，展示记忆和可选协作状态。 |
+| 在浏览器里观察项目记忆和 Agent Team 状态 | `memorix dashboard` | 独立只读 Dashboard，展示记忆、会话和自主 Agent Team 状态。 |
 
 配套命令：`memorix background status|logs|stop`。多工作区 HTTP session 需用 `memorix_session_start(projectRoot=...)` 绑定。
 
@@ -239,7 +239,7 @@ args = ["serve"]
 | 捕获 Git 真相 | `memorix git-hook --force`、`memorix ingest commit`、`memorix ingest log` | [Git Memory Guide](docs/GIT_MEMORY.md) |
 | 运行 Dashboard + HTTP MCP | `memorix background start` | [Setup Guide](docs/SETUP.md)、[Docker](docs/DOCKER.md) |
 | 保持记忆会话轻量 | `memorix_session_start(projectRoot=...)` 或 `memorix session start` | [Agent Operator Playbook](docs/AGENT_OPERATOR_PLAYBOOK.md#8-what-an-agent-should-do-at-session-start) |
-| 显式加入协作空间 | `memorix session start --joinTeam` 或 `memorix team join` | [TEAM.md](TEAM.md)、[API Reference](docs/API_REFERENCE.md#9-team-collaboration-tools) |
+| 显式加入 Agent 团队 | `memorix session start --joinTeam` 或 `memorix team join` | [TEAM.md](TEAM.md)、[API Reference](docs/API_REFERENCE.md#9-agent-team-tools) |
 | 运行自主多 Agent 工作 | `memorix orchestrate --goal "..."` | [API Reference](docs/API_REFERENCE.md) |
 | 同步 Agent 配置/规则 | `memorix sync workspace ...`、`memorix sync rules ...` | [Setup Guide](docs/SETUP.md) |
 | 在代码里直接调用 | `import { createMemoryClient } from 'memorix/sdk'` | [API Reference](docs/API_REFERENCE.md) |

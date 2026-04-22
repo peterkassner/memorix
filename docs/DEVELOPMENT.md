@@ -137,7 +137,7 @@ src/
   search/              intent-aware retrieval helpers
   skills/              memory-driven skills generation
   store/               Orama index and persistence
-  team/                collaboration registry, tasks, locks, messages
+  team/                autonomous Agent Team registry, tasks, locks, messages
   workspace/           MCP and workflow sync across agents
 
 tests/

@@ -1,5 +1,5 @@
 /**
- * Team Module — Multi-Agent Collaboration
+ * Team Module - Autonomous Multi-Agent Coordination
  *
  * Provides agent registry, message bus, file locks, and task management
  * for coordinating multiple AI agents working on the same project.

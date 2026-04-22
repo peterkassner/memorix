@@ -1,6 +1,6 @@
 # Memorix Team Protocol
 
-Rules for project-scoped multi-agent coordination via Memorix team tools. The Team page is a **project collaboration space** — it shows explicitly joined collaborators, open tasks, locks, messages, and what needs attention. It is NOT an organization backend, staffing admin tool, or automatic chat room between separate IDE windows.
+Rules for project-scoped autonomous-agent coordination via Memorix team tools. The Team page is an **Agent Team status surface** — it shows explicitly joined autonomous agents, open tasks, locks, messages, handoffs, and what needs attention. It is NOT an organization backend, staffing admin tool, or automatic chat room between separate IDE windows.
 
 Only agents that are intentionally participating in team/task/message/lock workflows need this protocol. Memory-only sessions should stay lightweight and do not need a team identity.
 
@@ -19,11 +19,11 @@ At the **beginning of every memory session**, before project-scoped memory work:
 
 1. Call `memorix_session_start` to bind the project, open the session, and restore context.
 2. By default, `memorix_session_start` is **lightweight**: it does **not** create a team identity.
-3. If you actually want to participate in project collaboration, tasks, messages, or locks, explicitly join in one of two ways:
+3. If you actually want to participate in autonomous agent tasks, messages, or locks, explicitly join in one of two ways:
    - call `memorix_session_start` with `joinTeam: true`
    - or call `team_manage` with `action: "join"`
 4. Store the returned **agent ID** only after an explicit join — you will need it for subsequent team operations.
-5. Call `memorix_poll` with your agent ID to see current collaborators, check available tasks, and read unread messages.
+5. Call `memorix_poll` with your agent ID to see current autonomous agents, check available tasks, and read unread messages.
 6. If you need a custom role or capabilities, use explicit `team_manage(join)` so the role overrides the default mapping cleanly.
 
 ## RULE 2: Lock Before Edit
@@ -96,7 +96,7 @@ When the session is ending:
 | When | Tool Call |
 |------|-----------|
 | Session start | `memorix_session_start` (lightweight) |
-| Join collaboration | `memorix_session_start(joinTeam=true)` or `team_manage(join)` |
+| Join Agent Team | `memorix_session_start(joinTeam=true)` or `team_manage(join)` |
 | After joining | `memorix_poll` (check status + inbox) |
 | Before editing a shared file | `team_file_lock(status)`, `team_file_lock(lock)` |
 | After editing | `team_file_lock(unlock)` |

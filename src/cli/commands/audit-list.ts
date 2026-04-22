@@ -69,7 +69,7 @@ export default defineCommand({
       console.log('');
 
       for (const { entry } of items) {
-        const icon = entry.type === 'hook' ? '🔗' : '📋';
+        const icon = entry.type === 'hook' ? '[HOOK]' : '[TASK]';
         const agent = entry.agent ? ` (${entry.agent})` : '';
         console.log(`${icon} ${entry.path}${agent}`);
         console.log(`   Created: ${entry.createdAt}`);

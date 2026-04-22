@@ -62,11 +62,11 @@ export default defineCommand({
 
       const result = await resolveObservations(ids, 'archived');
 
-      console.log(`✅ Archived ${result.resolved.length} observations for project`);
+      console.log(`[OK] Archived ${result.resolved.length} observations for project`);
 
       p.outro(`Project memory purged. ${result.resolved.length} observations archived.`);
     } catch (err) {
-      console.error(`❌ Failed to purge project memory: ${err}`);
+      console.error(`[ERROR] Failed to purge project memory: ${err}`);
       p.outro('Purge failed.');
     }
   },

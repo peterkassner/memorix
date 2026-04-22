@@ -13,7 +13,7 @@ function makeEntry(overrides: Partial<IndexEntry> & { id: number }): IndexEntry 
   return {
     time: '1d ago',
     type: 'gotcha',
-    icon: '🔶',
+    icon: '[SKILL]',
     title: `Entry ${overrides.id}`,
     tokens: 100,
     score: 1.0,

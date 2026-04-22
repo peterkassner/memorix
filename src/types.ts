@@ -42,16 +42,16 @@ export interface KnowledgeGraph {
  * Observation type classification using claude-mem's icon-based legend system.
  *
  * Icon mapping:
- * 🎯 session-request   — User's original goal
- * 🔴 gotcha            — Critical pitfall / trap
- * 🟡 problem-solution  — Bug fix or workaround
- * 🔵 how-it-works      — Technical explanation
- * 🟢 what-changed      — Code/architecture change
- * 🟣 discovery         — New learning or insight
- * 🟠 why-it-exists     — Design rationale
- * 🟤 decision          — Architecture decision
- * ⚖️ trade-off         — Deliberate compromise
- * 🧠 reasoning         — Why this approach was chosen (System 2 reasoning trace)
+ * [SESSION] session-request   — User's original goal
+ * [GOTCHA] gotcha            — Critical pitfall / trap
+ * [FIX] problem-solution  — Bug fix or workaround
+ * [INFO] how-it-works      — Technical explanation
+ * [CHANGE] what-changed      — Code/architecture change
+ * [DISCOVERY] discovery         — New learning or insight
+ * [WHY] why-it-exists     — Design rationale
+ * [DECISION] decision          — Architecture decision
+ * [TRADEOFF] trade-off         — Deliberate compromise
+ * [REASONING] reasoning         — Why this approach was chosen (System 2 reasoning trace)
  */
 export type ObservationType =
   | 'session-request'
@@ -67,16 +67,16 @@ export type ObservationType =
 
 /** Map from ObservationType to display icon */
 export const OBSERVATION_ICONS: Record<ObservationType, string> = {
-  'session-request': '🎯',
-  'gotcha': '🔴',
-  'problem-solution': '🟡',
-  'how-it-works': '🔵',
-  'what-changed': '🟢',
-  'discovery': '🟣',
-  'why-it-exists': '🟠',
-  'decision': '🟤',
-  'trade-off': '⚖️',
-  'reasoning': '🧠',
+  'session-request': '[SESSION]',
+  'gotcha': '[GOTCHA]',
+  'problem-solution': '[FIX]',
+  'how-it-works': '[INFO]',
+  'what-changed': '[CHANGE]',
+  'discovery': '[DISCOVERY]',
+  'why-it-exists': '[WHY]',
+  'decision': '[DECISION]',
+  'trade-off': '[TRADEOFF]',
+  'reasoning': '[REASONING]',
 };
 
 /** Observation lifecycle status */

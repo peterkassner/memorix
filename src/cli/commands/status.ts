@@ -106,11 +106,11 @@ export default defineCommand({
       const legacyJson = join(os.homedir(), '.memorix', 'config.json');
 
       diagLines.push('Config files:');
-      diagLines.push(`  memorix.yml (project): ${existsSync(projectYml) ? '✅ ' + projectYml : '❌ not found'}`);
-      diagLines.push(`  memorix.yml (user):    ${existsSync(userYml) ? '✅ ' + userYml : '— not found'}`);
-      diagLines.push(`  .env (project):        ${existsSync(projectEnv) ? '✅ ' + projectEnv : '— not found'}`);
-      diagLines.push(`  .env (user):           ${existsSync(userEnv) ? '✅ ' + userEnv : '— not found'}`);
-      diagLines.push(`  config.json (legacy):  ${existsSync(legacyJson) ? '⚠️  ' + legacyJson : '— not found'}`);
+      diagLines.push(`  memorix.yml (project): ${existsSync(projectYml) ? '[OK] ' + projectYml : '[ERROR] not found'}`);
+      diagLines.push(`  memorix.yml (user):    ${existsSync(userYml) ? '[OK] ' + userYml : '— not found'}`);
+      diagLines.push(`  .env (project):        ${existsSync(projectEnv) ? '[OK] ' + projectEnv : '— not found'}`);
+      diagLines.push(`  .env (user):           ${existsSync(userEnv) ? '[OK] ' + userEnv : '— not found'}`);
+      diagLines.push(`  config.json (legacy):  ${existsSync(legacyJson) ? '[WARN]  ' + legacyJson : '— not found'}`);
       const loadedEnv = getLoadedEnvFiles();
       if (loadedEnv.length > 0) {
         diagLines.push(`  Loaded .env files:     ${loadedEnv.join(', ')}`);
@@ -174,7 +174,7 @@ export default defineCommand({
         if (resolved && existsSync(resolved.hookPath)) {
           const hookContent = readFileSync(resolved.hookPath, 'utf-8');
           if (hookContent.includes('# [memorix-git-hook]')) {
-            diagLines.push(`  Git hook:      installed ✅`);
+            diagLines.push(`  Git hook:      installed [OK]`);
           } else {
             diagLines.push(`  Git hook:      not installed (run "memorix git-hook")`);
           }
@@ -185,7 +185,7 @@ export default defineCommand({
 
       if (!existsSync(projectYml)) {
         diagLines.push('');
-        diagLines.push('💡 Run "memorix init" to create memorix.yml + .env');
+        diagLines.push('[TIP] Run "memorix init" to create memorix.yml + .env');
       }
 
       p.note(diagLines.join('\n'), 'Configuration Diagnostics');

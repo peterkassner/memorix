@@ -144,21 +144,21 @@ export default defineCommand({
     const projectDir = args.project ? path.resolve(args.project) : process.cwd();
     const proj = detectProject(projectDir);
     if (!proj) {
-      console.error('❌ Not a git repository. Run `git init` first.');
+      console.error('[ERROR] Not a git repository. Run `git init` first.');
       process.exit(1);
     }
 
     // Parse agent quotas: "claude:2,codex:1,gemini:2" or legacy "claude,codex,gemini"
     const agentQuotas = parseAgentQuotas(args.agents as string);
     if (agentQuotas.length === 0) {
-      console.error('❌ No valid agent adapters found.');
+      console.error('[ERROR] No valid agent adapters found.');
       process.exit(1);
     }
     const quotaMap = buildQuotaMap(agentQuotas);
     const agentNames = [...new Set(agentQuotas.map(q => q.name))];
     const adapters = resolveAdapters(agentNames);
     if (adapters.length === 0) {
-      console.error('❌ No valid agent adapters found.');
+      console.error('[ERROR] No valid agent adapters found.');
       process.exit(1);
     }
 
@@ -168,12 +168,12 @@ export default defineCommand({
       if (await adapter.available()) {
         available.push(adapter);
       } else {
-        console.error(`⚠️  ${adapter.name} CLI not found on PATH — skipping`);
+        console.error(`[WARN]  ${adapter.name} CLI not found on PATH — skipping`);
       }
     }
 
     if (available.length === 0 && !(args['dry-run'] as boolean)) {
-      console.error('❌ No agent CLIs available. Install at least one: claude, codex, gemini');
+      console.error('[ERROR] No agent CLIs available. Install at least one: claude, codex, gemini');
       process.exit(1);
     }
 
@@ -195,23 +195,23 @@ export default defineCommand({
 
     // Validate numeric CLI args — fail fast with clear messages
     if (!Number.isFinite(parallel) || parallel < 1) {
-      console.error(`❌ --parallel must be a positive integer, got: ${args.parallel}`);
+      console.error(`[ERROR] --parallel must be a positive integer, got: ${args.parallel}`);
       process.exit(1);
     }
     if (!Number.isFinite(taskTimeoutMs) || taskTimeoutMs <= 0) {
-      console.error(`❌ --timeout must be a positive integer (ms), got: ${args.timeout}`);
+      console.error(`[ERROR] --timeout must be a positive integer (ms), got: ${args.timeout}`);
       process.exit(1);
     }
     if (!Number.isFinite(pollIntervalMs) || pollIntervalMs < 0) {
-      console.error(`❌ --poll must be a non-negative integer (ms), got: ${args.poll}`);
+      console.error(`[ERROR] --poll must be a non-negative integer (ms), got: ${args.poll}`);
       process.exit(1);
     }
     if (!Number.isFinite(maxRetries) || maxRetries < 0) {
-      console.error(`❌ --max-retries must be a non-negative integer, got: ${args['max-retries']}`);
+      console.error(`[ERROR] --max-retries must be a non-negative integer, got: ${args['max-retries']}`);
       process.exit(1);
     }
     if (globalTimeoutMs != null && (!Number.isFinite(globalTimeoutMs) || globalTimeoutMs <= 0)) {
-      console.error(`❌ --global-timeout must be a positive integer (ms), got: ${globalTimeoutRaw}`);
+      console.error(`[ERROR] --global-timeout must be a positive integer (ms), got: ${globalTimeoutRaw}`);
       process.exit(1);
     }
 
@@ -227,7 +227,7 @@ export default defineCommand({
             ).run(task.task_id);
           } catch { /* best-effort */ }
         }
-        console.error(`🧹 Purged ${existing.length} existing task(s)`);
+        console.error(`[CLEANUP] Purged ${existing.length} existing task(s)`);
       }
     }
 
@@ -252,19 +252,19 @@ export default defineCommand({
       const taskBudget = parseInt(args['task-budget'] as string, 10);
 
       if (!Number.isFinite(maxIterations) || maxIterations < 1) {
-        console.error(`❌ --max-iterations must be a positive integer, got: ${args['max-iterations']}`);
+        console.error(`[ERROR] --max-iterations must be a positive integer, got: ${args['max-iterations']}`);
         process.exit(1);
       }
       if (!Number.isFinite(taskBudget) || taskBudget < 2) {
-        console.error(`❌ --task-budget must be >= 2, got: ${args['task-budget']}`);
+        console.error(`[ERROR] --task-budget must be >= 2, got: ${args['task-budget']}`);
         process.exit(1);
       }
 
       if (dryRun) {
-        console.error(`\n🧠 Autonomous mode (DRY RUN): goal → "${goal}"`);
-        console.error(`📝 Would seed planning task (not written to task board)`);
-        console.error(`🔄 Max iterations: ${maxIterations}, Task budget: ${taskBudget}`);
-        console.error(`📦 Structured plan: ${structuredPlan ? 'yes' : 'no (legacy)'}`);
+        console.error(`\n[REASONING] Autonomous mode (DRY RUN): goal → "${goal}"`);
+        console.error(`[PLAN] Would seed planning task (not written to task board)`);
+        console.error(`[UPDATED] Max iterations: ${maxIterations}, Task budget: ${taskBudget}`);
+        console.error(`[PACKAGE] Structured plan: ${structuredPlan ? 'yes' : 'no (legacy)'}`);
       } else {
         const { seedAutonomousPipeline } = await import('../../orchestrate/planner.js');
         const { planningTaskId, pipelineId } = seedAutonomousPipeline(teamStore, proj.id, {
@@ -277,10 +277,10 @@ export default defineCommand({
           agents: agentNames,
         });
         currentPipelineId = pipelineId;
-        console.error(`\n🧠 Autonomous mode: goal → "${goal}"`);
-        console.error(`📝 Planning task seeded: ${planningTaskId.slice(0, 8)}… (pipeline ${pipelineId.slice(0, 8)}…)`);
-        console.error(`🔄 Max iterations: ${maxIterations}, Task budget: ${taskBudget}`);
-        console.error(`📦 Structured plan: ${structuredPlan ? 'yes' : 'no (legacy)'}`);
+        console.error(`\n[REASONING] Autonomous mode: goal → "${goal}"`);
+        console.error(`[PLAN] Planning task seeded: ${planningTaskId.slice(0, 8)}… (pipeline ${pipelineId.slice(0, 8)}…)`);
+        console.error(`[UPDATED] Max iterations: ${maxIterations}, Task budget: ${taskBudget}`);
+        console.error(`[PACKAGE] Structured plan: ${structuredPlan ? 'yes' : 'no (legacy)'}`);
       }
     }
 
@@ -288,17 +288,17 @@ export default defineCommand({
     const tasks = teamStore.listTasks(proj.id);
     const pendingTasks = tasks.filter(t => t.status === 'pending');
     if (tasks.length === 0) {
-      console.error('📋 No tasks found. Use --goal or create tasks with `team_task create`.');
+      console.error('[TASK] No tasks found. Use --goal or create tasks with `team_task create`.');
       process.exit(0);
     }
 
-    console.error(`\n🚀 Orchestrator started for project ${proj.name}`);
-    console.error(`📋 ${pendingTasks.length} pending, ${tasks.filter(t => t.status === 'in_progress').length} in progress, ${tasks.filter(t => t.status === 'completed').length} completed`);
+    console.error(`\n[START] Orchestrator started for project ${proj.name}`);
+    console.error(`[TASK] ${pendingTasks.length} pending, ${tasks.filter(t => t.status === 'in_progress').length} in progress, ${tasks.filter(t => t.status === 'completed').length} completed`);
     const agentLabel = agentQuotas.map(q => q.quota > 1 ? `${q.name}×${q.quota}` : q.name).join(', ');
-    console.error(`🤖 Agents: ${agentLabel}`);
-    console.error(`⚙️  Parallel: ${parallel}, Retries: ${maxRetries}, Timeout: ${taskTimeoutMs}ms${globalTimeoutMs ? `, Global: ${globalTimeoutMs}ms` : ''}`);
-    if (args.routing) console.error(`🛣️  Routing: ${args.routing}`);
-    if (parallel >= 2) console.error(`🌳 Git worktree isolation: enabled`);
+    console.error(`[AGENT] Agents: ${agentLabel}`);
+    console.error(`[CONFIG]  Parallel: ${parallel}, Retries: ${maxRetries}, Timeout: ${taskTimeoutMs}ms${globalTimeoutMs ? `, Global: ${globalTimeoutMs}ms` : ''}`);
+    if (args.routing) console.error(`[ROUTE]  Routing: ${args.routing}`);
+    if (parallel >= 2) console.error(`[WORKTREE] Git worktree isolation: enabled`);
 
     // Phase 7 config display
     const compileCommand = args['compile-command'] as string | undefined;
@@ -307,22 +307,22 @@ export default defineCommand({
     const budgetRaw = args.budget as string | undefined;
     const budgetUSD = budgetRaw ? parseFloat(budgetRaw) : undefined;
     if (budgetUSD != null && (!Number.isFinite(budgetUSD) || budgetUSD <= 0)) {
-      console.error(`❌ Invalid --budget value: "${budgetRaw}" (must be a positive number)`);
+      console.error(`[ERROR] Invalid --budget value: "${budgetRaw}" (must be a positive number)`);
       process.exit(1);
     }
     const enableLessons = !(args['no-lessons'] as boolean);
     const enableMemoryCapture = args['memory-capture'] as boolean;
     const enableEvidence = !(args['no-evidence'] as boolean);
 
-    if (compileCommand) console.error(`🔨 Compile gate: ${compileCommand}`);
-    if (testCommand) console.error(`🧪 Test gate: ${testCommand}`);
-    if (compileCommand || testCommand) console.error(`🔧 Max fix attempts: ${maxFixAttempts}`);
-    if (budgetUSD != null) console.error(`💵 Budget: $${budgetUSD}`);
-    if (!enableLessons) console.error(`📚 Lessons: disabled`);
-    if (enableMemoryCapture) console.error(`🧠 Memory capture: enabled`);
-    if (!enableEvidence) console.error(`📁 Evidence: disabled`);
+    if (compileCommand) console.error(`[BUILD] Compile gate: ${compileCommand}`);
+    if (testCommand) console.error(`[TEST] Test gate: ${testCommand}`);
+    if (compileCommand || testCommand) console.error(`[TOOL] Max fix attempts: ${maxFixAttempts}`);
+    if (budgetUSD != null) console.error(`[BUDGET] Budget: $${budgetUSD}`);
+    if (!enableLessons) console.error(`[LESSONS] Lessons: disabled`);
+    if (enableMemoryCapture) console.error(`[REASONING] Memory capture: enabled`);
+    if (!enableEvidence) console.error(`[FILES] Evidence: disabled`);
 
-    if (dryRun) console.error('🔍 DRY RUN — no agents will be spawned\n');
+    if (dryRun) console.error('[SEARCH] DRY RUN — no agents will be spawned\n');
     else console.error('');
 
     const result = await runCoordinationLoop({
@@ -350,40 +350,40 @@ export default defineCommand({
       onProgress: (event) => {
         const ts = new Date(event.timestamp).toLocaleTimeString();
         const icons: Record<string, string> = {
-          'started': '🚀',
-          'task:dispatched': '🔵',
-          'task:completed': '✅',
-          'task:failed': '❌',
-          'task:retry': '🔄',
-          'task:timeout': '⏰',
-          'agent:stale': '💀',
-          'finished': '🎉',
-          'error': '⚠️',
-          'plan:materialized': '📋',
-          'plan:failed': '🚨',
-          'worktree:create': '🌳',
-          'worktree:merge': '🔀',
-          'agent:tool_use': '🔧',
-          'agent:message': '💬',
+          'started': '[START]',
+          'task:dispatched': '[INFO]',
+          'task:completed': '[OK]',
+          'task:failed': '[ERROR]',
+          'task:retry': '[UPDATED]',
+          'task:timeout': '[TIMEOUT]',
+          'agent:stale': '[STALE]',
+          'finished': '[DONE]',
+          'error': '[WARN]',
+          'plan:materialized': '[TASK]',
+          'plan:failed': '[ALERT]',
+          'worktree:create': '[WORKTREE]',
+          'worktree:merge': '[MERGE]',
+          'agent:tool_use': '[TOOL]',
+          'agent:message': '[MESSAGE]',
         };
-        console.error(`[${ts}] ${icons[event.type] ?? '•'} ${event.message}`);
+        console.error(`[${ts}] ${icons[event.type] ?? '-'} ${event.message}`);
       },
     });
 
     console.error(`\n${'═'.repeat(60)}`);
     if (result.aborted) {
-      console.error('⚠️  Orchestration aborted');
+      console.error('[WARN]  Orchestration aborted');
     } else if (result.failed === 0) {
-      console.error(`🎉 All ${result.completed}/${result.totalTasks} tasks completed in ${formatDuration(result.elapsed)}`);
+      console.error(`[DONE] All ${result.completed}/${result.totalTasks} tasks completed in ${formatDuration(result.elapsed)}`);
     } else {
-      console.error(`📊 ${result.completed} completed, ${result.failed} failed out of ${result.totalTasks} tasks`);
+      console.error(`[STATS] ${result.completed} completed, ${result.failed} failed out of ${result.totalTasks} tasks`);
     }
-    if (result.retries > 0) console.error(`🔄 ${result.retries} retries`);
-    console.error(`⏱️  Total time: ${formatDuration(result.elapsed)}`);
+    if (result.retries > 0) console.error(`[UPDATED] ${result.retries} retries`);
+    console.error(`[TIME] Total time: ${formatDuration(result.elapsed)}`);
 
     // Token usage summary
     if (result.tokenUsage) {
-      console.error(`\n💰 Token Usage:`);
+      console.error(`\n[COST] Token Usage:`);
       for (const [model, usage] of Object.entries(result.tokenUsage)) {
         const total = usage.inputTokens + usage.outputTokens;
         const cacheHits = usage.cacheReadTokens;

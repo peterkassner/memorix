@@ -20,9 +20,9 @@ import type { HookEvent, HookOutput, NormalizedHookInput } from './types.js';
 
 /** Observation type → emoji mapping (single source of truth) */
 export const TYPE_EMOJI: Record<string, string> = {
-  'gotcha': '🔴', 'decision': '🟤', 'problem-solution': '🟡',
-  'trade-off': '⚖️', 'discovery': '🟣', 'how-it-works': '🔵',
-  'what-changed': '🟢', 'why-it-exists': '🟠', 'session-request': '🎯',
+  'gotcha': '[GOTCHA]', 'decision': '[DECISION]', 'problem-solution': '[FIX]',
+  'trade-off': '[TRADEOFF]', 'discovery': '[DISCOVERY]', 'how-it-works': '[INFO]',
+  'what-changed': '[CHANGE]', 'why-it-exists': '[WHY]', 'session-request': '[SESSION]',
 };
 
 /** Cooldown tracker: eventKey → lastTimestamp */
@@ -343,7 +343,7 @@ async function handleSessionStart(input: NormalizedHookInput): Promise<{
 
       const top = scored.slice(0, 5);
       const lines = top.map(({ obs }) => {
-        const emoji = TYPE_EMOJI[obs.type ?? ''] ?? '📌';
+        const emoji = TYPE_EMOJI[obs.type ?? ''] ?? '[PIN]';
         const title = obs.title ?? '(untitled)';
         const fact = obs.facts?.[0] ? ` — ${obs.facts[0]}` : '';
         return `${emoji} ${title}${fact}`;
@@ -621,7 +621,7 @@ export async function runHook(agentOverride?: string): Promise<void> {
       } catch { /* Formation is optional — never break hooks */ }
 
       // Feedback: tell the agent what was saved
-      const emoji = TYPE_EMOJI[observation.type] ?? '📝';
+      const emoji = TYPE_EMOJI[observation.type] ?? '[PLAN]';
       output.systemMessage = (output.systemMessage ?? '') +
         `\n${emoji} Memorix saved: ${observation.title} [${observation.type}]`;
     } catch (storeErr) {

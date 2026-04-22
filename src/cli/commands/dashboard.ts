@@ -1,12 +1,12 @@
 /**
- * memorix dashboard — Launch the Memorix Web Dashboard (Standalone mode)
+ * memorix dashboard - Launch the Memorix Web Dashboard (Standalone mode)
  *
- * Starts a Standalone Dashboard server with no MCP or Team features.
- * For the full Control Plane (MCP + Dashboard + Team), use `memorix serve-http`.
+ * Starts a read-mostly project dashboard with memory, sessions, and
+ * autonomous agent team state. For shared MCP access, use `memorix serve-http`.
  *
  * Mode semantics:
- *   - "Standalone" = Dashboard only, no MCP/team (this command, default port 3210)
- *   - "Control Plane" = HTTP MCP + Dashboard + Team (memorix serve-http, default port 3211)
+ *   - "Standalone" = Local read-mostly dashboard (this command, default port 3210)
+ *   - "Control Plane" = HTTP MCP + multi-session live dashboard (memorix serve-http, default port 3211)
  */
 
 import { defineCommand } from 'citty';
@@ -16,7 +16,7 @@ import path from 'node:path';
 export default defineCommand({
     meta: {
         name: 'dashboard',
-        description: 'Launch the Memorix Web Dashboard',
+        description: 'Launch a standalone read-mostly project dashboard',
     },
     args: {
         port: {
@@ -39,7 +39,7 @@ export default defineCommand({
         const port = parseInt(args.port as string, 10) || 3210;
 
         // Resolve static directory relative to the compiled CLI entry point
-        // CLI is at dist/cli/index.js → static files are at dist/dashboard/static
+        // CLI is at dist/cli/index.js; static files are at dist/dashboard/static.
         const cliDir = path.dirname(fileURLToPath(import.meta.url));
         const staticDir = path.join(cliDir, '..', 'dashboard', 'static');
 

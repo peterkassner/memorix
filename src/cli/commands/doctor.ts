@@ -29,9 +29,9 @@ export default defineCommand({
     const issues: string[] = [];
     const tips: string[] = [];
 
-    const ok = (s: string) => `  ✓ ${s}`;
-    const warn = (s: string) => `  ⚠ ${s}`;
-    const fail = (s: string) => `  ✗ ${s}`;
+    const ok = (s: string) => `  [OK] ${s}`;
+    const warn = (s: string) => `  [WARN] ${s}`;
+    const fail = (s: string) => `  [ERROR] ${s}`;
     const info = (s: string) => `    ${s}`;
 
     // ── 1. Project Identity ──────────────────────────────────────
@@ -382,7 +382,7 @@ export default defineCommand({
       lines.push('');
       lines.push('  Tips:');
       for (const tip of tips) {
-        lines.push(`  💡 ${tip}`);
+        lines.push(`  [TIP] ${tip}`);
       }
     }
 

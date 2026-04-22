@@ -200,7 +200,7 @@ describe('formatMiniSkillsForInjection', () => {
 
     const formatted = formatMiniSkillsForInjection([skill]);
 
-    expect(formatted).toContain('## 🎯 Project Mini-Skills (1 active)');
+    expect(formatted).toContain('## [SESSION] Project Mini-Skills (1 active)');
     expect(formatted).toContain('JWT tokens expire silently');
     expect(formatted).toContain('**Do**:');
     expect(formatted).toContain('**When**:');

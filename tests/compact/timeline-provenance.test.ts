@@ -14,7 +14,7 @@ function makeEntry(overrides: Partial<IndexEntry> & { id: number }): IndexEntry 
   return {
     time: '1d ago',
     type: 'what-changed',
-    icon: '🟢',
+    icon: '[CHANGE]',
     title: `Entry ${overrides.id}`,
     tokens: 80,
     projectId: 'test/project',

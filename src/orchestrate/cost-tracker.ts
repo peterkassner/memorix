@@ -183,7 +183,7 @@ export function formatCostSummary(summary: CostSummary): string {
   }
 
   if (summary.budgetUSD !== null) {
-    const status = summary.budgetExceeded ? ' ⚠ EXCEEDED' : '';
+    const status = summary.budgetExceeded ? ' [WARN] EXCEEDED' : '';
     lines.push(`  Budget: $${summary.budgetUSD.toFixed(2)}${status}`);
   }
 

@@ -16,7 +16,7 @@ export default defineCommand({
     agent: { type: 'string', description: 'Agent/client name (for example codex or windsurf)' },
     agentType: { type: 'string', description: 'Stable agent type used for role mapping' },
     instanceId: { type: 'string', description: 'Stable instance identity across restarts' },
-    joinTeam: { type: 'boolean', description: 'Explicitly join the project collaboration space for this session' },
+    joinTeam: { type: 'boolean', description: 'Explicitly join the autonomous agent team for this session' },
     role: { type: 'string', description: 'Explicit role override used only when --joinTeam is set' },
     sessionId: { type: 'string', description: 'Custom session ID (optional)' },
     summary: { type: 'string', description: 'Structured session summary for session end' },
@@ -55,7 +55,7 @@ export default defineCommand({
               role: resolvedRole,
             });
           } else if (shouldJoinTeam) {
-            teamJoinNotice = 'Team join skipped: provide --agent or --agentType to create a collaboration identity.';
+            teamJoinNotice = 'Team join skipped: provide --agent or --agentType to create an Agent Team identity.';
           }
 
           let watermark = computeWatermark(0, 0, 0);
@@ -104,7 +104,7 @@ export default defineCommand({
 
           const textLines = [
             shouldJoinTeam && agentRecord
-              ? `Session started with collaboration identity: ${result.session.id}`
+              ? `Session started with agent team identity: ${result.session.id}`
               : `Lightweight session started: ${result.session.id}`,
             `Project: ${project.name} (${project.id})`,
             agentRecord
@@ -176,7 +176,7 @@ export default defineCommand({
           console.log('');
           console.log('Options:');
           console.log('  --json              Emit JSON output');
-          console.log('  --joinTeam          Explicitly join the project collaboration space');
+          console.log('  --joinTeam          Explicitly join the autonomous agent team');
           console.log('  --role <role>       Override default role when joining the team');
       }
     } catch (error) {

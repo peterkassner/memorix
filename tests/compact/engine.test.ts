@@ -46,7 +46,7 @@ describe('Compact Engine', () => {
       const result = await compactSearch({ query: 'port', projectId: 'test/project' });
       expect(result.entries).toHaveLength(1);
       expect(result.entries[0].title).toBe('Port 3001 conflict fix');
-      expect(result.entries[0].icon).toBe('🔴');
+      expect(result.entries[0].icon).toBe('[GOTCHA]');
       expect(result.entries[0].tokens).toBeGreaterThan(0);
     });
 

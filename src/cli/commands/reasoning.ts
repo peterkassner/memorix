@@ -111,7 +111,7 @@ export default defineCommand({
           });
           emitResult(
             { project, scope, entries: result.entries },
-            result.entries.length === 0 ? 'No reasoning traces found.' : `🧠 Reasoning traces\n${result.formatted}`,
+            result.entries.length === 0 ? 'No reasoning traces found.' : `[REASONING] Reasoning traces\n${result.formatted}`,
             asJson,
           );
           return;

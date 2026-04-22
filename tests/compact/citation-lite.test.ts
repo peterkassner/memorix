@@ -6,7 +6,7 @@
  *   P5-A: evidenceBasisLine for 'synthesized'
  *   P5-A: formatObservationDetail shows synthesized header
  *   P5-D: formatTimeline anchor annotation with synthesized suffix
- *   P5-B: matchedFields evidence-type tags (git evidence / ★ core)
+ *   P5-B: matchedFields evidence-type tags (git evidence / [CORE] core)
  *   P5-C: compactDetail Evidence support panel (rename from Cross-references)
  */
 
@@ -77,21 +77,21 @@ describe('resolveEvidenceBasis: synthesized conservative rule', () => {
 // ── P5-A: evidenceBasisLine 'synthesized' ────────────────────────────
 
 describe('evidenceBasisLine: synthesized', () => {
-  it('synthesized → "◈ Synthesized — explicit analysis citing repository evidence"', () => {
+  it('synthesized -> "[SYNTHESIZED] Synthesized — explicit analysis citing repository evidence"', () => {
     expect(evidenceBasisLine('synthesized')).toBe(
-      '◈ Synthesized — explicit analysis citing repository evidence',
+      '[SYNTHESIZED] Synthesized — explicit analysis citing repository evidence',
     );
   });
 
   it('synthesized with commitHash → still synthesized line (commitHash ignored for synthesized)', () => {
     expect(evidenceBasisLine('synthesized', 'abc1234')).toBe(
-      '◈ Synthesized — explicit analysis citing repository evidence',
+      '[SYNTHESIZED] Synthesized — explicit analysis citing repository evidence',
     );
   });
 
   it('repository + commitHash → repository line (unchanged from Phase 4)', () => {
     expect(evidenceBasisLine('repository', 'abc1234ef')).toBe(
-      '✓ Repository-backed — commit abc1234',
+      '[OK] Repository-backed — commit abc1234',
     );
   });
 
@@ -123,23 +123,23 @@ function makeDoc(overrides: Partial<Parameters<typeof formatObservationDetail>[0
 }
 
 describe('formatObservationDetail: synthesized provenance header', () => {
-  it('explicit + relatedCommits + no commitHash → shows ◈ Synthesized header', () => {
+  it('explicit + relatedCommits + no commitHash -> shows [SYNTHESIZED] Synthesized header', () => {
     const out = formatObservationDetail(makeDoc({
       sourceDetail: 'explicit',
       relatedCommits: ['abc1234'],
     }));
-    expect(out).toContain('◈ Synthesized');
+    expect(out).toContain('[SYNTHESIZED] Synthesized');
     expect(out).toContain('explicit analysis citing repository evidence');
   });
 
-  it('explicit + relatedCommits + commitHash → shows ✓ Repository-backed (commitHash wins)', () => {
+  it('explicit + relatedCommits + commitHash → shows [OK] Repository-backed (commitHash wins)', () => {
     const out = formatObservationDetail(makeDoc({
       sourceDetail: 'explicit',
       relatedCommits: ['abc1234'],
       commitHash: 'deadbeef',
     }));
-    expect(out).toContain('✓ Repository-backed');
-    expect(out).not.toContain('◈ Synthesized');
+    expect(out).toContain('[OK] Repository-backed');
+    expect(out).not.toContain('[SYNTHESIZED] Synthesized');
   });
 
   it('synthesized header appears before #ID line', () => {
@@ -147,13 +147,13 @@ describe('formatObservationDetail: synthesized provenance header', () => {
       sourceDetail: 'explicit',
       relatedCommits: ['abc1234'],
     }));
-    expect(out.indexOf('◈ Synthesized')).toBeLessThan(out.indexOf('#42'));
+    expect(out.indexOf('[SYNTHESIZED] Synthesized')).toBeLessThan(out.indexOf('#42'));
   });
 
   it('explicit + no relatedCommits → no synthesized header (backward-compat)', () => {
     const out = formatObservationDetail(makeDoc({ sourceDetail: 'explicit' }));
-    expect(out).not.toContain('◈ Synthesized');
-    expect(out).not.toContain('✓ Repository-backed');
+    expect(out).not.toContain('[SYNTHESIZED] Synthesized');
+    expect(out).not.toContain('[OK] Repository-backed');
   });
 
   it('#ID line always present', () => {
@@ -171,7 +171,7 @@ function makeEntry(id: number, overrides: Partial<IndexEntry> = {}): IndexEntry 
   return {
     time: '1d ago',
     type: 'reasoning',
-    icon: '🧠',
+    icon: '[REASONING]',
     title: `Entry ${id}`,
     tokens: 80,
     projectId: 'test/project',
@@ -195,13 +195,13 @@ describe('formatTimeline: synthesized annotation', () => {
     const out = formatTimeline(makeTimeline(10, anchor));
     // IndexEntry has no relatedCommits field → synthesized never triggers from IndexEntry alone
     expect(out).toContain('Expanding:');
-    expect(out).not.toContain('◈ synthesized');
+    expect(out).not.toContain('[SYNTHESIZED] synthesized');
   });
 
-  it('anchor source=git → ✓ repository-backed suffix (unchanged from Phase 4)', () => {
+  it('anchor source=git -> [OK] repository-backed suffix (unchanged from Phase 4)', () => {
     const anchor = makeEntry(10, { source: 'git' });
     const out = formatTimeline(makeTimeline(10, anchor));
-    expect(out).toContain('— ✓ repository-backed');
+    expect(out).toContain('— [OK] repository-backed');
   });
 
   it('no-provenance anchor → no Expanding annotation (backward-compat)', () => {
@@ -229,7 +229,7 @@ describe('matchedFields evidence tag logic (inline verification)', () => {
     expect(isGitEvidence).toBe(true);
   });
 
-  it('isCore condition: valueCategory=core triggers ★ core tag', () => {
+  it('isCore condition: valueCategory=core triggers [CORE] core tag', () => {
     const doc = { sourceDetail: 'explicit', source: 'agent', valueCategory: 'core' };
     const isGitEvidence = doc.sourceDetail === 'git-ingest' || doc.source === 'git';
     const isCore = doc.valueCategory === 'core';
@@ -242,7 +242,7 @@ describe('matchedFields evidence tag logic (inline verification)', () => {
     const isGitEvidence = doc.sourceDetail === 'git-ingest' || doc.source === 'git';
     const isCore = doc.valueCategory === 'core';
     // git evidence is checked first
-    const tag = isGitEvidence ? 'git evidence' : isCore ? '★ core' : null;
+    const tag = isGitEvidence ? 'git evidence' : isCore ? '[CORE] core' : null;
     expect(tag).toBe('git evidence');
   });
 
@@ -250,7 +250,7 @@ describe('matchedFields evidence tag logic (inline verification)', () => {
     const doc = { sourceDetail: 'explicit', source: 'agent', valueCategory: 'contextual' };
     const isGitEvidence = doc.sourceDetail === 'git-ingest' || doc.source === 'git';
     const isCore = doc.valueCategory === 'core';
-    const tag = isGitEvidence ? 'git evidence' : isCore ? '★ core' : null;
+    const tag = isGitEvidence ? 'git evidence' : isCore ? '[CORE] core' : null;
     expect(tag).toBeNull();
   });
 });

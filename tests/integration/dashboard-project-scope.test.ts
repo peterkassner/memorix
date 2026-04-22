@@ -14,6 +14,7 @@ import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
 import { resetObservationStore } from '../../src/store/obs-store.js';
+import { initTeamStore, resetTeamStore } from '../../src/team/team-store.js';
 
 // ── Test setup ────────────────────────────────────────────────────
 
@@ -70,6 +71,23 @@ describe('Standalone Dashboard Project Scope', () => {
     // Seed empty sessions
     await fs.writeFile(path.join(dataDir, 'sessions.json'), '[]');
 
+    const teamStore = await initTeamStore(dataDir);
+    const agent = teamStore.registerAgent({
+      projectId: PROJECT_A,
+      agentType: 'codex',
+      instanceId: 'dashboard-agent',
+      name: 'autonomous-codex',
+      role: 'engineer',
+    });
+    teamStore.createTask({
+      projectId: PROJECT_A,
+      description: 'Run autonomous release checks',
+      createdBy: agent.agent_id,
+      requiredRole: 'engineer',
+    });
+    teamStore.acquireLock(PROJECT_A, 'src/release.ts', agent.agent_id);
+    resetTeamStore();
+
     // Start the standalone dashboard
     const { startDashboard } = await import('../../src/dashboard/server.js');
 
@@ -83,6 +101,7 @@ describe('Standalone Dashboard Project Scope', () => {
 
   afterAll(async () => {
     resetObservationStore();
+    resetTeamStore();
     process.env.HOME = originalHome;
     process.env.USERPROFILE = originalUserProfile;
     // The dashboard server doesn't expose a close method, but the process cleanup will handle it
@@ -144,6 +163,30 @@ describe('Standalone Dashboard Project Scope', () => {
     const projectB = body.find((p: any) => p.id === PROJECT_B);
     expect(projectA?.count).toBe(2);
     expect(projectB?.count).toBe(2);
+  });
+
+  it('GET /api/team returns a read-only autonomous agent snapshot in standalone mode', async () => {
+    const { status, body } = await fetchJson('/api/team');
+    expect(status).toBe(200);
+
+    expect(body.unavailable).not.toBe(true);
+    expect(body.mode).toBe('standalone');
+    expect(body.readOnly).toBe(true);
+    expect(body.agents).toHaveLength(1);
+    expect(body.agents[0]).toMatchObject({
+      name: 'autonomous-codex',
+      agentType: 'codex',
+      role: 'engineer',
+      activityTier: 'active',
+    });
+    expect(body.tasks).toHaveLength(1);
+    expect(body.tasks[0]).toMatchObject({
+      description: 'Run autonomous release checks',
+      requiredRole: 'engineer',
+    });
+    expect(body.locks).toHaveLength(1);
+    expect(body.locks[0]).toMatchObject({ file: 'src/release.ts' });
+    expect(body.availableTasks).toBe(1);
   });
 
   // ── Bug 2: /export should have project-filtered graph ──

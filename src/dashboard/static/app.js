@@ -96,16 +96,16 @@ const i18n = {
     noRetentionData: 'No Retention Data',
     noRetentionDesc: 'Store observations to see memory retention scores',
 
-    // Team → Collaboration Space
-    teamTitle: 'Collaboration',
-    teamSubtitle: 'Project collaboration status — who\'s working, what\'s pending',
-    teamNoData: 'Collaboration requires HTTP transport',
-    teamNoDataHint: 'Project collaboration (explicit collaborators, file locks, tasks) requires the HTTP transport. Start it with:',
-    teamActiveAgents: 'Active Collaborators',
+    // Team -> Autonomous Agent Team
+    teamTitle: 'Agent Team',
+    teamSubtitle: 'Autonomous CLI agents, tasks, locks, and handoffs',
+    teamNoData: 'No autonomous agent workflow activity yet',
+    teamNoDataHint: 'Use the CLI to start an autonomous workflow or inspect team state.',
+    teamActiveAgents: 'Active Agents',
     teamLockedFiles: 'Locked Files',
     teamTasks: 'Tasks',
     teamAvailable: 'Available',
-    teamAgents: 'Collaborators',
+    teamAgents: 'Agents',
     teamLocks: 'File Locks',
     teamTaskBoard: 'Task Board',
     // Resume area
@@ -116,7 +116,7 @@ const i18n = {
     resumeOpenHandoffs: 'Pending handoffs',
     resumeUnreadMessages: 'Unread messages',
     resumeActiveLocks: 'Active locks',
-    resumeActiveAgents: 'Active collaborators',
+    resumeActiveAgents: 'Active agents',
     resumeAllClear: 'All clear — nothing pending',
     resumeAllClearDesc: 'No open tasks, handoffs, or unread messages',
 
@@ -205,17 +205,17 @@ const i18n = {
     projectUnresolved: 'Unresolved',
     projectUnresolvedDesc: 'No project bound — select a project from the switcher',
     projectResolved: 'Resolved',
-    projectScopeProject: 'Project Collaboration',
+    projectScopeProject: 'Project Agent Team',
     projectScopeGlobal: 'All Projects',
-    projectScopeProjectDesc: 'Explicit collaborators and tasks for this project',
-    projectScopeGlobalDesc: 'Explicit collaborators across projects',
+    projectScopeProjectDesc: 'Autonomous agents and tasks for this project',
+    projectScopeGlobalDesc: 'Autonomous agents and tasks across projects',
 
     // Team (additional)
     teamMessages: 'Messages',
     teamAllRead: 'All read',
     teamUnread: 'unread',
-    teamNoAgentsProject: 'No collaborators joined for this project',
-    teamNoAgentsGlobal: 'No collaborators joined in any scope',
+    teamNoAgentsProject: 'No autonomous agents recorded for this project',
+    teamNoAgentsGlobal: 'No autonomous agents recorded in any scope',
     teamNoFilesLocked: 'No files locked',
     teamNoTasksCreated: 'No tasks created',
     teamPending: 'pending',
@@ -235,13 +235,13 @@ const i18n = {
     teamRecentCount: 'recent',
     teamHistoricalCount: 'historical',
     teamHistoricalTotal: 'Historical total',
-    teamHistoricalHint: 'Inactive for more than 7 days. Not current collaborators.',
+    teamHistoricalHint: 'Inactive for more than 7 days. Not current autonomous agents.',
     teamRecentHint: 'Inactive, last seen within 7 days.',
     teamShowHistorical: 'Show historical',
     teamHideHistorical: 'Hide historical',
-    teamNoActiveNow: 'No active collaborators right now',
-    teamNoRecent: 'No collaborators seen in the last 7 days',
-    teamSummaryHint: 'Only explicitly joined collaborators appear here. Historical rows are collapsed by default.',
+    teamNoActiveNow: 'No active autonomous agents right now',
+    teamNoRecent: 'No autonomous agents seen in the last 7 days',
+    teamSummaryHint: 'Only explicit autonomous agent identities appear here. Historical rows are collapsed by default.',
     // Resume area
     resumeTitle: 'Continue This Project',
     resumeDesc: 'Pick up where you left off',
@@ -250,7 +250,7 @@ const i18n = {
     resumeOpenHandoffs: 'Open handoffs',
     resumeUnreadMessages: 'Unread messages',
     resumeActiveLocks: 'Active locks',
-    resumeActiveAgents: 'Active collaborators',
+    resumeActiveAgents: 'Active agents',
     resumeAllClear: 'All clear',
     resumeAllClearDesc: 'No pending tasks, handoffs, or locks',
     // H3: Identity layering
@@ -339,7 +339,7 @@ const i18n = {
     navConfig: 'Config',
     navIdentity: 'Identity',
     navSessions: 'Sessions',
-    navTeam: 'Collaboration',
+    navTeam: 'Agent Team',
     navLabelDashboard: 'Overview',
     navLabelGitMemory: 'Git Memory',
     navLabelGraph: 'Graph',
@@ -348,10 +348,10 @@ const i18n = {
     navLabelConfig: 'Config',
     navLabelIdentity: 'Identity',
     navLabelSessions: 'Sessions',
-    navLabelTeam: 'Collaboration',
+    navLabelTeam: 'Agent Team',
     sectionCore: 'CORE',
     sectionHealth: 'HEALTH',
-    sectionCollaboration: 'COLLABORATION',
+    sectionCollaboration: 'AGENTS',
     themeDark: 'Dark',
     themeLight: 'Light',
     loading: 'Loading...',
@@ -360,8 +360,8 @@ const i18n = {
     // Mode banner
     modeStandalone: 'Standalone',
     modeControlPlane: 'Control Plane',
-    modeStandaloneHint: 'No live MCP — team features unavailable',
-    modeControlPlaneHint: 'Full MCP + team collaboration',
+    modeStandaloneHint: 'Standalone dashboard - memory and read-only agent team state',
+    modeControlPlaneHint: 'HTTP control plane - shared MCP access and live dashboard',
     modeBannerProject: 'Project',
     modeBannerMcp: 'MCP',
 
@@ -466,16 +466,16 @@ const i18n = {
     noRetentionData: '暂无衰减数据',
     noRetentionDesc: '存储观察记录以查看记忆衰减分数',
 
-    // Team → 协作空间
-    teamTitle: '协作',
-    teamSubtitle: '项目协作状态 — 谁在工作、什么待处理',
-    teamNoData: '协作功能需要 HTTP 传输',
-    teamNoDataHint: '项目协作（显式协作者、文件锁、任务看板）需要 HTTP 传输模式。使用以下命令启动：',
-    teamActiveAgents: '活跃协作者',
+    // Team -> 自主 Agent 团队
+    teamTitle: 'Agent 团队',
+    teamSubtitle: '自主 CLI agents、任务、文件锁和交接状态',
+    teamNoData: '暂无自主 agent 工作流活动',
+    teamNoDataHint: '使用 CLI 启动自主工作流，或查看团队任务状态。',
+    teamActiveAgents: '活跃 Agent',
     teamLockedFiles: '锁定文件',
     teamTasks: '任务',
     teamAvailable: '可领取',
-    teamAgents: '协作者',
+    teamAgents: 'Agent',
     teamLocks: '文件锁',
     teamTaskBoard: '任务看板',
     // Resume area
@@ -486,7 +486,7 @@ const i18n = {
     resumeOpenHandoffs: '待接交接',
     resumeUnreadMessages: '未读消息',
     resumeActiveLocks: '活跃锁',
-    resumeActiveAgents: '活跃协作者',
+    resumeActiveAgents: '活跃 Agent',
     resumeAllClear: '全部就绪 — 无待处理项',
     resumeAllClearDesc: '无待处理任务、交接或未读消息',
 
@@ -575,17 +575,17 @@ const i18n = {
     projectUnresolved: '未绑定',
     projectUnresolvedDesc: '无项目绑定 — 请从切换器选择项目',
     projectResolved: '已绑定',
-    projectScopeProject: '项目协作',
+    projectScopeProject: '项目 Agent 团队',
     projectScopeGlobal: '所有项目',
-    projectScopeProjectDesc: '当前项目中显式加入的协作者和任务',
-    projectScopeGlobalDesc: '所有项目中显式加入的协作者',
+    projectScopeProjectDesc: '当前项目中的自主 agents 和任务',
+    projectScopeGlobalDesc: '所有项目中的自主 agents 和任务',
 
     // Team (additional)
     teamMessages: '消息',
     teamAllRead: '全部已读',
     teamUnread: '未读',
-    teamNoAgentsProject: '当前项目暂无显式加入的协作者',
-    teamNoAgentsGlobal: '任何范围均无显式加入的协作者',
+    teamNoAgentsProject: '当前项目暂无自主 agent 记录',
+    teamNoAgentsGlobal: '任何范围均无自主 agent 记录',
     teamNoFilesLocked: '无文件锁定',
     teamNoTasksCreated: '无已创建任务',
     teamPending: '待处理',
@@ -605,13 +605,13 @@ const i18n = {
     teamRecentCount: '近期',
     teamHistoricalCount: '历史',
     teamHistoricalTotal: '历史累计',
-    teamHistoricalHint: '超过 7 天无活动，非当前协作成员',
+    teamHistoricalHint: '超过 7 天无活动，非当前自主 agent',
     teamRecentHint: '未活跃，最近 7 天内有过心跳',
     teamShowHistorical: '显示历史',
     teamHideHistorical: '隐藏历史',
-    teamNoActiveNow: '当前无活跃协作者',
-    teamNoRecent: '最近 7 天无协作者活动',
-    teamSummaryHint: '这里只显示显式加入的协作者。历史数据默认折叠。',
+    teamNoActiveNow: '当前无活跃自主 agent',
+    teamNoRecent: '最近 7 天无自主 agent 活动',
+    teamSummaryHint: '这里只显示显式自主 agent 身份。历史数据默认折叠。',
     // Resume area
     resumeTitle: '继续此项目',
     resumeDesc: '从上次中断处继续',
@@ -620,7 +620,7 @@ const i18n = {
     resumeOpenHandoffs: '待接手',
     resumeUnreadMessages: '未读消息',
     resumeActiveLocks: '文件锁',
-    resumeActiveAgents: '活跃协作者',
+    resumeActiveAgents: '活跃 Agent',
     resumeAllClear: '一切就绪',
     resumeAllClearDesc: '无待办任务、待接手或文件锁',
     // H3: Identity 分层
@@ -714,7 +714,7 @@ const i18n = {
     navConfig: '配置溯源',
     navIdentity: '身份健康',
     navSessions: '会话',
-    navTeam: '协作',
+    navTeam: 'Agent 团队',
     navLabelDashboard: '概览',
     navLabelGitMemory: 'Git 记忆',
     navLabelGraph: '图谱',
@@ -723,10 +723,10 @@ const i18n = {
     navLabelConfig: '配置',
     navLabelIdentity: '身份',
     navLabelSessions: '会话',
-    navLabelTeam: '协作',
+    navLabelTeam: 'Agent 团队',
     sectionCore: '核心',
     sectionHealth: '健康',
-    sectionCollaboration: '协作',
+    sectionCollaboration: 'Agents',
     themeDark: '深色',
     themeLight: '浅色',
     loading: '加载中...',
@@ -735,8 +735,8 @@ const i18n = {
     // Mode banner
     modeStandalone: '独立模式',
     modeControlPlane: '控制平面',
-    modeStandaloneHint: '无实时 MCP — 团队功能不可用',
-    modeControlPlaneHint: '完整 MCP + 团队协作',
+    modeStandaloneHint: '独立看板 - 记忆与只读 Agent 团队状态',
+    modeControlPlaneHint: 'HTTP 控制平面 - 共享 MCP 接入与实时看板',
     modeBannerProject: '项目',
     modeBannerMcp: 'MCP',
 
@@ -1332,7 +1332,7 @@ async function loadDashboard() {
               <div style="flex: 1;">
                 ${typeEntries.map(([type, count]) => `
                   <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
-                    <span style="width: 18px; text-align: center; font-size: 13px;">${typeIcons[type] || '❓'}</span>
+                    <span style="width: 18px; text-align: center; font-size: 13px;">${typeIcons[type] || '[UNKNOWN]'}</span>
                     <span style="width: 110px; font-size: 11px; color: var(--text-secondary);">${type}</span>
                     <div style="flex: 1; height: 5px; background: rgba(128,128,128,0.1); border-radius: 3px; overflow: hidden;">
                       <div style="width: ${(count / maxTypeCount) * 100}%; height: 100%; background: var(--type-${type}, var(--accent-cyan)); border-radius: 3px;"></div>
@@ -2340,7 +2340,7 @@ async function loadObservations() {
       </div>
       <div style="display:flex;gap:8px;">
         <button class="export-btn" id="btn-batch-cleanup" title="${t('batchCleanup')}">
-          🧹 ${t('batchCleanup')}
+          [CLEANUP] ${t('batchCleanup')}
         </button>
         <button class="export-btn" id="btn-export" title="${t('exportData')}">
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 2v8M4 7l4 4 4-4M2 12v2h12v-2"/></svg>
@@ -2439,16 +2439,16 @@ function renderObsList() {
         ${batchMode ? `<input type="checkbox" class="obs-checkbox" ${isSelected ? 'checked' : ''} onclick="event.stopPropagation(); toggleObsSelect(${obs.id});" />` : ''}
         <span class="obs-card-id">#${obs.id}</span>
         <span class="type-badge" data-type="${obs.type || 'unknown'}">
-          ${typeIcons[obs.type] || '❓'} ${obs.type || t('unknown')}
+          ${typeIcons[obs.type] || '[UNKNOWN]'} ${obs.type || t('unknown')}
         </span>
         ${isLow ? '<span class="low-quality-badge">' + t('lowQuality') + '</span>' : ''}
         <span class="obs-card-title">${hl(obs.title || t('untitled'))}</span>
         <span class="obs-expand-icon">▼</span>
       </div>
       <div class="obs-card-meta">
-        <span>📁 ${hl(obs.entityName || t('unknown'))}</span>
-        ${obs.createdAt ? `<span>🕐 ${formatTime(obs.createdAt)}</span>` : ''}
-        ${obs.accessCount ? `<span>👁 ${obs.accessCount}</span>` : ''}
+        <span>[FILES] ${hl(obs.entityName || t('unknown'))}</span>
+        ${obs.createdAt ? `<span>[TIME] ${formatTime(obs.createdAt)}</span>` : ''}
+        ${obs.accessCount ? `<span>[VIEW] ${obs.accessCount}</span>` : ''}
       </div>
       <div class="obs-detail" id="obs-detail-${obs.id}" style="display:none;">
        <div class="obs-detail-inner">
@@ -2479,7 +2479,7 @@ async function loadRetention() {
 
   const data = await api('retention');
   if (!data || data.items.length === 0) {
-    container.innerHTML = emptyState('📉', t('noRetentionData'), t('noRetentionDesc'));
+    container.innerHTML = emptyState('[RETENTION]', t('noRetentionData'), t('noRetentionDesc'));
     return;
   }
 
@@ -2647,7 +2647,7 @@ async function loadGitMemory() {
 
   const [stats, allObs] = await Promise.all([api('stats'), api('observations')]);
   if (!stats || !allObs) {
-    container.innerHTML = emptyState('🔀', t('noGitMemory'), t('noGitMemoryDesc'));
+    container.innerHTML = emptyState('[MERGE]', t('noGitMemory'), t('noGitMemoryDesc'));
     return;
   }
 
@@ -2689,7 +2689,7 @@ async function loadGitMemory() {
     ${gitObs.length === 0 ? `
       <div class="panel">
         <div class="panel-body" style="text-align:center;padding:48px;">
-          <div style="font-size:36px;margin-bottom:12px;">🔀</div>
+          <div style="font-size:36px;margin-bottom:12px;">[MERGE]</div>
           <div style="font-size:16px;font-weight:600;color:var(--text-primary);margin-bottom:8px;">${t('noGitMemoriesYet')}</div>
           <div style="font-size:13px;color:var(--text-muted);max-width:400px;margin:0 auto;">
             ${t('noGitMemoriesHint')}<br>
@@ -3184,7 +3184,7 @@ async function loadTeam() {
           <div style="font-size:16px;font-weight:600;color:var(--text-primary);margin-bottom:8px;">${t('teamNoData')}</div>
           <div style="font-size:13px;color:var(--text-muted);max-width:480px;margin:0 auto;line-height:1.6;">
             ${t('teamNoDataHint')}<br>
-            <code style="background:var(--bg-surface);padding:4px 10px;border-radius:6px;margin-top:8px;display:inline-block;font-size:12px;">memorix serve-http --port 3211</code>
+            <code style="background:var(--bg-surface);padding:4px 10px;border-radius:6px;margin-top:8px;display:inline-block;font-size:12px;">memorix orchestrate · memorix team status · memorix task list</code>
           </div>
         </div>
       </div>

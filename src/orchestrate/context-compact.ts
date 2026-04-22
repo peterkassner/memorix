@@ -71,7 +71,7 @@ export function compactLedgerEntries(
     const recentEntries = entries.slice(-config.maxFullEntries);
 
     const compactedOld = oldEntries.map(e => {
-      const status = e.status === 'completed' ? '✓' : '✗';
+      const status = e.status === 'completed' ? '[OK]' : '[ERROR]';
       return `  ${status} ${e.role}/${e.agent}: ${e.summary.slice(0, 60)}`;
     }).join('\n');
 
@@ -173,7 +173,7 @@ export function compactPipelineContext(
 // ── Helpers ────────────────────────────────────────────────────────
 
 function formatFullEntry(e: LedgerEntry): string {
-  const status = e.status === 'completed' ? '✓' : '✗';
+  const status = e.status === 'completed' ? '[OK]' : '[ERROR]';
   const duration = `${(e.durationMs / 1000).toFixed(1)}s`;
   return `- [${status}] **${e.role}** (${e.agent}, ${duration}): ${e.summary}`;
 }

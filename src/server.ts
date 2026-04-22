@@ -232,7 +232,7 @@ export async function createMemorixServer(
   let projectResolved = true;
   let projectResolutionError: string | null = null;
     let explicitProjectBound = false; // Set true when memorix_session_start binds via projectRoot
-    let currentAgentId: string | undefined; // Session-scoped collaboration identity for observation attribution after explicit join
+    let currentAgentId: string | undefined; // Session-scoped Agent Team identity for attribution after explicit join
   if (detectedProject) {
     rawProject = detectedProject;
   } else {
@@ -421,10 +421,10 @@ export async function createMemorixServer(
       title: 'Store Memory',
       description:
         'Store a new observation/memory. Automatically indexed for search. ' +
-        'Use type to classify: gotcha (🔴 critical pitfall), decision (🟤 architecture choice), ' +
-        'problem-solution (🟡 bug fix), how-it-works (🔵 explanation), what-changed (🟢 change), ' +
-        'discovery (🟣 insight), why-it-exists (🟠 rationale), trade-off (⚖️ compromise), ' +
-        'session-request (🎯 original goal). ' +
+        'Use type to classify: gotcha ([GOTCHA] critical pitfall), decision ([DECISION] architecture choice), ' +
+        'problem-solution ([FIX] bug fix), how-it-works ([INFO] explanation), what-changed ([CHANGE] change), ' +
+        'discovery ([DISCOVERY] insight), why-it-exists ([WHY] rationale), trade-off ([TRADEOFF] compromise), ' +
+        'session-request ([SESSION] original goal). ' +
         'Stored memories persist across sessions and are shared with other IDEs (Cursor, Windsurf, Claude Code, Codex, Copilot, Kiro, Antigravity, Trae) via the same local data directory.',
       inputSchema: {
         entityName: z.string().describe('The entity this observation belongs to (e.g., "auth-module", "port-config")'),
@@ -532,7 +532,7 @@ export async function createMemorixServer(
             'Formation pipeline',
           );
 
-          const modeIcon = '⚡';
+          const modeIcon = '[FAST]';
           formationNote = `\n${modeIcon} Formation[active]: ${formationResult.evaluation.category} (${formationResult.evaluation.score.toFixed(2)}) | ${formationResult.resolution.action} | ${formationResult.pipeline.durationMs}ms`;
           if (formationResult.extraction.extractedFacts.length > 0) {
             formationNote += ` | +${formationResult.extraction.extractedFacts.length} facts`;
@@ -543,7 +543,7 @@ export async function createMemorixServer(
         } catch (formationErr) {
           // Formation timeout or failure → fall through to store without enrichment
           const isTimeout = formationErr instanceof Error && formationErr.message.includes('timed out');
-          formationNote = `\n⚠️ Formation ${isTimeout ? 'timed out' : 'failed'} — storing base observation without enrichment`;
+          formationNote = `\n[WARN] Formation ${isTimeout ? 'timed out' : 'failed'} — storing base observation without enrichment`;
         }
       }
 
@@ -573,7 +573,7 @@ export async function createMemorixServer(
             return {
               content: [{
                 type: 'text' as const,
-                text: `🔄 Formation MERGE: merged into #${targetId} (${reason})${formationNote}`,
+                text: `[UPDATED] Formation MERGE: merged into #${targetId} (${reason})${formationNote}`,
               }],
             };
           }
@@ -599,7 +599,7 @@ export async function createMemorixServer(
             return {
               content: [{
                 type: 'text' as const,
-                text: `🔄 Formation EVOLVE: evolved #${targetId} (${reason})${formationNote}`,
+                text: `[UPDATED] Formation EVOLVE: evolved #${targetId} (${reason})${formationNote}`,
               }],
             };
           }
@@ -608,7 +608,7 @@ export async function createMemorixServer(
           return {
             content: [{
               type: 'text' as const,
-              text: `⏭️ Formation DISCARD: ${reason}${formationNote}`,
+              text: `[SKIP] Formation DISCARD: ${reason}${formationNote}`,
             }],
           };
         }
@@ -669,7 +669,7 @@ export async function createMemorixServer(
                   sourceDetail: 'explicit',
                   createdByAgentId: currentAgentId,
                 });
-                compactAction = `🔄 Compact UPDATE: merged into #${decision.targetId} (${decision.reason})`;
+                compactAction = `[UPDATED] Compact UPDATE: merged into #${decision.targetId} (${decision.reason})`;
                 compactMerged = true;
 
                 // Return early — we updated existing, no new observation needed
@@ -685,7 +685,7 @@ export async function createMemorixServer(
               return {
                 content: [{
                   type: 'text' as const,
-                  text: `⏭️ Compact SKIP: ${decision.reason}\nExisting memory #${decision.targetId} already covers this.\nMode: ${decision.usedLLM ? 'LLM' : 'heuristic'}`,
+                  text: `[SKIP] Compact SKIP: ${decision.reason}\nExisting memory #${decision.targetId} already covers this.\nMode: ${decision.usedLLM ? 'LLM' : 'heuristic'}`,
                 }],
               };
             } else if (decision.action === 'DELETE' && decision.targetId) {
@@ -769,7 +769,7 @@ export async function createMemorixServer(
       try {
         const attrCheck = await checkProjectAttribution(entityName, project.id, getAllObservations());
         if (attrCheck.suspicious) {
-          attributionWarning = `\n⚠️ Attribution notice: entity "${entityName}" has 0 observations in ` +
+          attributionWarning = `\n[WARN] Attribution notice: entity "${entityName}" has 0 observations in ` +
             `"${project.id}" but ${attrCheck.count} in "${attrCheck.knownIn}" ` +
             `(confidence: ${attrCheck.confidence}). Verify the correct project is bound before storing.`;
         }
@@ -816,7 +816,7 @@ export async function createMemorixServer(
       if (upserted) enrichmentParts.push(`topic upserted (rev ${obs.revisionCount ?? 1})`);
       const enrichment = enrichmentParts.length > 0 ? `\nAuto-enriched: ${enrichmentParts.join(', ')}` : '';
 
-      const action = upserted ? '🔄 Updated' : '✅ Stored';
+      const action = upserted ? '[UPDATED] Updated' : '[OK] Stored';
 
       // ── Formation Pipeline (shadow/fallback mode: observe only) ─────
       // Fire-and-forget: runs after storage to collect metrics.
@@ -1089,13 +1089,13 @@ export async function createMemorixServer(
 
       const parts: string[] = [];
       if (result.resolved.length > 0) {
-        parts.push(`✅ Resolved ${result.resolved.length} observation(s): #${result.resolved.join(', #')}`);
+        parts.push(`[OK] Resolved ${result.resolved.length} observation(s): #${result.resolved.join(', #')}`);
       }
       if (result.notFound.length > 0) {
-        parts.push(`⚠️ Not found: #${result.notFound.join(', #')}`);
+        parts.push(`[WARN] Not found: #${result.notFound.join(', #')}`);
       }
       parts.push('\nResolved memories are hidden from default search. Use status="all" to include them.');
-      parts.push('📊 Run `memorix_retention` with `action: "report"` to check remaining cleanup status.');
+      parts.push('[STATS] Run `memorix_retention` with `action: "report"` to check remaining cleanup status.');
 
       return {
         content: [{ type: 'text' as const, text: parts.join('\n') }],
@@ -1170,7 +1170,7 @@ export async function createMemorixServer(
       try {
         const attrCheck = await checkProjectAttribution(entityName, project.id, getAllObservations());
         if (attrCheck.suspicious) {
-          reasoningAttributionWarning = `\n⚠️ Attribution notice: entity "${entityName}" has 0 observations in ` +
+          reasoningAttributionWarning = `\n[WARN] Attribution notice: entity "${entityName}" has 0 observations in ` +
             `"${project.id}" but ${attrCheck.count} in "${attrCheck.knownIn}" ` +
             `(confidence: ${attrCheck.confidence}). Verify the correct project is bound before storing.`;
         }
@@ -1194,13 +1194,13 @@ export async function createMemorixServer(
       });
 
       await graphManager.addObservations([
-        { entityName, contents: [`[#${obs.id}] 🧠 ${decision}`] },
+        { entityName, contents: [`[#${obs.id}] [REASONING] ${decision}`] },
       ]);
 
       return {
         content: [{
           type: 'text' as const,
-          text: `🧠 Reasoning trace stored #${obs.id}: "${decision}"\nEntity: ${entityName} | ${facts.length} facts | ${obs.tokens} tokens${reasoningAttributionWarning}`,
+          text: `[REASONING] Reasoning trace stored #${obs.id}: "${decision}"\nEntity: ${entityName} | ${facts.length} facts | ${obs.tokens} tokens${reasoningAttributionWarning}`,
         }],
       };
       }); // withFreshIndex
@@ -1248,7 +1248,7 @@ export async function createMemorixServer(
         return {
           content: [{
             type: 'text' as const,
-            text: `✅ No suspicious observations found in project "${project.id}" (threshold: ${minCount}).`,
+            text: `[OK] No suspicious observations found in project "${project.id}" (threshold: ${minCount}).`,
           }],
         };
       }
@@ -1326,7 +1326,7 @@ export async function createMemorixServer(
       }
 
       return {
-        content: [{ type: 'text' as const, text: `🧠 Reasoning Traces:\n${result.formatted}` }],
+        content: [{ type: 'text' as const, text: `[REASONING] Reasoning Traces:\n${result.formatted}` }],
       };
     },
   );
@@ -1363,7 +1363,7 @@ export async function createMemorixServer(
         return {
           content: [{
             type: 'text' as const,
-            text: '⚠️ LLM not configured. Set MEMORIX_LLM_API_KEY or OPENAI_API_KEY to enable intelligent dedup.\n\n' +
+            text: '[WARN] LLM not configured. Set MEMORIX_LLM_API_KEY or OPENAI_API_KEY to enable intelligent dedup.\n\n' +
               'Tip: Use memorix_consolidate for basic similarity-based merging without LLM.',
           }],
         };
@@ -1408,29 +1408,29 @@ export async function createMemorixServer(
                 [{ id: older.id, title: older.title, narrative: older.narrative, facts: older.facts.join('\n') }],
               );
               if (decision && decision.action === 'UPDATE' && decision.targetId) {
-                actions.push(`🔄 #${older.id} "${older.title}" → superseded by #${newer.id} (${decision.reason})${decision.usedLLM ? ' [LLM]' : ' [heuristic]'}`);
+                actions.push(`[UPDATED] #${older.id} "${older.title}" → superseded by #${newer.id} (${decision.reason})${decision.usedLLM ? ' [LLM]' : ' [heuristic]'}`);
                 toResolve.push(older.id);
               } else if (decision && decision.action === 'NONE') {
-                actions.push(`🗑️ #${newer.id} "${newer.title}" → redundant (${decision.reason})${decision.usedLLM ? ' [LLM]' : ' [heuristic]'}`);
+                actions.push(`[DELETE] #${newer.id} "${newer.title}" → redundant (${decision.reason})${decision.usedLLM ? ' [LLM]' : ' [heuristic]'}`);
                 toResolve.push(newer.id);
               } else if (decision && decision.action === 'DELETE') {
-                actions.push(`❌ #${decision.targetId ?? older.id} → outdated (${decision.reason})${decision.usedLLM ? ' [LLM]' : ' [heuristic]'}`);
+                actions.push(`[ERROR] #${decision.targetId ?? older.id} → outdated (${decision.reason})${decision.usedLLM ? ' [LLM]' : ' [heuristic]'}`);
                 toResolve.push(decision.targetId ?? older.id);
               }
-            } catch (dedupErr) { actions.push(`⚠️ comparison failed: ${(dedupErr as Error)?.message ?? dedupErr}`); }
+            } catch (dedupErr) { actions.push(`[WARN] comparison failed: ${(dedupErr as Error)?.message ?? dedupErr}`); }
           }
         }
       }
 
       if (actions.length === 0) {
-        return { content: [{ type: 'text' as const, text: `✅ Scanned ${candidates.length} memories across ${byEntity.size} entities — no duplicates found.` }] };
+        return { content: [{ type: 'text' as const, text: `[OK] Scanned ${candidates.length} memories across ${byEntity.size} entities — no duplicates found.` }] };
       }
 
       if (dryRun) {
         return {
           content: [{
             type: 'text' as const,
-            text: `🔍 DRY RUN — ${actions.length} action(s) found:\n\n${actions.join('\n')}\n\nRun with dryRun=false to apply.`,
+            text: `[SEARCH] DRY RUN — ${actions.length} action(s) found:\n\n${actions.join('\n')}\n\nRun with dryRun=false to apply.`,
           }],
         };
       }
@@ -1442,7 +1442,7 @@ export async function createMemorixServer(
       return {
         content: [{
           type: 'text' as const,
-          text: `🧹 Deduplicated: resolved ${unique.length} memory(ies)\n\n${actions.join('\n')}`,
+          text: `[CLEANUP] Deduplicated: resolved ${unique.length} memory(ies)\n\n${actions.join('\n')}`,
         }],
       };
     },
@@ -1619,11 +1619,11 @@ export async function createMemorixServer(
         const result = await archiveExpired(projectDir, undefined, accessMap);
         if (result.archived === 0) {
           return {
-            content: [{ type: 'text' as const, text: '✅ No expired observations to archive. All memories are within their retention period.' }],
+            content: [{ type: 'text' as const, text: '[OK] No expired observations to archive. All memories are within their retention period.' }],
           };
         }
         return {
-          content: [{ type: 'text' as const, text: `🗄️ Archived ${result.archived} expired observations (status set to 'archived' in-place)\n${result.remaining} active observations remaining.\n\nArchived memories are hidden from default search but can be found with status: "all".` }],
+          content: [{ type: 'text' as const, text: `[ARCHIVED] Archived ${result.archived} expired observations (status set to 'archived' in-place)\n${result.remaining} active observations remaining.\n\nArchived memories are hidden from default search but can be found with status: "all".` }],
         };
       }
 
@@ -1659,7 +1659,7 @@ export async function createMemorixServer(
         const staleDocs = docs.filter(d => getRetentionZone(d) === 'stale');
         if (staleDocs.length === 0) {
           return {
-            content: [{ type: 'text' as const, text: '✅ No stale observations. All active memories are within 50% of their retention period.' }],
+            content: [{ type: 'text' as const, text: '[OK] No stale observations. All active memories are within 50% of their retention period.' }],
           };
         }
         const staleLines: string[] = [
@@ -1677,7 +1677,7 @@ export async function createMemorixServer(
           );
         }
         staleLines.push('');
-        staleLines.push('> 💡 Stale = past 50% of effective retention. Review or access to keep; otherwise will become archive candidates.');
+        staleLines.push('> [TIP] Stale = past 50% of effective retention. Review or access to keep; otherwise will become archive candidates.');
 
         // Actionable IDs block
         const staleIds = staleDocs.map(d => d.observationId);
@@ -1738,12 +1738,12 @@ export async function createMemorixServer(
         const candidateIds = candidates.map(c => c.observationId);
         lines.push('');
         lines.push(`Candidate IDs: [${candidateIds.slice(0, 20).join(', ')}]${candidateIds.length > 20 ? ` … (${candidateIds.length} total)` : ''}`);
-        lines.push(`> 💡 Use \`memorix_retention\` with \`action: "archive"\` to move all, or \`memorix_resolve\` with specific IDs.`);
+        lines.push(`> [TIP] Use \`memorix_retention\` with \`action: "archive"\` to move all, or \`memorix_resolve\` with specific IDs.`);
         lines.push('');
       }
 
       if (summary.stale > 0) {
-        lines.push(`> 📋 ${summary.stale} stale observation(s) — use \`memorix_retention\` with \`action: "stale"\` for full details.`);
+        lines.push(`> [TASK] ${summary.stale} stale observation(s) — use \`memorix_retention\` with \`action: "stale"\` for full details.`);
         lines.push('');
       }
 
@@ -1788,13 +1788,13 @@ export async function createMemorixServer(
         return {
           content: [{
             type: 'text' as const,
-            text: '📊 Formation Pipeline: No metrics collected yet.\nStore some observations to start collecting runtime data.',
+            text: '[STATS] Formation Pipeline: No metrics collected yet.\nStore some observations to start collecting runtime data.',
           }],
         };
       }
 
       const lines: string[] = [
-        '📊 **Formation Pipeline Metrics**',
+        '[STATS] **Formation Pipeline Metrics**',
         '',
         `**Total observations processed:** ${summary.total}`,
         `**Average value score:** ${summary.avgValueScore.toFixed(3)}`,
@@ -1811,7 +1811,7 @@ export async function createMemorixServer(
 
       for (const [cat, count] of Object.entries(summary.categoryBreakdown)) {
         const pct = ((count / summary.total) * 100).toFixed(1);
-        const icon = cat === 'core' ? '🟢' : cat === 'contextual' ? '🟡' : '🔴';
+        const icon = cat === 'core' ? '[CHANGE]' : cat === 'contextual' ? '[FIX]' : '[GOTCHA]';
         lines.push(`- ${icon} **${cat}:** ${count} (${pct}%)`);
       }
 
@@ -2237,7 +2237,7 @@ export async function createMemorixServer(
         }
 
         if (scan.skillConflicts.length > 0) {
-          lines.push('', `### ⚠️ Skill Name Conflicts`);
+          lines.push('', `### [WARN] Skill Name Conflicts`);
           for (const c of scan.skillConflicts) {
             lines.push(`- **${c.name}**: kept from ${c.kept.sourceAgent}, duplicate in ${c.skipped.sourceAgent}`);
           }
@@ -2418,9 +2418,9 @@ export async function createMemorixServer(
         if (write && target) {
           const path = engine.writeSkill(sk, target as AgentTarget);
           if (path) {
-            lines.push(`- ✅ **Written**: \`${path}\``);
+            lines.push(`- [OK] **Written**: \`${path}\``);
           } else {
-            lines.push(`- ❌ Failed to write`);
+            lines.push(`- [ERROR] Failed to write`);
           }
         }
         lines.push('');
@@ -2500,7 +2500,7 @@ export async function createMemorixServer(
         if (!deleted) {
           return { content: [{ type: 'text' as const, text: `Mini-skill #${skillId} not found.` }], isError: true };
         }
-        return { content: [{ type: 'text' as const, text: `✅ Deleted mini-skill #${skillId}.` }] };
+        return { content: [{ type: 'text' as const, text: `[OK] Deleted mini-skill #${skillId}.` }] };
       }
 
       // action === 'promote'
@@ -2526,7 +2526,7 @@ export async function createMemorixServer(
       const skill = await promoteToMiniSkill(projectDir, project.id, matched, { trigger, instruction, tags });
 
       const lines = [
-        `✅ Created mini-skill #${skill.id}`,
+        `[OK] Created mini-skill #${skill.id}`,
         '',
         `**${skill.title}**`,
         `**Do**: ${skill.instruction}`,
@@ -2572,7 +2572,7 @@ export async function createMemorixServer(
         const clusters = await findConsolidationCandidates(projectDir, project.id, { threshold: safeThreshold });
 
         if (clusters.length === 0) {
-          return { content: [{ type: 'text' as const, text: '✅ No consolidation candidates found. Your memories are already clean!' }] };
+          return { content: [{ type: 'text' as const, text: '[OK] No consolidation candidates found. Your memories are already clean!' }] };
         }
 
         const lines = [`## Consolidation Preview`, `Found **${clusters.length}** clusters to merge:`, ''];
@@ -2593,7 +2593,7 @@ export async function createMemorixServer(
       const result = await executeConsolidation(projectDir, project.id, { threshold: safeThreshold });
 
       if (result.clustersFound === 0) {
-        return { content: [{ type: 'text' as const, text: '✅ No consolidation needed. Memories are already clean!' }] };
+        return { content: [{ type: 'text' as const, text: '[OK] No consolidation needed. Memories are already clean!' }] };
       }
 
       const lines = [
@@ -2638,9 +2638,9 @@ export async function createMemorixServer(
       inputSchema: {
         sessionId: z.string().optional().describe('Custom session ID (auto-generated if omitted)'),
         agent: z.string().optional().describe('Agent/IDE name (e.g., "cursor", "windsurf", "claude-code")'),
-        agentType: z.string().optional().describe('Agent type used for optional collaboration identity mapping (e.g., "windsurf", "cursor").'),
-        instanceId: z.string().optional().describe('Stable instance ID for optional collaboration identity across restarts. If omitted with joinTeam=true, Memorix derives a deterministic fallback from the project and agent identity.'),
-        joinTeam: z.boolean().optional().describe('If true, also join the project collaboration space for this session. Defaults to false.'),
+        agentType: z.string().optional().describe('Agent type used for optional Agent Team identity mapping (e.g., "windsurf", "cursor").'),
+        instanceId: z.string().optional().describe('Stable instance ID for optional Agent Team identity across restarts. If omitted with joinTeam=true, Memorix derives a deterministic fallback from the project and agent identity.'),
+        joinTeam: z.boolean().optional().describe('If true, also join the autonomous agent team for this session. Defaults to false.'),
         role: z.string().optional().describe('Explicit role override used only when joinTeam=true.'),
         projectRoot: z.string().optional().describe(
           'Absolute path to the workspace/project root directory (e.g., the folder open in your IDE). ' +
@@ -2729,7 +2729,7 @@ export async function createMemorixServer(
       let teamJoinNotice = '';
       try {
         if (!teamFeaturesEnabled && shouldJoinTeam) {
-          teamJoinNotice = 'Team join skipped: the current tool profile does not expose collaboration tools.';
+          teamJoinNotice = 'Team join skipped: the current tool profile does not expose Agent Team tools.';
         } else if (shouldJoinTeam && typeof teamStore !== 'undefined' && (agent || agentType)) {
           // Auto-derive role from agentType using AGENT_TYPE_ROLE_MAP
           const { AGENT_TYPE_ROLE_MAP } = await import('./team/team-store.js');
@@ -2763,7 +2763,7 @@ export async function createMemorixServer(
           ));
           const wm = computeWatermark(lastSeen, currentGen, projectObs.length);
           if (wm.newObservationCount > 0) {
-            watermarkInfo = `📊 ${wm.newObservationCount} new observation(s) in this project since your last session.`;
+            watermarkInfo = `[STATS] ${wm.newObservationCount} new observation(s) in this project since your last session.`;
           }
 
           // Update watermark to current global generation (high-water mark for next session)
@@ -2774,22 +2774,22 @@ export async function createMemorixServer(
           const STALE_TTL_MS = 5 * 60 * 1000; // 5 minutes without heartbeat = stale
           const rescuedAgentIds = teamStore.detectAndMarkStale(project.id, STALE_TTL_MS);
           if (rescuedAgentIds.length > 0) {
-            rescueInfo = `🚑 ${rescuedAgentIds.length} stale agent(s) detected and rescued.`;
+            rescueInfo = `[RESCUE] ${rescuedAgentIds.length} stale agent(s) detected and rescued.`;
           }
 
           // Check for available tasks (including any just-rescued ones)
           const availableTasks = teamStore.listTasks(project.id, { available: true });
           if (availableTasks.length > 0) {
             rescueInfo += rescueInfo ? '\n' : '';
-            rescueInfo += `📋 ${availableTasks.length} task(s) available to claim. Use memorix_poll for details.`;
+            rescueInfo += `[TASK] ${availableTasks.length} task(s) available to claim. Use memorix_poll for details.`;
           }
         } else if (shouldJoinTeam) {
-          teamJoinNotice = 'Team join skipped: pass `agent` or `agentType` to create a collaboration identity.';
+          teamJoinNotice = 'Team join skipped: pass `agent` or `agentType` to create an Agent Team identity.';
         }
       } catch { /* team auto-registration is best-effort */ }
 
       const lines = [
-        `✅ Session started: ${result.session.id}`,
+        `[OK] Session started: ${result.session.id}`,
         `Project: ${project.name} (${project.id})`,
         result.session.agent ? `Agent: ${result.session.agent}` : '',
         registeredAgent ? `Agent ID: ${registeredAgent.agent_id} (instance: ${registeredAgent.instance_id})` : '',
@@ -2799,7 +2799,7 @@ export async function createMemorixServer(
         registeredAgent ? watermarkInfo : '',
         registeredAgent ? rescueInfo : '',
         '',
-        '💡 Tips: Use `memorix_resolve` to mark completed tasks. Use `progress` param in `memorix_store` for task tracking. Use `topicKey` to prevent duplicate memories.',
+        '[TIP] Tips: Use `memorix_resolve` to mark completed tasks. Use `progress` param in `memorix_store` for task tracking. Use `topicKey` to prevent duplicate memories.',
         '',
       ];
 
@@ -2826,7 +2826,7 @@ export async function createMemorixServer(
       } catch { /* mini-skills not available yet — skip */ }
 
       if (result.previousContext) {
-        lines.push('---', '📋 **Context from previous sessions:**', '', result.previousContext);
+        lines.push('---', '[TASK] **Context from previous sessions:**', '', result.previousContext);
       } else {
         lines.push('No previous session context found. This appears to be a fresh project.');
       }
@@ -2836,22 +2836,22 @@ export async function createMemorixServer(
         if (registeredAgent && teamFeaturesEnabled && typeof teamStore !== 'undefined') {
           const activeAgents = teamStore.listAgents(project.id, { status: 'active' });
           if (activeAgents.length > 0) {
-            lines.push('', '---', '👥 **Team Status:**');
+            lines.push('', '---', '[TEAM] **Team Status:**');
             for (const a of activeAgents) {
-              lines.push(`- 🟢 ${a.name}${a.role ? ` (${a.role})` : ''}`);
+              lines.push(`- [CHANGE] ${a.name}${a.role ? ` (${a.role})` : ''}`);
             }
 
             // Show locked files
             const locks = teamStore.listLocks(project.id);
             if (locks.length > 0) {
-              lines.push('', '🔒 **Locked files:**');
+              lines.push('', '[LOCK] **Locked files:**');
               for (const l of locks) {
                 const owner = teamStore.getAgent(l.locked_by);
                 lines.push(`- ${l.file} — ${owner?.name ?? l.locked_by.slice(0, 8)}`);
               }
             }
 
-            lines.push('', '💡 Use `team_manage` to register, `team_message` to check inbox, `team_task` to see tasks.');
+            lines.push('', '[TIP] Use `team_manage` to register, `team_message` to check inbox, `team_task` to see tasks.');
           }
         }
       } catch { /* team context injection is optional */ }
@@ -2877,7 +2877,7 @@ export async function createMemorixServer(
         'Recommended summary format:\n' +
         '## Goal\n[What we were working on]\n\n' +
         '## Discoveries\n- [Technical findings, gotchas, learnings]\n\n' +
-        '## Accomplished\n- ✅ [Completed tasks]\n- 🔲 [Pending for next session]\n\n' +
+        '## Accomplished\n- [OK] [Completed tasks]\n- [PENDING] [Pending for next session]\n\n' +
         '## Relevant Files\n- path/to/file — [what changed]',
       inputSchema: {
         sessionId: z.string().describe('Session ID to close (from memorix_session_start)'),
@@ -2898,7 +2898,7 @@ export async function createMemorixServer(
       return {
         content: [{
           type: 'text' as const,
-          text: `✅ Session "${sessionId}" completed.\nDuration: ${session.startedAt} → ${session.endedAt}\n${summary ? 'Summary saved for next session context injection.' : 'No summary provided — consider adding one for better cross-session context.'}`,
+          text: `[OK] Session "${sessionId}" completed.\nDuration: ${session.startedAt} → ${session.endedAt}\n${summary ? 'Summary saved for next session context injection.' : 'No summary provided — consider adding one for better cross-session context.'}`,
         }],
       };
     },
@@ -2987,7 +2987,7 @@ export async function createMemorixServer(
         };
       }
       // import
-      if (!jsonStr) return { content: [{ type: 'text' as const, text: '❌ data is required for import' }], isError: true };
+      if (!jsonStr) return { content: [{ type: 'text' as const, text: '[ERROR] data is required for import' }], isError: true };
       const { importFromJson } = await import('./memory/export-import.js');
       let parsed;
       try { parsed = JSON.parse(jsonStr); } catch {
@@ -3141,9 +3141,7 @@ export async function createMemorixServer(
         console.error(`[memorix] Dashboard staticDir: ${staticDir}`);
 
         // Start in background (non-blocking), disable auto-open (we'll open it ourselves)
-        startDashboard(projectDir, portNum, staticDir, project.id, project.name, false, {
-            teamStore,
-          } as any, project.rootPath, projectResolved)
+        startDashboard(projectDir, portNum, staticDir, project.id, project.name, false, undefined, project.rootPath, projectResolved)
           .then(() => { dashboardRunning = true; })
           .catch((err) => { console.error('[memorix] Dashboard error:', err); dashboardRunning = false; });
 
@@ -3196,7 +3194,7 @@ export async function createMemorixServer(
   );
 
   // ================================================================
-  // Team Collaboration Tools (Multi-Agent) — Phase 4a: SQLite-backed
+  // Autonomous Agent Team Tools (Multi-Agent) - SQLite-backed
   // ================================================================
 
   // Use shared TeamStore (from HTTP server) or create new one (stdio mode).
@@ -3267,7 +3265,7 @@ export async function createMemorixServer(
         return {
           content: [{
             type: 'text' as const,
-            text: `Joined team as "${agent.name}" (ID: ${agent.agent_id})\nInstance ID: ${agent.instance_id}\nRole: ${agent.role}\nThis session now attributes collaboration activity to that identity.\nActive agents: ${teamStore.getActiveCount(project.id)}`,
+            text: `Joined Agent Team as "${agent.name}" (ID: ${agent.agent_id})\nInstance ID: ${agent.instance_id}\nRole: ${agent.role}\nThis session now attributes Agent Team activity to that identity.\nActive agents: ${teamStore.getActiveCount(project.id)}`,
           }],
         };
       }
@@ -3297,7 +3295,7 @@ export async function createMemorixServer(
         const lines = occupancy.map(({ role, activeAgents, vacant }) => {
           const agentTypes = JSON.parse(role.preferred_agent_types);
           const agentNames = activeAgents.map(a => a.name).join(', ') || 'vacant';
-          return `${role.label} (${role.role_id.split(':').pop()}) — ${activeAgents.length}/${role.max_concurrent} filled, ${vacant} vacant\n  Agents: ${agentNames}\n  Preferred types: ${agentTypes.join(', ') || 'any'}${role.description ? '\n  ' + role.description : ''}`;
+          return `${role.label} (${role.role_id.split(':').pop()}) - ${activeAgents.length}/${role.max_concurrent} filled, ${vacant} vacant\n  Agents: ${agentNames}\n  Preferred types: ${agentTypes.join(', ') || 'any'}${role.description ? '\n  ' + role.description : ''}`;
         });
         return { content: [{ type: 'text' as const, text: `Roles (${roles.length}):\n\n${lines.join('\n\n')}` }] };
       }
@@ -3318,7 +3316,7 @@ export async function createMemorixServer(
         if (!removed) return { content: [{ type: 'text' as const, text: 'Role not found' }] };
         return { content: [{ type: 'text' as const, text: `Role removed: ${roleId}` }] };
       }
-      // status — now includes role occupancy
+      // status - now includes role occupancy
       const agents = teamStore.listAgents(project.id);
       const occupancy = teamStore.getRoleOccupancy(project.id);
       if (agents.length === 0 && occupancy.length === 0) {
@@ -3326,11 +3324,11 @@ export async function createMemorixServer(
       }
       const roleLines = occupancy.map(({ role, activeAgents, vacant }) => {
         const agentNames = activeAgents.map(a => a.name).join(', ') || 'vacant';
-        return `${role.label}: ${activeAgents.length}/${role.max_concurrent} — ${agentNames}${vacant > 0 ? ` (${vacant} slot${vacant > 1 ? 's' : ''} open)` : ''}`;
+        return `${role.label}: ${activeAgents.length}/${role.max_concurrent} - ${agentNames}${vacant > 0 ? ` (${vacant} slot${vacant > 1 ? 's' : ''} open)` : ''}`;
       });
       const agentLines = agents.map((a: import('./team/team-store.js').TeamAgentRow) => {
         const caps = a.capabilities ? JSON.parse(a.capabilities) : [];
-        return `${a.status === 'active' ? '●' : '○'} ${a.name} (${a.agent_id.slice(0, 8)}…) — ${a.role ?? 'no role'} [${caps.join(', ') || '-'}]`;
+        return `${a.status === 'active' ? '[active]' : '[inactive]'} ${a.name} (${a.agent_id.slice(0, 8)}) - ${a.role ?? 'no role'} [${caps.join(', ') || '-'}]`;
       });
       return {
         content: [{
@@ -3357,10 +3355,10 @@ export async function createMemorixServer(
     },
     async ({ action, file, agentId }) => {
       if (action === 'lock') {
-        if (!file || !agentId) return { content: [{ type: 'text' as const, text: '❌ file and agentId are required for lock' }], isError: true };
+        if (!file || !agentId) return { content: [{ type: 'text' as const, text: '[ERROR] file and agentId are required for lock' }], isError: true };
         const agent = teamStore.getAgent(agentId);
         if (!agent || agent.status !== 'active') {
-          return { content: [{ type: 'text' as const, text: `❌ Unknown or inactive agent: ${agentId.slice(0, 8)}…` }], isError: true };
+          return { content: [{ type: 'text' as const, text: `[ERROR] Unknown or inactive agent: ${agentId.slice(0, 8)}…` }], isError: true };
         }
         const result = teamStore.acquireLock(project.id, file, agentId);
         if (result.success) return { content: [{ type: 'text' as const, text: `Locked: ${file}` }] };
@@ -3368,7 +3366,7 @@ export async function createMemorixServer(
         return { content: [{ type: 'text' as const, text: `Denied — locked by ${owner?.name ?? result.lockedBy.slice(0, 8)}` }], isError: true };
       }
       if (action === 'unlock') {
-        if (!file || !agentId) return { content: [{ type: 'text' as const, text: '❌ file and agentId are required for unlock' }], isError: true };
+        if (!file || !agentId) return { content: [{ type: 'text' as const, text: '[ERROR] file and agentId are required for unlock' }], isError: true };
         const released = teamStore.releaseLock(project.id, file, agentId);
         return { content: [{ type: 'text' as const, text: released ? `Unlocked: ${file}` : `Cannot unlock: not owner or not locked` }] };
       }
@@ -3415,7 +3413,7 @@ export async function createMemorixServer(
     async ({ action, description: desc, deps, taskId, agentId, result, status, available, metadata, requiredRole, preferredRole }) => {
       try {
         if (action === 'create') {
-          if (!desc) return { content: [{ type: 'text' as const, text: '❌ description is required for create' }], isError: true };
+          if (!desc) return { content: [{ type: 'text' as const, text: '[ERROR] description is required for create' }], isError: true };
           let parsedMeta: Record<string, unknown> | undefined;
           if (metadata) {
             try { parsedMeta = JSON.parse(metadata); } catch { /* ignore invalid JSON */ }
@@ -3426,7 +3424,7 @@ export async function createMemorixServer(
           const existingTasks = teamStore.listTasks(project.id);
           const guard = checkPipelineGuards({ existingTasks, newTaskMeta: parsedMeta });
           if (!guard.allowed) {
-            return { content: [{ type: 'text' as const, text: `❌ ${guard.reason}` }], isError: true };
+            return { content: [{ type: 'text' as const, text: `[ERROR] ${guard.reason}` }], isError: true };
           }
 
           const task = teamStore.createTask({
@@ -3443,18 +3441,18 @@ export async function createMemorixServer(
           return { content: [{ type: 'text' as const, text: `Task created: ${task.task_id.slice(0, 8)}… "${desc}"${taskDeps.length > 0 ? ` (depends on ${taskDeps.length})` : ''}${roleInfo}` }] };
         }
         if (action === 'claim') {
-          if (!taskId || !agentId) return { content: [{ type: 'text' as const, text: '❌ taskId and agentId required for claim' }], isError: true };
+          if (!taskId || !agentId) return { content: [{ type: 'text' as const, text: '[ERROR] taskId and agentId required for claim' }], isError: true };
           const agent = teamStore.getAgent(agentId);
-          if (!agent || agent.status !== 'active') return { content: [{ type: 'text' as const, text: `❌ Unknown or inactive agent` }], isError: true };
+          if (!agent || agent.status !== 'active') return { content: [{ type: 'text' as const, text: `[ERROR] Unknown or inactive agent` }], isError: true };
           const claimResult = teamStore.claimTask(taskId, agentId);
-          if (!claimResult.success) return { content: [{ type: 'text' as const, text: `❌ ${claimResult.reason}` }], isError: true };
-          const hintSuffix = claimResult.hint ? `\n⚠️ ${claimResult.hint}` : '';
+          if (!claimResult.success) return { content: [{ type: 'text' as const, text: `[ERROR] ${claimResult.reason}` }], isError: true };
+          const hintSuffix = claimResult.hint ? `\n[WARN] ${claimResult.hint}` : '';
           return { content: [{ type: 'text' as const, text: `Task claimed by ${agent.name}: "${claimResult.task!.description}"${hintSuffix}` }] };
         }
         if (action === 'complete') {
-          if (!taskId || !agentId || !result) return { content: [{ type: 'text' as const, text: '❌ taskId, agentId, and result required for complete' }], isError: true };
+          if (!taskId || !agentId || !result) return { content: [{ type: 'text' as const, text: '[ERROR] taskId, agentId, and result required for complete' }], isError: true };
           const completeResult = teamStore.completeTask(taskId, agentId, result);
-          if (!completeResult.success) return { content: [{ type: 'text' as const, text: `❌ ${completeResult.reason}` }], isError: true };
+          if (!completeResult.success) return { content: [{ type: 'text' as const, text: `[ERROR] ${completeResult.reason}` }], isError: true };
           const completedTask = teamStore.getTask(taskId);
           return { content: [{ type: 'text' as const, text: `Task completed: "${completedTask?.description ?? taskId}"\nResult: ${result}` }] };
         }
@@ -3472,7 +3470,7 @@ export async function createMemorixServer(
         });
         return { content: [{ type: 'text' as const, text: `Tasks (${list.length}):\n${lines.join('\n')}` }] };
       } catch (err) {
-        return { content: [{ type: 'text' as const, text: `❌ ${(err as Error).message}` }], isError: true };
+        return { content: [{ type: 'text' as const, text: `[ERROR] ${(err as Error).message}` }], isError: true };
       }
     },
   );
@@ -3500,9 +3498,9 @@ export async function createMemorixServer(
     },
     async ({ action, from, to, type: msgType, content, agentId, markRead, toRole, handoffStatus }) => {
       if (action === 'send') {
-        if (!from || !msgType || !content) return { content: [{ type: 'text' as const, text: '❌ from, type, and content required for send' }], isError: true };
-        if (!to && !toRole) return { content: [{ type: 'text' as const, text: '❌ either to (agent ID) or toRole is required for send' }], isError: true };
-        if (content.length > 10_000) return { content: [{ type: 'text' as const, text: '❌ Message too large (max 10KB)' }], isError: true };
+        if (!from || !msgType || !content) return { content: [{ type: 'text' as const, text: '[ERROR] from, type, and content required for send' }], isError: true };
+        if (!to && !toRole) return { content: [{ type: 'text' as const, text: '[ERROR] either to (agent ID) or toRole is required for send' }], isError: true };
+        if (content.length > 10_000) return { content: [{ type: 'text' as const, text: '[ERROR] Message too large (max 10KB)' }], isError: true };
         const msg = teamStore.sendMessage({
           projectId: project.id,
           senderAgentId: from,
@@ -3512,13 +3510,13 @@ export async function createMemorixServer(
           toRole: toRole ?? null,
           handoffStatus: handoffStatus ?? (msgType === 'handoff' ? 'open' : null),
         });
-        if ('error' in msg) return { content: [{ type: 'text' as const, text: `❌ ${msg.error}` }], isError: true };
+        if ('error' in msg) return { content: [{ type: 'text' as const, text: `[ERROR] ${msg.error}` }], isError: true };
         const target = to ? `agent ${to.slice(0, 8)}…` : `role ${toRole}`;
         return { content: [{ type: 'text' as const, text: `Message sent (${msgType}) to ${target} | ID: ${msg.id.slice(0, 8)}…${toRole ? ` [role: ${toRole}]` : ''}` }] };
       }
       if (action === 'broadcast') {
-        if (!from || !msgType || !content) return { content: [{ type: 'text' as const, text: '❌ from, type, and content required for broadcast' }], isError: true };
-        if (content.length > 10_000) return { content: [{ type: 'text' as const, text: '❌ Message too large (max 10KB)' }], isError: true };
+        if (!from || !msgType || !content) return { content: [{ type: 'text' as const, text: '[ERROR] from, type, and content required for broadcast' }], isError: true };
+        if (content.length > 10_000) return { content: [{ type: 'text' as const, text: '[ERROR] Message too large (max 10KB)' }], isError: true };
         const msg = teamStore.sendMessage({
           projectId: project.id,
           senderAgentId: from,
@@ -3526,12 +3524,12 @@ export async function createMemorixServer(
           type: msgType,
           content,
         });
-        if ('error' in msg) return { content: [{ type: 'text' as const, text: `❌ ${msg.error}` }], isError: true };
+        if ('error' in msg) return { content: [{ type: 'text' as const, text: `[ERROR] ${msg.error}` }], isError: true };
         return { content: [{ type: 'text' as const, text: `Broadcast (${msgType}) | ID: ${msg.id.slice(0, 8)}…` }] };
       }
       // inbox
       const inboxId = agentId || from || '';
-      if (!inboxId) return { content: [{ type: 'text' as const, text: '❌ agentId required for inbox' }], isError: true };
+      if (!inboxId) return { content: [{ type: 'text' as const, text: '[ERROR] agentId required for inbox' }], isError: true };
       const inbox = teamStore.getInbox(project.id, inboxId);
       const unread = teamStore.getUnreadCount(project.id, inboxId);
       if (inbox.length === 0) return { content: [{ type: 'text' as const, text: 'Inbox empty' }] };
@@ -3596,17 +3594,17 @@ export async function createMemorixServer(
 
       // Agent
       if (poll.agent) {
-        lines.push(`🤖 You: ${poll.agent.agentId.slice(0, 8)}… (${poll.agent.status})`);
+        lines.push(`[AGENT] You: ${poll.agent.agentId.slice(0, 8)}… (${poll.agent.status})`);
       }
 
       // Watermark
       if (poll.watermark.newObservationCount > 0) {
-        lines.push(`📊 ${poll.watermark.newObservationCount} new observation(s) since your last session`);
+        lines.push(`[STATS] ${poll.watermark.newObservationCount} new observation(s) since your last session`);
       }
 
       // Inbox
       if (poll.inbox.unreadCount > 0) {
-        lines.push(`📬 ${poll.inbox.unreadCount} unread message(s)`);
+        lines.push(`[INBOX] ${poll.inbox.unreadCount} unread message(s)`);
         for (const m of poll.inbox.messages.slice(-5)) {
           const sender = teamStore.getAgent(m.sender_agent_id);
           lines.push(`  ${m.read_at ? ' ' : '*'} [${m.type}] from ${sender?.name ?? m.sender_agent_id.slice(0, 8)}: ${m.content.slice(0, 80)}`);
@@ -3615,35 +3613,35 @@ export async function createMemorixServer(
 
       // Tasks
       if (poll.tasks.myInProgress.length > 0) {
-        lines.push(`\n🔧 Your in-progress tasks (${poll.tasks.myInProgress.length}):`);
+        lines.push(`\n[TOOL] Your in-progress tasks (${poll.tasks.myInProgress.length}):`);
         for (const t of poll.tasks.myInProgress) {
           lines.push(`  [~] ${t.task_id.slice(0, 8)}… "${t.description}"`);
         }
       }
       if (poll.tasks.availableToClaim.length > 0) {
-        lines.push(`\n📋 Available to claim (${poll.tasks.availableToClaim.length}):`);
+        lines.push(`\n[TASK] Available to claim (${poll.tasks.availableToClaim.length}):`);
         for (const t of poll.tasks.availableToClaim) {
           lines.push(`  [ ] ${t.task_id.slice(0, 8)}… "${t.description}"`);
         }
       }
       if (poll.tasks.recentlyCompleted.length > 0) {
-        lines.push(`\n✅ Completed (${poll.tasks.recentlyCompleted.length}):`);
+        lines.push(`\n[OK] Completed (${poll.tasks.recentlyCompleted.length}):`);
         for (const t of poll.tasks.recentlyCompleted.slice(-5)) {
           const who = t.assignee_agent_id ? teamStore.getAgent(t.assignee_agent_id)?.name ?? t.assignee_agent_id.slice(0, 8) : '?';
           lines.push(`  [x] ${t.task_id.slice(0, 8)}… "${t.description}" — by ${who}`);
         }
       }
       if (poll.tasks.recentlyFailed.length > 0) {
-        lines.push(`\n❌ Failed (${poll.tasks.recentlyFailed.length}):`);
+        lines.push(`\n[ERROR] Failed (${poll.tasks.recentlyFailed.length}):`);
         for (const t of poll.tasks.recentlyFailed.slice(-3)) {
           lines.push(`  [!] ${t.task_id.slice(0, 8)}… "${t.description}" — ${t.result?.slice(0, 80) ?? 'no reason'}`);
         }
       }
 
       // Team
-      lines.push(`\n👥 Team: ${poll.team.activeAgents.length} active / ${poll.team.totalAgents} total`);
+      lines.push(`\n[TEAM] Team: ${poll.team.activeAgents.length} active / ${poll.team.totalAgents} total`);
       for (const a of poll.team.activeAgents) {
-        lines.push(`  ● ${a.name} (${a.agent_type}) — ${a.role ?? 'no role'}`);
+        lines.push(`  - ${a.name} (${a.agent_type}) — ${a.role ?? 'no role'}`);
       }
 
       if (lines.length === 0) {
@@ -3694,7 +3692,7 @@ export async function createMemorixServer(
       );
 
       const lines = [
-        `✅ Handoff created`,
+        `[OK] Handoff created`,
         `Observation: #${result.observationId}`,
         `From: ${result.fromAgentId.slice(0, 8)}…`,
         result.toAgentId ? `To: ${result.toAgentId.slice(0, 8)}…` : 'To: broadcast (any agent)',
@@ -3752,7 +3750,7 @@ export async function createMemorixServer(
         return {
           content: [{
             type: 'text' as const,
-            text: `\u274C Image ingestion failed: ${err instanceof Error ? err.message : String(err)}`,
+            text: `[ERROR] Image ingestion failed: ${err instanceof Error ? err.message : String(err)}`,
           }],
           isError: true,
         };
@@ -3825,7 +3823,7 @@ export async function createMemorixServer(
       const totalWorkflows = scan.workflows.length;
 
       if (totalMCP > 0 || totalSkills > 0 || totalRules > 0 || totalWorkflows > 0) {
-        lines.push('', '---', '🔄 **Cross-Agent Sync Available**');
+        lines.push('', '---', '[UPDATED] **Cross-Agent Sync Available**');
         for (const [agent, servers] of Object.entries(scan.mcpConfigs)) {
           const list = servers as MCPServerEntry[];
           if (list.length > 0) {
@@ -3843,11 +3841,11 @@ export async function createMemorixServer(
             lines.push(`- **${agent}** skills: ${names.join(', ')}`);
           }
         }
-        if (scan.skillConflicts.length > 0) lines.push(`  ⚠️ ${scan.skillConflicts.length} name conflict(s)`);
+        if (scan.skillConflicts.length > 0) lines.push(`  [WARN] ${scan.skillConflicts.length} name conflict(s)`);
         if (totalRules > 0) lines.push(`- **${totalRules} rule(s)** found`);
         if (totalWorkflows > 0) lines.push(`- **${totalWorkflows} workflow(s)** found`);
         lines.push('');
-        lines.push('⚠️ IMPORTANT INSTRUCTIONS FOR AI AGENT:');
+        lines.push('[WARN] IMPORTANT INSTRUCTIONS FOR AI AGENT:');
         lines.push('1. Tell the user what configs/skills are available from other agents (list them).');
         lines.push('2. Ask which ones they want to sync.');
         lines.push('3. DO NOT manually copy files or run shell commands to sync.');
@@ -4071,7 +4069,7 @@ export async function createMemorixServer(
         // Stdio mode: always reinitialize
         teamStore = await initTeamStoreForProject(canonicalProjectDir);
       }
-    } catch { /* best-effort — team features degrade gracefully */ }
+    } catch { /* best-effort - Agent Team features degrade gracefully */ }
 
     await initializeProjectRuntime('switch');
     return true;

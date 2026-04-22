@@ -1,6 +1,6 @@
-# Cross-IDE Agent Team Collaboration — Deep Research
+# Historical Cross-IDE Collaboration Research
 
-> Goal: Enable users to orchestrate multiple AI agents across different IDEs (Cursor, Windsurf, Claude Code, Codex, Copilot...) into a real-time collaborative team through Memorix, similar to Claude Code's agent teams but cross-IDE.
+> Historical note: this document records early research. Memorix 1.0.8 product semantics do not promise an automatic chat room between unrelated IDE conversation windows. The supported Agent Team path is explicit autonomous CLI-agent orchestration plus task/message/lock state.
 
 ---
 
@@ -416,7 +416,7 @@ Given user constraints (VPS unstable, shared resources):
 |--------|------|------|----------------|
 | **Cloudflare D1** | Free, 99.99% uptime, SQLite-compat, zero ops | Vendor lock-in | **Best for memory sync** |
 | **Turso** (libSQL) | Native SQLite sync, 9GB free, edge replicas | Newer | Good alternative |
-| **Supabase** | Real-time WebSocket, PostgreSQL, auth built-in | Schema conversion needed | Good for team features |
+| **Supabase** | Real-time WebSocket, PostgreSQL, auth built-in | Schema conversion needed | Good for real-time features |
 | **GitHub** | Free, version history, PRs | Not real-time, merge conflicts | Too slow for agent teams |
 | **Self-hosted VPS** | Full control | Unstable, shared resources | **Not recommended** |
 

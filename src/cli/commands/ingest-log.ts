@@ -37,18 +37,18 @@ export async function ingestCommitsWithDedup<T extends IngestableCommit>(
   for (const commit of commits) {
     if (existingHashes.has(commit.hash)) {
       dupSkipped++;
-      log(`  ⏭️ ${commit.shortHash} ${commit.subject} — already ingested`);
+      log(`  [SKIP] ${commit.shortHash} ${commit.subject} — already ingested`);
       continue;
     }
     try {
       await ingestOne(commit);
       stored++;
       existingHashes.add(commit.hash);
-      log(`  ✅ ${commit.shortHash} ${commit.subject}`);
+      log(`  [OK] ${commit.shortHash} ${commit.subject}`);
     } catch (err) {
       errSkipped++;
       const message = err instanceof Error ? err.message : String(err);
-      log(`  ⏭️ ${commit.shortHash} ${commit.subject} — error: ${message}`);
+      log(`  [SKIP] ${commit.shortHash} ${commit.subject} — error: ${message}`);
     }
   }
 
@@ -113,7 +113,7 @@ export default defineCommand({
         console.log('');
         console.log(`  Filtered (noise):`);
         for (const { commit, reason } of noiseCommits) {
-          console.log(`  ⏭️ ${commit.shortHash} ${commit.subject} — ${reason}`);
+          console.log(`  [SKIP] ${commit.shortHash} ${commit.subject} — ${reason}`);
         }
       }
       console.log('');

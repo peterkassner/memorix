@@ -960,7 +960,7 @@ At the **beginning of every conversation**, BEFORE responding to the user:
 
 **Important:** \`projectRoot\` is a detection anchor only; Git remains the source of truth for project identity.
 In HTTP control-plane mode (\`memorix serve-http\` / \`memorix background start\`), explicit \`projectRoot\` binding is required for correct multi-project isolation.
-\`memorix_session_start\` is lightweight by default: it starts memory/session context only. Do not set \`joinTeam\` unless the user explicitly needs task, message, file-lock, or autonomous-agent collaboration features.
+\`memorix_session_start\` is lightweight by default: it starts memory/session context only. Do not set \`joinTeam\` unless the user explicitly needs autonomous Agent Team tasks, messages, file locks, or orchestrated CLI-agent workflows.
 
 ## RULE 2: Store Important Context
 

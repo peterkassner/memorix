@@ -225,7 +225,7 @@ export async function compactDetail(
         obs.relatedCommits!.includes(o.commitHash),
       );
       for (const gm of gitMems) {
-        refs.push(`  → #${gm.id} 🟢 ${gm.title}`);
+        refs.push(`  → #${gm.id} [CHANGE] ${gm.title}`);
       }
     }
 
@@ -244,7 +244,7 @@ export async function compactDetail(
       if (analysis.length > 0) {
         refs.push('Analysis:');
         for (const r of analysis) {
-          refs.push(`  → #${r.id} ${r.type === 'reasoning' ? '🧠' : '🟤'} ${r.title}`);
+          refs.push(`  → #${r.id} ${r.type === 'reasoning' ? '[REASONING]' : '[DECISION]'} ${r.title}`);
         }
       }
     }
@@ -261,7 +261,7 @@ export async function compactDetail(
       if (gitMems.length > 0) {
         refs.push('Repository evidence:');
         for (const g of gitMems) {
-          refs.push(`  → #${g.id} 🟢 ${g.title}`);
+          refs.push(`  → #${g.id} [CHANGE] ${g.title}`);
         }
       }
     }
@@ -312,7 +312,7 @@ export async function compactDetail(
 function formatMiniSkillDetail(skill: MiniSkill, provenanceStatus: ProvenanceStatus): string {
   const lines: string[] = [];
 
-  lines.push(`S${skill.id} ★ ${skill.title}`);
+  lines.push(`S${skill.id} core ${skill.title}`);
   lines.push('='.repeat(50));
   lines.push(`Type: promoted knowledge (mini-skill)`);
   lines.push(`Entity: ${skill.sourceEntity}`);

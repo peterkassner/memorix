@@ -1,14 +1,14 @@
 /**
- * memorix serve-http — Start MCP Server on Streamable HTTP transport (Control Plane mode)
+ * memorix serve-http - Start MCP Server on Streamable HTTP transport (Control Plane mode)
  *
  * Starts the Memorix Control Plane: a single HTTP server that provides:
- *   - MCP endpoint at /mcp (multi-agent, multi-session)
- *   - Web Dashboard at / (project browser, graph, team, config)
- *   - Team API at /api/team (agents, locks, tasks, messages)
+ *   - MCP endpoint at /mcp (shared, multi-session access)
+ *   - Web Dashboard at / (project browser, graph, agent team, config)
+ *   - Team API at /api/team (autonomous agents, locks, tasks, messages)
  *
  * Mode semantics:
- *   - "Control Plane" = HTTP MCP + Dashboard + Team (this command, default port 3211)
- *   - "Standalone" = Dashboard only, no MCP/team (memorix dashboard, default port 3210)
+ *   - "Control Plane" = HTTP MCP + multi-session live dashboard (this command, default port 3211)
+ *   - "Standalone" = Local read-mostly dashboard (memorix dashboard, default port 3210)
  *
  * Usage:
  *   memorix serve-http                    # default port 3211
@@ -37,7 +37,7 @@ export function parseSessionTimeoutMs(raw: string | undefined): number {
 export default defineCommand({
   meta: {
     name: 'serve-http',
-    description: 'Start Memorix MCP Server on HTTP transport (multi-agent)',
+    description: 'Start the shared Memorix MCP control plane over HTTP',
   },
   args: {
     port: {
@@ -57,7 +57,7 @@ export default defineCommand({
     },
     mode: {
       type: 'string',
-      description: 'Tool profile to expose (lite, team, full; default: team; collaboration join remains explicit)',
+      description: 'Tool profile to expose (lite, team, full; default: team; Agent Team join remains explicit)',
       required: false,
     },
   },
@@ -680,13 +680,18 @@ export default defineCommand({
           const activeCount = withTier.filter((a: any) => a.activityTier === 'active').length;
           const recentCount = withTier.filter((a: any) => a.activityTier === 'recent').length;
           const historicalCount = withTier.filter((a: any) => a.activityTier === 'historical').length;
+          const openTasks = normalizedTasks.filter((task: any) => task.status !== 'completed').length;
+          const totalUnread = withTier.reduce((sum: number, agent: any) => sum + (agent.unread || 0), 0);
 
           // Role occupancy and handoffs
           const roles = effectiveTeamProjectId ? ts.listRoles(effectiveTeamProjectId) : [];
           const roleOccupancy = effectiveTeamProjectId ? ts.getRoleOccupancy(effectiveTeamProjectId) : [];
           const handoffs = effectiveTeamProjectId ? ts.listHandoffs(effectiveTeamProjectId) : [];
+          const openHandoffs = handoffs.filter((handoff: any) => handoff.status !== 'completed').length;
 
           sendJson({
+            mode: 'control-plane',
+            readOnly: false,
             scope,
             agents: withTier,
             // Primary headline number
@@ -700,9 +705,13 @@ export default defineCommand({
             tasks: normalizedTasks,
             availableTasks: available.length,
             sessions: sessions.size,
+            activeSessions: sessions.size,
             roles,
             roleOccupancy,
             handoffs,
+            openTasks,
+            openHandoffs,
+            totalUnread,
           });
           return;
         }
@@ -1336,10 +1345,10 @@ export default defineCommand({
       } catch { /* best-effort — HTTP /health is the primary signal */ }
 
       console.error(`[memorix] ═══════════════════════════════════════════════════`);
-      console.error(`[memorix] Mode: Control Plane (HTTP MCP + Dashboard + Team)`);
+      console.error(`[memorix] Mode: Control Plane (HTTP MCP + multi-session live dashboard)`);
       console.error(`[memorix] MCP Server listening on http://${host}:${port}/mcp`);
       console.error(`[memorix] Dashboard:     http://${host}:${port}/`);
-      console.error(`[memorix] Team API:      http://${host}:${port}/api/team`);
+      console.error(`[memorix] Agent Team:    http://${host}:${port}/api/team`);
       console.error(`[memorix] Port:          ${port}`);
       console.error(`[memorix] ═══════════════════════════════════════════════════`);
       console.error(`[memorix] Sessions at startup: ${sessions.size} (live count available at /api/team)`);

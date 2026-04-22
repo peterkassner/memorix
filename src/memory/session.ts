@@ -21,15 +21,15 @@ import { redactCredentials, sanitizeCredentials } from './secret-filter.js';
 
 const PRIORITY_TYPES = new Set(['gotcha', 'decision', 'problem-solution', 'trade-off', 'discovery']);
 const TYPE_EMOJI: Record<string, string> = {
-  'gotcha': '🔶',
-  'decision': '🟠',
-  'problem-solution': '🟡',
-  'trade-off': '⚖️',
-  'discovery': '🟣',
-  'how-it-works': '🔵',
-  'what-changed': '🟢',
-  'why-it-exists': '🟤',
-  'session-request': '🎯',
+  'gotcha': '[DISCOVERY]',
+  'decision': '[WHY]',
+  'problem-solution': '[FIX]',
+  'trade-off': '[TRADEOFF]',
+  'discovery': '[DISCOVERY]',
+  'how-it-works': '[INFO]',
+  'what-changed': '[CHANGE]',
+  'why-it-exists': '[DECISION]',
+  'session-request': '[SESSION]',
 };
 const TYPE_WEIGHTS: Record<string, number> = {
   'gotcha': 6,
@@ -392,7 +392,7 @@ export async function getSessionContext(
 
     if (l1HookObs.length > 0) {
       for (const obs of l1HookObs) {
-        lines.push(`🔗 ${redactCredentials(obs.title)}`);
+        lines.push(`[HOOK] ${redactCredentials(obs.title)}`);
       }
       lines.push('');
     }
@@ -411,7 +411,7 @@ export async function getSessionContext(
       hints.push(`${totalHookCount} hook trace(s) available — use \`memorix_timeline\` for activity expansion`);
     }
     for (const hint of hints) {
-      lines.push(`💡 ${hint}`);
+      lines.push(`[TIP] ${hint}`);
     }
     lines.push('');
   }
@@ -443,7 +443,7 @@ export async function getSessionContext(
     lines.push('## Key Project Memories');
     lines.push('*Durable working context — explicit decisions, gotchas, and discoveries.*');
     for (const obs of l2Obs) {
-      const emoji = TYPE_EMOJI[obs.type] ?? '📌';
+      const emoji = TYPE_EMOJI[obs.type] ?? '[PIN]';
       const fact = obs.facts?.[0] ? ` — ${redactCredentials(obs.facts[0])}` : '';
       lines.push(`${emoji} ${redactCredentials(obs.title)}${fact}`);
     }
@@ -470,10 +470,10 @@ export async function getSessionContext(
   // ── L3 Evidence Hints ─────────────────────────────────────────────
   const l3Lines: string[] = [];
   if (l3GitCount > 0) {
-    l3Lines.push(`📌 ${l3GitCount} git-memory item(s) — use \`memorix_search\` to retrieve repository evidence`);
+    l3Lines.push(`[PIN] ${l3GitCount} git-memory item(s) — use \`memorix_search\` to retrieve repository evidence`);
   }
   if (totalHookCount > 0) {
-    l3Lines.push(`🔗 ${totalHookCount} hook trace(s) — use \`memorix_timeline\` for full activity expansion`);
+    l3Lines.push(`[HOOK] ${totalHookCount} hook trace(s) — use \`memorix_timeline\` for full activity expansion`);
   }
   if (l3Lines.length > 0) {
     lines.push('## L3 Evidence');

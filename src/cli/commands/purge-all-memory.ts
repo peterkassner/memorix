@@ -14,11 +14,11 @@ export default defineCommand({
   },
   args: {},
   run: async ({}) => {
-    p.intro('⚠️  Purge All Memory');
+    p.intro('[WARN]  Purge All Memory');
 
     // Show warning
     console.log('');
-    console.log('⚠️  WARNING: This will delete ALL memories!');
+    console.log('[WARN]  WARNING: This will delete ALL memories!');
     console.log('');
     console.log('This will remove:');
     console.log('  - All observations from all projects');
@@ -74,11 +74,11 @@ export default defineCommand({
 
       const result = await resolveObservations(ids, 'archived');
 
-      console.log(`✅ Archived ${result.resolved.length} observations`);
+      console.log(`[OK] Archived ${result.resolved.length} observations`);
 
       p.outro(`All memory purged. ${result.resolved.length} observations archived.`);
     } catch (err) {
-      console.error(`❌ Failed to purge all memory: ${err}`);
+      console.error(`[ERROR] Failed to purge all memory: ${err}`);
       p.outro('Purge failed.');
     }
   },

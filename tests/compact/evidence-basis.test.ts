@@ -60,13 +60,13 @@ describe('resolveEvidenceBasis', () => {
 // ── 2. evidenceBasisLine ─────────────────────────────────────────────
 
 describe('evidenceBasisLine', () => {
-  it('repository + commitHash → ✓ Repository-backed — commit <7 chars>', () => {
+  it('repository + commitHash -> [OK] Repository-backed - commit <7 chars>', () => {
     const line = evidenceBasisLine('repository', 'abc1234ef');
-    expect(line).toBe('✓ Repository-backed — commit abc1234');
+    expect(line).toBe('[OK] Repository-backed — commit abc1234');
   });
 
-  it('repository without commitHash → ✓ Repository-backed (no commit suffix)', () => {
-    expect(evidenceBasisLine('repository', undefined)).toBe('✓ Repository-backed');
+  it('repository without commitHash -> [OK] Repository-backed (no commit suffix)', () => {
+    expect(evidenceBasisLine('repository', undefined)).toBe('[OK] Repository-backed');
   });
 
   it('direct → empty string (no annotation to avoid noise)', () => {
@@ -97,23 +97,23 @@ function makeDoc(overrides: Partial<Parameters<typeof formatObservationDetail>[0
 }
 
 describe('formatObservationDetail: evidence basis in provenance header', () => {
-  it('git-ingest + commitHash → shows ✓ Repository-backed — commit <hash>', () => {
+  it('git-ingest + commitHash -> shows [OK] Repository-backed - commit <hash>', () => {
     const out = formatObservationDetail(makeDoc({
       sourceDetail: 'git-ingest',
       commitHash: 'abc1234ef',
     }));
-    expect(out).toContain('✓ Repository-backed — commit abc1234');
+    expect(out).toContain('[OK] Repository-backed — commit abc1234');
   });
 
-  it('git-ingest no commitHash → shows ✓ Repository-backed (no hash)', () => {
+  it('git-ingest no commitHash -> shows [OK] Repository-backed (no hash)', () => {
     const out = formatObservationDetail(makeDoc({ sourceDetail: 'git-ingest' }));
-    expect(out).toContain('✓ Repository-backed');
+    expect(out).toContain('[OK] Repository-backed');
     expect(out).not.toContain('commit');
   });
 
   it('legacy source=git + commitHash → shows repository-backed with commit', () => {
     const out = formatObservationDetail(makeDoc({ source: 'git', commitHash: 'deadbeef' }));
-    expect(out).toContain('✓ Repository-backed — commit deadbee');
+    expect(out).toContain('[OK] Repository-backed — commit deadbee');
   });
 
   it('source=git + relatedCommits → shows repository-backed (source wins)', () => {
@@ -121,7 +121,7 @@ describe('formatObservationDetail: evidence basis in provenance header', () => {
       source: 'git',
       relatedCommits: ['abc1234'],
     }));
-    expect(out).toContain('✓ Repository-backed');
+    expect(out).toContain('[OK] Repository-backed');
   });
 
   it('explicit + relatedCommits + no commitHash → shows synthesized (Phase 5)', () => {
@@ -129,20 +129,20 @@ describe('formatObservationDetail: evidence basis in provenance header', () => {
       sourceDetail: 'explicit',
       relatedCommits: ['abc1234'],
     }));
-    expect(out).toContain('◈ Synthesized');
-    expect(out).not.toContain('✓ Repository-backed');
+    expect(out).toContain('[SYNTHESIZED] Synthesized');
+    expect(out).not.toContain('[OK] Repository-backed');
   });
 
   it('explicit, no commits → no verification line (direct is silent)', () => {
     const out = formatObservationDetail(makeDoc({ sourceDetail: 'explicit' }));
     expect(out).not.toContain('Repository-backed');
-    expect(out).not.toContain('✓');
+    expect(out).not.toContain('[OK] Repository-backed');
   });
 
   it('hook trace → no verification line', () => {
     const out = formatObservationDetail(makeDoc({ sourceDetail: 'hook' }));
     expect(out).not.toContain('Repository-backed');
-    expect(out).not.toContain('✓');
+    expect(out).not.toContain('[OK] Repository-backed');
   });
 
   it('no sourceDetail, no source → no provenance header at all (backward-compat)', () => {
@@ -168,8 +168,8 @@ describe('formatObservationDetail: evidence basis in provenance header', () => {
       valueCategory: 'core',
       commitHash: 'abc1234',
     }));
-    expect(out).toContain('✓ Repository-backed');
-    expect(out).toContain('★ Core');
+    expect(out).toContain('[OK] Repository-backed');
+    expect(out).toContain('[CORE] Core');
   });
 });
 
@@ -179,7 +179,7 @@ function makeEntry(id: number, overrides: Partial<IndexEntry> = {}): IndexEntry 
   return {
     time: '1d ago',
     type: 'what-changed',
-    icon: '🟢',
+    icon: '[CHANGE]',
     title: `Entry ${id}`,
     tokens: 80,
     projectId: 'test/project',
@@ -198,16 +198,16 @@ function makeTimeline(
 }
 
 describe('formatTimeline: evidence basis in anchor annotation', () => {
-  it('git anchor → annotation includes "— ✓ repository-backed"', () => {
+  it('git anchor -> annotation includes "[OK] repository-backed"', () => {
     const anchor = makeEntry(10, { sourceDetail: 'git-ingest' });
     const out = formatTimeline(makeTimeline(10, anchor));
-    expect(out).toContain('— ✓ repository-backed');
+    expect(out).toContain('— [OK] repository-backed');
   });
 
-  it('legacy source=git anchor → annotation includes "— ✓ repository-backed"', () => {
+  it('legacy source=git anchor -> annotation includes "[OK] repository-backed"', () => {
     const anchor = makeEntry(10, { source: 'git' });
     const out = formatTimeline(makeTimeline(10, anchor));
-    expect(out).toContain('— ✓ repository-backed');
+    expect(out).toContain('— [OK] repository-backed');
   });
 
   it('explicit anchor → no repository-backed suffix in annotation', () => {

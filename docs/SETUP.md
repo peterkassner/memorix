@@ -12,9 +12,9 @@ Memorix has four common operator entry points:
 The two server runtime modes are:
 
 - `memorix serve` for stdio MCP integrations
-- `memorix background start` or `memorix serve-http --port 3211` for HTTP MCP, the dashboard, and collaboration features
+- `memorix background start` or `memorix serve-http --port 3211` for HTTP MCP, shared access, and a live dashboard endpoint
 
-For most users, start with `memorix` or `memorix serve`. Move to HTTP only when you explicitly want the dashboard, one shared background control plane, or multi-client collaboration features.
+For most users, start with `memorix` or `memorix serve`. Move to HTTP only when you explicitly want one shared background control plane, multi-client MCP access, or a live dashboard endpoint.
 
 ## Current Release Context
 
@@ -102,7 +102,7 @@ This mode gives you:
 
 - HTTP MCP endpoint at `http://localhost:3211/mcp`
 - dashboard at `http://localhost:3211`
-- Team and collaboration features
+- live dashboard with autonomous Agent Team state
 - a single long-lived Memorix process shared by multiple agents
 
 Choose this mode when you intentionally want a shared control plane. It is not the default starting point for normal single-IDE memory use.
@@ -369,16 +369,17 @@ It includes:
 - Config
 - Identity Health
 
-There is also a standalone `memorix dashboard` command, but it is best treated as a local read-mostly dashboard. Team features require HTTP transport and are only fully available in `serve-http` mode.
+There is also a standalone `memorix dashboard` command. It is a local read-mostly dashboard that includes memory, sessions, and autonomous Agent Team state from SQLite. HTTP is optional and only needed for shared MCP access or a live control-plane endpoint.
 
 ---
 
-## 5. Team and Collaboration Features
+## 5. Agent Team Features
 
-Team features require HTTP transport:
+Agent Team features are explicit autonomous-agent coordination surfaces. Use the CLI for the normal path:
 
 ```bash
-memorix background start
+memorix team status
+memorix orchestrate --goal "..."
 ```
 
 These features include:
@@ -388,7 +389,7 @@ These features include:
 - file locks
 - task board
 
-If you open the standalone dashboard and see a message saying Team features require HTTP transport, that is expected.
+The standalone dashboard can show this state read-only. Start HTTP only when you also want a shared MCP control plane or a live dashboard endpoint.
 
 ---
 
@@ -469,25 +470,28 @@ Memorix identifies projects from Git. If an IDE launches from a system directory
 - if needed, set `MEMORIX_PROJECT_ROOT`
 - use `memorix status` to inspect the active project identity
 
-### Dashboard Team page says HTTP transport is required
+### Dashboard Agent Team page is empty
 
-That means you are using the standalone dashboard, not the HTTP control plane.
+That usually means no autonomous agent workflow has created tasks, locks, messages, or explicit agent identities for this project yet.
 
 Use:
 
 ```bash
-memorix background start
+memorix team status
+memorix task list
 ```
 
-or, if you want it in the foreground:
+To create autonomous work, use:
 
 ```bash
-memorix serve-http --port 3211
+memorix orchestrate --goal "..."
 ```
 
-Then open:
+If you specifically want shared HTTP MCP or a live dashboard endpoint, then start:
 
-- `http://localhost:3211`
+```bash
+memorix background start
+```
 
 ### Git hook installed but commits are not appearing as memory
 

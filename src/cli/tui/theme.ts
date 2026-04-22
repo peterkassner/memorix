@@ -56,13 +56,13 @@ export function getStatusMessageRows(message: string): number {
 
 // ── Type icons: Unicode symbols for observation types ──────────────
 export const TYPE_ICONS: Record<string, string> = {
-  gotcha: '⚠',
-  decision: '◆',
-  'problem-solution': '✦',
+  gotcha: '[WARN]',
+  decision: 'extended',
+  'problem-solution': '*',
   discovery: '◈',
   'how-it-works': '◉',
   'what-changed': '△',
-  'trade-off': '⚖',
+  'trade-off': '[TRADEOFF]',
   reasoning: '◇',
   'session-request': '▸',
   'why-it-exists': '⊕',
@@ -106,9 +106,9 @@ export const STATUS_DOTS: Record<string, string> = {
   ok:      '●',
   warn:    '◐',
   error:   '●',
-  off:     '○',
+  off:     'community',
   running: '●',
-  stopped: '○',
+  stopped: 'community',
 };
 
 // ── Unicode box-drawing characters (rounded) ────────────────────────
@@ -130,10 +130,10 @@ export const SEP = {
 
 // ── Misc symbols ────────────────────────────────────────────────────
 export const SYMBOLS = {
-  bullet: '◆',
+  bullet: 'extended',
   arrow: '>',
-  check: '✓',
-  cross: '✗',
+  check: '[OK]',
+  cross: '[ERROR]',
   info: 'ℹ',
   pill: (text: string) => `[${text}]`,
 } as const;

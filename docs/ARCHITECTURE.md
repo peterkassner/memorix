@@ -164,7 +164,7 @@ Responsibilities:
 - IDE hook capture
 - Git Memory ingestion
 - workspace and rule sync across agents
-- team collaboration
+- autonomous Agent Team state
 - mini-skills and memory-driven workflows
 - dashboard and control plane APIs
 
@@ -414,7 +414,7 @@ Useful for local inspection and debugging, but the main product mode is the dash
 
 ---
 
-## 8. Session and Control-Plane Collaboration
+## 8. Session and Control-Plane Coordination
 
 The HTTP control plane is not just a transport wrapper. It is the coordination layer that keeps multiple agents, multiple projects, and multiple UX surfaces from drifting apart.
 
@@ -461,7 +461,7 @@ It acts as a control plane for:
 - identity health
 - sessions
 - retention state
-- team collaboration in HTTP mode
+- read-only autonomous Agent Team state in the standalone dashboard and live state in HTTP control-plane mode
 
 This is part of Memorix's shift from a single MCP server to a broader local memory platform.
 

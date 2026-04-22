@@ -8,8 +8,8 @@
  * We provide three profiles:
  *   - "lite" (stdio default): Core memory CRUD, sessions, reasoning, retention,
  *     backup — 13 tools. Suitable for solo users who just want cross-agent memory.
- *   - "team" (HTTP default): lite + team coordination + dashboard — 20 tools.
- *     Suitable for multi-agent / multi-IDE workflows on a shared control plane.
+ *   - "team" (HTTP default): lite + autonomous agent team tools + dashboard — 20 tools.
+ *     Suitable when an operator explicitly wants task/message/lock surfaces.
  *   - "full": Everything, including niche / advanced tools (consolidate, dedup,
  *     formation metrics, skills, rules/workspace sync, KG-official, image ingest).
  *     Opt in via `MEMORIX_MODE=full` or `--mode full`.
@@ -40,7 +40,7 @@ export const TOOL_PROFILES: Record<string, ReadonlyArray<ToolProfile>> = Object.
   memorix_transfer:           ['lite', 'team', 'full'],
   memorix_retention:          ['lite', 'team', 'full'],
 
-  // ── team: collaboration features — HTTP default ──────────────────
+  // ── team: autonomous agent team surfaces — HTTP default ───────────
   memorix_dashboard:          ['team', 'full'],
   memorix_handoff:            ['team', 'full'],
   memorix_poll:               ['team', 'full'],
@@ -126,7 +126,7 @@ export function resolveToolProfile(opts: ResolveToolProfileOpts): ToolProfile {
 export function describeProfile(profile: ToolProfile): string {
   switch (profile) {
     case 'lite': return 'lite (core memory + sessions, ~13 tools)';
-    case 'team': return 'team (lite + coordination + dashboard, ~20 tools)';
+    case 'team': return 'team (lite + agent team tools + dashboard, ~20 tools)';
     case 'full': return 'full (all tools including advanced / KG-compat)';
   }
 }

@@ -493,7 +493,7 @@ export async function searchObservations(options: SearchOptions): Promise<IndexE
         time: formatTime(doc.createdAt),
         rawTime: doc.createdAt,
         type: obsType,
-        icon: OBSERVATION_ICONS[obsType] ?? '❓',
+        icon: OBSERVATION_ICONS[obsType] ?? '[UNKNOWN]',
         title: doc.title,
         tokens: doc.tokens,
         score: (hit.score ?? 1) * recencyBoost,
@@ -800,7 +800,7 @@ export async function searchObservations(options: SearchOptions): Promise<IndexE
       if (reasons.length === 0) reasons.push('fuzzy');
 
       // Prepend a single evidence-type tag (max 1) ahead of field-match labels.
-      // Priority: git evidence > synthesized > ★ core
+      // Priority: git evidence > synthesized > core core
       // This surfaces WHY this result is notable beyond the query match.
       const isGitEvidence = doc.sourceDetail === 'git-ingest' || doc.source === 'git';
       const isSynthesized = doc.sourceDetail === 'explicit' &&
@@ -814,7 +814,7 @@ export async function searchObservations(options: SearchOptions): Promise<IndexE
       } else if (isSynthesized) {
         entry.matchedFields = ['synthesized', ...reasons];
       } else if (isCore) {
-        entry.matchedFields = ['★ core', ...reasons];
+        entry.matchedFields = ['core core', ...reasons];
       } else {
         entry.matchedFields = reasons;
       }
@@ -904,7 +904,7 @@ export async function getTimeline(
       id: obs.id,
       time: formatTime(obs.createdAt),
       type: obsType,
-      icon: OBSERVATION_ICONS[obsType] ?? '❓',
+      icon: OBSERVATION_ICONS[obsType] ?? '[UNKNOWN]',
       title: obs.title,
       tokens: obs.tokens,
       source: (obs.source as IndexEntry['source']) || undefined,
