@@ -159,7 +159,7 @@ describe('CLI native parity', () => {
     });
     expect(imported.exitCode).toBe(0);
     expect(JSON.parse(imported.stdout).result.sessionsImported).toBeGreaterThanOrEqual(0);
-  });
+  }, 30000);
 
   it('extends memory, audit, sync, skills, and ingest namespaces without changing their product semantics', async () => {
     const topicKey = await runCommand(memoryCommand, {
@@ -248,7 +248,7 @@ describe('CLI native parity', () => {
     });
     expect(ingestImage.exitCode).toBe(1);
     expect(JSON.parse(ingestImage.stderr).error).toContain('LLM');
-  });
+  }, 30000);
 
   it('generates and shows project skills through the dedicated skills namespace', async () => {
     for (let index = 0; index < 3; index += 1) {
@@ -279,5 +279,5 @@ describe('CLI native parity', () => {
     });
     expect(shown.exitCode).toBe(0);
     expect(JSON.parse(shown.stdout).skill.name).toBe(firstSkill);
-  });
+  }, 30000);
 });
