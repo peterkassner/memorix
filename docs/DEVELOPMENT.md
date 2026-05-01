@@ -27,9 +27,17 @@ Contributors should assume the following are already part of the supported produ
 
 ## 1. Prerequisites
 
-- Node.js `>=20`
+- Node.js `22.x` (see `.nvmrc`; Node 25 is not supported)
 - npm
 - Git
+
+Recommended:
+
+```bash
+nvm use
+```
+
+This project uses native modules (notably `better-sqlite3`). Running `npm` or `npx` under a different Node major can cause ABI mismatch errors and degraded read-only mode.
 
 Clone and install:
 
