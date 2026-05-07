@@ -237,6 +237,7 @@ For the full IDE matrix, Windows notes, and troubleshooting, see [docs/SETUP.md]
 | --- | --- | --- |
 | Save and retrieve project memory | `memorix memory store/search/detail/resolve` or MCP `memorix_store/search/detail/resolve` | [API Reference](docs/API_REFERENCE.md#3-core-memory-tools) |
 | Capture Git truth | `memorix git-hook --force`, `memorix ingest commit`, `memorix ingest log` | [Git Memory Guide](docs/GIT_MEMORY.md) |
+| Backfill Cursor chat history | `memorix ingest cursor` | [Cursor Ingest](docs/CURSOR_INGEST.md) |
 | Run dashboard + HTTP MCP | `memorix background start` | [Setup Guide](docs/SETUP.md), [Docker](docs/DOCKER.md) |
 | Keep memory-only sessions lightweight | `memorix_session_start(projectRoot=...)` or `memorix session start` | [Agent Operator Playbook](docs/AGENT_OPERATOR_PLAYBOOK.md#8-what-an-agent-should-do-at-session-start) |
 | Join the autonomous agent team | `memorix session start --joinTeam` or `memorix team join` | [TEAM.md](TEAM.md), [API Reference](docs/API_REFERENCE.md#9-agent-team-tools) |

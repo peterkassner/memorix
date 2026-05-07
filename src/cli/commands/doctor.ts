@@ -150,7 +150,7 @@ export default defineCommand({
       try {
         const http = await import('node:http');
         const portUsed = await new Promise<boolean>((resolve) => {
-          const req = http.request({ hostname: '127.0.0.1', port: 3211, path: '/api/team', timeout: 2000 }, (res) => {
+          const req = http.request({ hostname: '127.0.0.1', port: 1111, path: '/api/team', timeout: 2000 }, (res) => {
             res.resume();
             resolve(res.statusCode === 200);
           });
@@ -159,7 +159,7 @@ export default defineCommand({
           req.end();
         });
         if (portUsed) {
-          lines.push(warn('Unmanaged foreground instance detected on port 3211'));
+          lines.push(warn('Unmanaged foreground instance detected on port 1111'));
           issues.push('A foreground "memorix serve-http" is running but not managed by background mode.');
           (report.mode as any).unmanagedForeground = true;
         }

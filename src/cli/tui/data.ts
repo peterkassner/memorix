@@ -331,15 +331,15 @@ export async function getBackgroundStatus(): Promise<BackgroundInfo> {
       try {
         const controller = new AbortController();
         const timer = setTimeout(() => controller.abort(), 2000);
-        const res = await fetch('http://127.0.0.1:3211/api/team', { signal: controller.signal });
+        const res = await fetch('http://127.0.0.1:1111/api/team', { signal: controller.signal });
         clearTimeout(timer);
         if (res.ok) {
           const data = (await res.json()) as any;
           result.running = true;
           result.healthy = true;
-          result.port = 3211;
-          result.dashboard = 'http://127.0.0.1:3211/';
-          result.mcp = 'http://127.0.0.1:3211/mcp';
+          result.port = 1111;
+          result.dashboard = 'http://127.0.0.1:1111/';
+          result.mcp = 'http://127.0.0.1:1111/mcp';
           result.agents = data.agents?.length ?? 0;
           result.sessions = data.sessions ?? 0;
           result.message = 'Foreground instance detected';

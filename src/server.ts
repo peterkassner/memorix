@@ -230,7 +230,7 @@ export async function createMemorixServer(
   const allowUntrackedFallback = options.allowUntrackedFallback ?? true;
   const deferProjectInitUntilBound = options.deferProjectInitUntilBound ?? false;
   const dashboardMode = options.dashboardMode ?? (sharedTeam ? 'control-plane' : 'standalone');
-  const configuredDashboardPort = options.dashboardPort ?? (dashboardMode === 'control-plane' ? 3211 : 3210);
+  const configuredDashboardPort = options.dashboardPort ?? (dashboardMode === 'control-plane' ? 1111 : 3210);
   const toolProfile = resolveToolProfile({
     explicit: options.toolProfile,
     envValue: process.env.MEMORIX_MODE,

@@ -6,7 +6,7 @@
  *
  * Mode semantics:
  *   - "Standalone" = Local read-mostly dashboard (this command, default port 3210)
- *   - "Control Plane" = HTTP MCP + multi-session live dashboard (memorix serve-http, default port 3211)
+ *   - "Control Plane" = HTTP MCP + multi-session live dashboard (memorix serve-http, default port 1111)
  */
 
 import { defineCommand } from 'citty';

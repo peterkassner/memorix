@@ -65,6 +65,7 @@ memorix transfer export --format markdown
 memorix skills show --name auth-pattern
 memorix sync workspace --action scan
 memorix ingest image --path ./diagram.png
+memorix ingest cursor --max 2000
 memorix poll --agentId <agent-id>
 ```
 

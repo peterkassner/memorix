@@ -301,7 +301,7 @@ async function runBackgroundMenu(): Promise<void> {
   const m = await import('./commands/background.js');
   // Synthesize citty args with the chosen subcommand
   await m.default.run?.({
-    args: { _: [action], port: '3211', follow: false, lines: '50' },
+    args: { _: [action], port: '1111', follow: false, lines: '50' },
     rawArgs: [action],
     cmd: m.default,
   } as any);
@@ -875,7 +875,7 @@ async function runCommand(cmd: string, _args: string[] = []): Promise<void> {
     }
     case 'serve-http': {
       const m = await import('./commands/serve-http.js');
-      await m.default.run?.({ args: { _: [], port: 3211 }, rawArgs: [], cmd: m.default } as any);
+      await m.default.run?.({ args: { _: [], port: 1111 }, rawArgs: [], cmd: m.default } as any);
       break;
     }
     case 'sync': {
@@ -971,10 +971,10 @@ const main = defineCommand({
     bg: () => import('./commands/background.js').then(m => m.default),
     bs: () => Promise.resolve(defineCommand({
       meta: { name: 'bs', description: 'Shortcut: background start' },
-      args: { port: { type: 'string', description: 'HTTP port (default: 3211)', required: false } },
+      args: { port: { type: 'string', description: 'HTTP port (default: 1111)', required: false } },
       async run({ args }) {
         // Directly invoke background start instead of going through citty's CommandContext
-        const port = parseInt((args.port as string) || '3211', 10);
+        const port = parseInt((args.port as string) || '1111', 10);
         const { doStart } = await import('./commands/background.js');
         await doStart(port);
       },

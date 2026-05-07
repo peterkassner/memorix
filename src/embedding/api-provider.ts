@@ -319,13 +319,25 @@ export class APIEmbeddingProvider implements EmbeddingProvider {
       requestedDimensions = dimStr ? parseInt(dimStr, 10) : null;
     }
 
-    if (!apiKey) {
-      throw new Error(
-        'No API key for embedding. Set MEMORIX_EMBEDDING_API_KEY, MEMORIX_LLM_API_KEY, or OPENAI_API_KEY, or run `memorix configure`.',
-      );
-    }
-
     baseUrl = baseUrl.replace(/\/+$/, '');
+
+    // Local OpenAI-compatible servers (LM Studio, Ollama, etc.) commonly do not require an API key.
+    // Allow an empty key for localhost targets to avoid blocking embeddings entirely.
+    if (!apiKey) {
+      const isLocal =
+        baseUrl.startsWith('http://127.0.0.1') ||
+        baseUrl.startsWith('http://localhost') ||
+        baseUrl.startsWith('http://0.0.0.0') ||
+        baseUrl.startsWith('https://127.0.0.1') ||
+        baseUrl.startsWith('https://localhost') ||
+        baseUrl.startsWith('https://0.0.0.0');
+      if (!isLocal) {
+        throw new Error(
+          'No API key for embedding. Set MEMORIX_EMBEDDING_API_KEY, MEMORIX_LLM_API_KEY, or OPENAI_API_KEY, or run `memorix configure`.',
+        );
+      }
+      apiKey = '';
+    }
 
     return { apiKey, baseUrl, model, requestedDimensions };
   }
@@ -536,12 +548,15 @@ async function fetchWithRetry(
   const timeout = setTimeout(() => controller.abort(), 10_000);
   let response: Response;
   try {
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+    if (apiKey) {
+      headers['Authorization'] = `Bearer ${apiKey}`;
+    }
     response = await fetch(url, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`,
-      },
+      headers,
       body: JSON.stringify(body),
       signal: controller.signal,
     });

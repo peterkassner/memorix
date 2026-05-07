@@ -136,7 +136,9 @@ export default defineCommand({
         process.env.MEMORIX_API_KEY ||
         yml.llm?.apiKey ||
         legacy.llm?.apiKey ||
-        process.env.OPENAI_API_KEY;
+        process.env.OPENAI_API_KEY ||
+        process.env.OPENROUTER_API_KEY ||
+        process.env.ANTHROPIC_API_KEY;
       if (llmKey) {
         let src = 'unknown';
         if (process.env.MEMORIX_LLM_API_KEY) src = 'env:MEMORIX_LLM_API_KEY';
@@ -144,6 +146,8 @@ export default defineCommand({
         else if (yml.llm?.apiKey) src = 'memorix.yml (consider moving to .env)';
         else if (legacy.llm?.apiKey) src = 'config.json (legacy)';
         else if (process.env.OPENAI_API_KEY) src = 'env:OPENAI_API_KEY';
+        else if (process.env.OPENROUTER_API_KEY) src = 'env:OPENROUTER_API_KEY';
+        else if (process.env.ANTHROPIC_API_KEY) src = 'env:ANTHROPIC_API_KEY';
         diagLines.push(`  LLM API key:   ${'*'.repeat(8)}...${llmKey.slice(-4)} (← ${src})`);
       } else {
         diagLines.push(`  LLM API key:   not set`);

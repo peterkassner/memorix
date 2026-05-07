@@ -7,16 +7,16 @@
  *   - Team API at /api/team (autonomous agents, locks, tasks, messages)
  *
  * Mode semantics:
- *   - "Control Plane" = HTTP MCP + multi-session live dashboard (this command, default port 3211)
+ *   - "Control Plane" = HTTP MCP + multi-session live dashboard (this command, default port 1111)
  *   - "Standalone" = Local read-mostly dashboard (memorix dashboard, default port 3210)
  *
  * Usage:
- *   memorix serve-http                    # default port 3211
- *   memorix serve-http --port 3211        # custom port
+ *   memorix serve-http                    # default port 1111
+ *   memorix serve-http --port 1111        # custom port
  *   memorix serve-http --cwd /path/to/project
  *
  * IDE config example (Claude Code):
- *   { "transport": "http", "url": "http://localhost:3211/mcp" }
+ *   { "transport": "http", "url": "http://localhost:1111/mcp" }
  */
 
 import { defineCommand } from 'citty';
@@ -42,7 +42,7 @@ export default defineCommand({
   args: {
     port: {
       type: 'string',
-      description: 'HTTP port to listen on (default: 3211)',
+      description: 'HTTP port to listen on (default: 1111)',
       required: false,
     },
     host: {
@@ -76,7 +76,7 @@ export default defineCommand({
     const { homedir } = await import('node:os');
     const earlyPath = await import('node:path');
 
-    const port = parseInt(args.port || '3211', 10);
+    const port = parseInt(args.port || '1111', 10);
     const host = args.host || '127.0.0.1';
     const toolProfile = resolveToolProfile({ explicit: args.mode, envValue: process.env.MEMORIX_MODE, fallback: 'team' });
 
@@ -1002,7 +1002,9 @@ export default defineCommand({
             process.env.MEMORIX_API_KEY ||
             yml.llm?.apiKey ||
             legacy.llm?.apiKey ||
-            process.env.OPENAI_API_KEY;
+            process.env.OPENAI_API_KEY ||
+            process.env.OPENROUTER_API_KEY ||
+            process.env.ANTHROPIC_API_KEY;
           if (llmKey) {
             let src = 'unknown';
             if (process.env.MEMORIX_LLM_API_KEY) src = 'env:MEMORIX_LLM_API_KEY';
@@ -1010,6 +1012,8 @@ export default defineCommand({
             else if (yml.llm?.apiKey) src = 'memorix.yml (move to .env!)';
             else if (legacy.llm?.apiKey) src = 'config.json (legacy)';
             else if (process.env.OPENAI_API_KEY) src = 'env:OPENAI_API_KEY';
+            else if (process.env.OPENROUTER_API_KEY) src = 'env:OPENROUTER_API_KEY';
+            else if (process.env.ANTHROPIC_API_KEY) src = 'env:ANTHROPIC_API_KEY';
             values.push({ key: 'llm.apiKey', value: '****' + llmKey.slice(-4), source: src, sensitive: true });
           } else {
             values.push({ key: 'llm.apiKey', value: 'not set', source: 'none' });

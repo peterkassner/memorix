@@ -1,7 +1,7 @@
 import { defineCommand } from 'citty';
 import { compactDetail, compactSearch, compactTimeline } from '../../compact/engine.js';
 import { withFreshIndex } from '../../memory/freshness.js';
-import { getAllObservations, getProjectObservations, resolveObservations, storeObservation, suggestTopicKey } from '../../memory/observations.js';
+import { backfillVectorEmbeddings, getAllObservations, getProjectObservations, getVectorStatus, resolveObservations, storeObservation, suggestTopicKey } from '../../memory/observations.js';
 import { emitError, emitResult, getCliProjectContext, parseCsvList, parsePositiveInt, coerceObservationStatus, coerceObservationType } from './operator-shared.js';
 
 export default defineCommand({
@@ -241,6 +241,25 @@ export default defineCommand({
           emitResult(
             { project, actions, resolved: result.resolved, notFound: result.notFound, dryRun: false },
             `Resolved ${result.resolved.length} duplicate observation(s).`,
+            asJson,
+          );
+          return;
+        }
+
+        case 'backfill-vectors': {
+          const before = getVectorStatus();
+          const result = await backfillVectorEmbeddings();
+          const after = getVectorStatus();
+
+          emitResult(
+            { project, before, result, after },
+            [
+              `Vector backfill attempted: ${result.attempted}`,
+              `Recovered: ${result.succeeded}`,
+              `Failed: ${result.failed}`,
+              `Missing before: ${before.missing}/${before.total}`,
+              `Missing after: ${after.missing}/${after.total}`,
+            ].join('\n'),
             asJson,
           );
           return;

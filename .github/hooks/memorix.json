@@ -1,3 +1,45 @@
 {
-  "version": 1
+  "version": 1,
+  "hooks": {
+    "sessionStart": [
+      {
+        "type": "command",
+        "bash": "memorix hook",
+        "timeoutSec": 10,
+        "powershell": "memorix hook"
+      }
+    ],
+    "sessionEnd": [
+      {
+        "type": "command",
+        "bash": "memorix hook",
+        "timeoutSec": 10,
+        "powershell": "memorix hook"
+      }
+    ],
+    "userPromptSubmitted": [
+      {
+        "type": "command",
+        "bash": "memorix hook",
+        "timeoutSec": 10,
+        "powershell": "memorix hook"
+      }
+    ],
+    "postToolUse": [
+      {
+        "type": "command",
+        "bash": "memorix hook",
+        "timeoutSec": 10,
+        "powershell": "memorix hook"
+      }
+    ],
+    "errorOccurred": [
+      {
+        "type": "command",
+        "bash": "memorix hook",
+        "timeoutSec": 10,
+        "powershell": "memorix hook"
+      }
+    ]
+  }
 }

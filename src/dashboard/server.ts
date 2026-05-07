@@ -446,13 +446,21 @@ async function handleApi(
                 const llmModel = process.env.MEMORIX_LLM_MODEL || yml.llm?.model;
                 if (llmModel) values.push({ key: 'llm.model', value: llmModel, source: await getEnvSource('MEMORIX_LLM_MODEL', yml.llm?.model ? 'memorix.yml' : undefined) });
 
-                const llmKey = process.env.MEMORIX_LLM_API_KEY || process.env.MEMORIX_API_KEY || yml.llm?.apiKey || process.env.OPENAI_API_KEY;
+                const llmKey =
+                    process.env.MEMORIX_LLM_API_KEY ||
+                    process.env.MEMORIX_API_KEY ||
+                    yml.llm?.apiKey ||
+                    process.env.OPENAI_API_KEY ||
+                    process.env.OPENROUTER_API_KEY ||
+                    process.env.ANTHROPIC_API_KEY;
                 if (llmKey) {
                     let src = 'unknown';
                     if (process.env.MEMORIX_LLM_API_KEY) src = await getEnvSource('MEMORIX_LLM_API_KEY');
                     else if (process.env.MEMORIX_API_KEY) src = await getEnvSource('MEMORIX_API_KEY');
                     else if (yml.llm?.apiKey) src = 'memorix.yml (move to .env!)';
                     else if (process.env.OPENAI_API_KEY) src = await getEnvSource('OPENAI_API_KEY');
+                    else if (process.env.OPENROUTER_API_KEY) src = await getEnvSource('OPENROUTER_API_KEY');
+                    else if (process.env.ANTHROPIC_API_KEY) src = await getEnvSource('ANTHROPIC_API_KEY');
                     values.push({ key: 'llm.apiKey', value: '****' + llmKey.slice(-4), source: src, sensitive: true });
                 } else {
                     values.push({ key: 'llm.apiKey', value: 'not set', source: 'none' });

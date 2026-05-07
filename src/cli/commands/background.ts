@@ -2,7 +2,7 @@
  * memorix background — Manage the Memorix Control Plane as a background service
  *
  * Subcommands:
- *   memorix background start    — Launch control plane in background (HTTP 3211)
+ *   memorix background start    — Launch control plane in background (HTTP 1111)
  *   memorix background stop     — Stop the background control plane
  *   memorix background status   — Show running state, PID, port, health
  *   memorix background restart  — Stop + start
@@ -391,14 +391,14 @@ async function doStatus(): Promise<void> {
 
   if (!state) {
     // No background.json — but check if port has an unmanaged foreground instance
-    const portHealth = await healthCheck(3211, 2000);
+    const portHealth = await healthCheck(1111, 2000);
     if (portHealth.ok) {
       console.log('');
       console.log('No background control plane is registered,');
-      console.log('but a Memorix instance IS running on port 3211 (likely a foreground "memorix serve-http").');
+      console.log('but a Memorix instance IS running on port 1111 (likely a foreground "memorix serve-http").');
       console.log('');
-      console.log(`  Dashboard:  http://127.0.0.1:3211/`);
-      console.log(`  MCP:        http://127.0.0.1:3211/mcp`);
+      console.log(`  Dashboard:  http://127.0.0.1:1111/`);
+      console.log(`  MCP:        http://127.0.0.1:1111/mcp`);
       if (portHealth.data) {
         const d = portHealth.data;
         console.log('');
@@ -582,7 +582,7 @@ export default defineCommand({
   args: {
     port: {
       type: 'string',
-      description: 'HTTP port (default: 3211)',
+      description: 'HTTP port (default: 1111)',
       required: false,
     },
     follow: {
@@ -601,7 +601,7 @@ export default defineCommand({
   run: async ({ args }) => {
     try {
       const subcommand = (args._ as string[])?.[0] || '';
-      const port = parseInt(args.port || '3211', 10);
+      const port = parseInt(args.port || '1111', 10);
 
       switch (subcommand) {
         case 'start':
@@ -637,7 +637,7 @@ export default defineCommand({
           console.log('  memorix background logs      Show recent log output');
           console.log('');
           console.log('Options:');
-          console.log('  --port <port>   HTTP port (default: 3211)');
+          console.log('  --port <port>   HTTP port (default: 1111)');
           console.log('  --follow, -f    Follow log output in real-time (for "logs")');
           console.log('  --lines, -n     Number of log lines to show (default: 50)');
           console.log('');
