@@ -22,6 +22,8 @@ export default defineCommand({
     id: { type: 'string', description: 'Single observation ID' },
     status: { type: 'string', description: 'Resolved or archived' },
     topicKey: { type: 'string', description: 'Stable topic key override' },
+    createdByAgentId: { type: 'string', description: 'Agent/client identity attribution for stored observations' },
+    sourceDetail: { type: 'string', description: 'Observation provenance detail: explicit, hook, or git-ingest' },
     action: { type: 'string', description: 'Secondary action for advanced memory commands' },
     limit: { type: 'string', description: 'Limit for search/recent output' },
     before: { type: 'string', description: 'Timeline depth before anchor' },
@@ -93,6 +95,10 @@ export default defineCommand({
             projectId: project.id,
             topicKey,
             source: 'manual',
+            sourceDetail: args.sourceDetail === 'explicit' || args.sourceDetail === 'hook' || args.sourceDetail === 'git-ingest'
+              ? args.sourceDetail
+              : 'explicit',
+            createdByAgentId: (args.createdByAgentId as string | undefined)?.trim() || undefined,
           });
           emitResult(
             { project, observation: result.observation, upserted: result.upserted },

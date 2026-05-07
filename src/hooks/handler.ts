@@ -541,7 +541,13 @@ export async function runHook(agentOverride?: string): Promise<void> {
       await initMSStore(dataDir);
       await initSessStore(dataDir);
       await initObservations(dataDir);
-      await storeObservation({ ...observation, projectId, sourceDetail: 'hook' });
+      await storeObservation({
+        ...observation,
+        projectId,
+        source: 'agent',
+        sourceDetail: 'hook',
+        createdByAgentId: input.agent,
+      });
 
       // Shadow mode: Formation Pipeline metrics (fire-and-forget, never blocks)
       try {

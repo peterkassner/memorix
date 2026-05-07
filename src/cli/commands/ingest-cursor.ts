@@ -200,6 +200,7 @@ export default defineCommand({
           filesModified: [],
           projectId,
           source: 'manual',
+          createdByAgentId: 'cursor',
           topicKey: `cursor/bubble/${bubble.composerId}/${bubble.bubbleId}`,
         });
         stored++;
@@ -215,4 +216,3 @@ export default defineCommand({
     }
   },
 });
-
