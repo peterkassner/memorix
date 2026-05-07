@@ -133,6 +133,7 @@ function extractEventName(payload: Record<string, unknown>, agent: AgentName): s
       // Cursor sends hook_event_name; fall back to inference if missing
       return (payload.hook_event_name as string) ?? inferCursorEvent(payload);
     case 'claude':
+    case 'codex':
       return (payload.hook_event_name as string) ?? '';
     case 'antigravity':
     case 'gemini-cli':

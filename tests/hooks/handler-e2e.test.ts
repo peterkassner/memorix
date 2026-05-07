@@ -177,6 +177,24 @@ export function verifyToken(token: string) {
     expect(output.systemMessage).toContain('Previous session context available');
   });
 
+  it('should normalize Codex SessionStart when agent identity is provided', async () => {
+    const payload = {
+      _memorix_agent: 'codex',
+      hook_event_name: 'SessionStart',
+      session_id: 'sess-codex-1',
+      cwd: '/home/user/project',
+      source: 'startup',
+    };
+
+    const input = normalizeHookInput(payload);
+    expect(input.agent).toBe('codex');
+    expect(input.event).toBe('session_start');
+
+    const { observation, output } = await handleHookEvent(input);
+    expect(observation).toBeNull();
+    expect(output.systemMessage).toContain('Previous session context available');
+  });
+
   // ─── Stop (session end) ───
   it('should SKIP empty Stop event (no content worth storing)', async () => {
     const payload = {

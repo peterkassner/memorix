@@ -26,15 +26,22 @@ async function cleanup(dir: string): Promise<void> {
 describe('Hooks install/uninstall lifecycle', () => {
   let tmpDir: string;
   let auditFile: string;
+  let originalHome: string | undefined;
 
   beforeEach(() => {
     tmpDir = makeTmpDir();
     auditFile = path.join(tmpDir, '.memorix', 'audit.json');
     process.env.MEMORIX_AUDIT_FILE = auditFile;
+    originalHome = process.env.HOME;
   });
 
   afterEach(async () => {
     delete process.env.MEMORIX_AUDIT_FILE;
+    if (originalHome === undefined) {
+      delete process.env.HOME;
+    } else {
+      process.env.HOME = originalHome;
+    }
     await cleanup(tmpDir);
   });
 
@@ -54,6 +61,43 @@ describe('Hooks install/uninstall lifecycle', () => {
     expect(agentsEntry).toBeDefined();
     expect(agentsEntry!.agent).toBe('codex');
     expect(agentsEntry!.type).toBe('rule');
+  });
+
+  it('should install Codex project hooks plus AGENTS.md rules', async () => {
+    const result = await installHooks('codex', tmpDir);
+    const hooksPath = path.join(tmpDir, '.codex', 'hooks.json');
+    const agentsMd = path.join(tmpDir, 'AGENTS.md');
+
+    expect(result.configPath).toBe(hooksPath);
+    expect(result.events).toEqual(['session_start', 'user_prompt', 'post_tool', 'session_end']);
+
+    const parsed = JSON.parse(await fs.readFile(hooksPath, 'utf-8'));
+    expect(parsed.hooks.SessionStart[0].hooks[0].command).toContain('hook --agent codex');
+    expect(parsed.hooks.SessionStart[0].hooks[0].statusMessage).toBe('Loading Memorix context');
+    expect(parsed.hooks.UserPromptSubmit[0].hooks[0].command).toContain('hook --agent codex');
+    expect(parsed.hooks.PostToolUse[0].matcher).toBe('Bash|apply_patch|mcp__.*');
+    await expect(fs.access(agentsMd)).resolves.toBeUndefined();
+  });
+
+  it('should install Codex global hooks into config.toml idempotently', async () => {
+    process.env.HOME = tmpDir;
+    const codexDir = path.join(tmpDir, '.codex');
+    const configToml = path.join(codexDir, 'config.toml');
+    await fs.mkdir(codexDir, { recursive: true });
+    await fs.writeFile(configToml, '[features]\nmemories = true\n\n[mcp_servers.memorix]\nurl = "http://127.0.0.1:8096/servers/memorix/mcp"\n', 'utf-8');
+
+    const first = await installHooks('codex', tmpDir, true);
+    const second = await installHooks('codex', tmpDir, true);
+    const content = await fs.readFile(configToml, 'utf-8');
+
+    expect(first.configPath).toBe(configToml);
+    expect(second.configPath).toBe(configToml);
+    expect(content).toContain('codex_hooks = true');
+    expect(content.match(/\[memorix-codex-hooks:start\]/g)).toHaveLength(1);
+    expect(content).toContain('[[hooks.SessionStart]]');
+    expect(content).toContain('Loading Memorix context');
+    expect(content).toContain('hook --agent codex');
+    expect(await fs.readFile(path.join(codexDir, 'AGENTS.md'), 'utf-8')).toContain('# Memorix');
   });
 
   it('should record audit entry when creating new GEMINI.md (gemini-cli)', async () => {
@@ -158,7 +202,7 @@ describe('Hooks install/uninstall lifecycle', () => {
     expect(entry!.type).toBe('rule');
   });
 
-  it('should return true when uninstalling codex (rules-only agent)', async () => {
+  it('should return true when uninstalling codex hooks and rules', async () => {
     // Install codex hooks (creates AGENTS.md)
     await installHooks('codex', tmpDir);
 

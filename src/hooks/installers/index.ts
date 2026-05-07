@@ -9,9 +9,11 @@
  */
 
 import * as fs from 'node:fs/promises';
+import { existsSync } from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
 import { execSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
 
 import type { AgentName, AgentHookConfig } from '../types.js';
 
@@ -27,6 +29,33 @@ function resolveHookCommand(): string {
     return 'memorix.cmd';
   }
   return 'memorix';
+}
+
+/**
+ * Resolve a stable command for Codex hooks.
+ *
+ * Codex user-scope hooks may run outside a login shell, so a bare `memorix`
+ * can miss user PATH entries. Prefer the built CLI next to this module when
+ * available, and fall back to the normal shim for source/test environments.
+ */
+function resolveCodexHookCommand(): string {
+  if (process.env.MEMORIX_HOOK_COMMAND) {
+    return `${process.env.MEMORIX_HOOK_COMMAND} --agent codex`;
+  }
+
+  const invokedCli = process.argv[1];
+  if (invokedCli && path.basename(invokedCli) === 'index.js' && path.basename(path.dirname(invokedCli)) === 'cli' && existsSync(invokedCli)) {
+    return `${JSON.stringify(process.execPath)} ${JSON.stringify(invokedCli)} hook --agent codex`;
+  }
+
+  try {
+    const cliPath = fileURLToPath(new URL('../../cli/index.js', import.meta.url));
+    if (existsSync(cliPath)) {
+      return `${JSON.stringify(process.execPath)} ${JSON.stringify(cliPath)} hook --agent codex`;
+    }
+  } catch { /* fall through to PATH command */ }
+
+  return `${resolveHookCommand()} hook --agent codex`;
 }
 
 /**
@@ -208,6 +237,114 @@ function generateCursorConfig(): Record<string, unknown> {
       stop: [hookScript],
     },
   };
+}
+
+/**
+ * Generate Codex hook config.
+ * Format: .codex/hooks.json or inline [hooks] tables in ~/.codex/config.toml.
+ * See: https://developers.openai.com/codex/hooks
+ */
+function generateCodexConfig(): Record<string, unknown> {
+  const cmd = resolveCodexHookCommand();
+  const hookEntry = (statusMessage?: string, timeout = 10) => ({
+    type: 'command',
+    command: cmd,
+    timeout,
+    ...(statusMessage ? { statusMessage } : {}),
+  });
+
+  return {
+    hooks: {
+      SessionStart: [
+        { matcher: 'startup|resume|clear', hooks: [hookEntry('Loading Memorix context', 20)] },
+      ],
+      UserPromptSubmit: [
+        { hooks: [hookEntry(undefined, 10)] },
+      ],
+      PostToolUse: [
+        { matcher: 'Bash|apply_patch|mcp__.*', hooks: [hookEntry(undefined, 10)] },
+      ],
+      Stop: [
+        { hooks: [hookEntry(undefined, 20)] },
+      ],
+    },
+  };
+}
+
+function codexTomlBlock(): string {
+  const cfg = generateCodexConfig();
+  const hooks = cfg.hooks as Record<string, Array<Record<string, unknown>>>;
+  const lines = [
+    '# [memorix-codex-hooks:start]',
+    '# Managed by: memorix hooks install --agent codex --global',
+  ];
+
+  for (const [eventName, groups] of Object.entries(hooks)) {
+    for (const group of groups) {
+      lines.push(`[[hooks.${eventName}]]`);
+      if (typeof group.matcher === 'string') {
+        lines.push(`matcher = ${JSON.stringify(group.matcher)}`);
+      }
+
+      const handlers = group.hooks as Array<Record<string, unknown>>;
+      for (const handler of handlers) {
+        lines.push(`[[hooks.${eventName}.hooks]]`);
+        lines.push(`type = ${JSON.stringify(handler.type)}`);
+        lines.push(`command = ${JSON.stringify(handler.command)}`);
+        lines.push(`timeout = ${handler.timeout}`);
+        if (typeof handler.statusMessage === 'string') {
+          lines.push(`statusMessage = ${JSON.stringify(handler.statusMessage)}`);
+        }
+      }
+      lines.push('');
+    }
+  }
+
+  lines.push('# [memorix-codex-hooks:end]');
+  return lines.join('\n');
+}
+
+function ensureCodexHooksFeature(text: string): string {
+  if (/\[features\][\s\S]*?(?=\n\[|$)/.test(text)) {
+    return text.replace(/\[features\]([\s\S]*?)(?=\n\[|$)/, (block) => {
+      if (/^codex_hooks\s*=/m.test(block)) {
+        return block.replace(/^codex_hooks\s*=.*$/m, 'codex_hooks = true');
+      }
+      return `${block.trimEnd()}\ncodex_hooks = true\n`;
+    });
+  }
+
+  return `${text.trimEnd()}\n\n[features]\ncodex_hooks = true\n`;
+}
+
+async function installCodexGlobalConfig(configPath: string): Promise<void> {
+  await fs.mkdir(path.dirname(configPath), { recursive: true });
+  let existing = '';
+  try {
+    existing = await fs.readFile(configPath, 'utf-8');
+  } catch { /* file does not exist yet */ }
+
+  const withoutManagedBlock = existing.replace(
+    /\n?# \[memorix-codex-hooks:start\][\s\S]*?# \[memorix-codex-hooks:end\]\n?/m,
+    '\n',
+  );
+  const withFeature = ensureCodexHooksFeature(withoutManagedBlock);
+  const next = `${withFeature.trimEnd()}\n\n${codexTomlBlock()}\n`;
+  await fs.writeFile(configPath, next, 'utf-8');
+}
+
+async function installCodexGlobalRules(): Promise<void> {
+  const rulesPath = path.join(os.homedir(), '.codex', 'AGENTS.md');
+  await fs.mkdir(path.dirname(rulesPath), { recursive: true });
+  const rulesContent = getAgentRulesContent('codex');
+
+  try {
+    const existing = await fs.readFile(rulesPath, 'utf-8');
+    if (existing.includes('Memorix')) return;
+    await fs.writeFile(rulesPath, `${existing.trimEnd()}\n\n${rulesContent}\n`, 'utf-8');
+  } catch {
+    await fs.writeFile(rulesPath, `${rulesContent}\n`, 'utf-8');
+  }
 }
 
 /**
@@ -434,8 +571,7 @@ export function getProjectConfigPath(agent: AgentName, projectRoot: string): str
     case 'kiro':
       return path.join(projectRoot, '.kiro', 'hooks', 'memorix-agent-stop.kiro.hook');
     case 'codex':
-      // Codex has no hooks system — only rules (AGENTS.md)
-      return path.join(projectRoot, 'AGENTS.md');
+      return path.join(projectRoot, '.codex', 'hooks.json');
     case 'trae':
       // Trae has no hooks system — only rules (.trae/rules/project_rules.md)
       return path.join(projectRoot, '.trae', 'rules', 'project_rules.md');
@@ -478,6 +614,8 @@ export function getGlobalConfigPath(agent: AgentName): string {
       return path.join(home, '.gemini', 'settings.json');
     case 'opencode':
       return path.join(home, '.config', 'opencode', 'plugins', 'memorix.js');
+    case 'codex':
+      return path.join(home, '.codex', 'config.toml');
     case 'trae':
       return path.join(home, '.trae', 'rules', 'project_rules.md');
     default:
@@ -662,14 +800,18 @@ export async function installHooks(
       generated = 'kiro-multi'; // handled separately below
       break;
     case 'codex':
-      // Codex has no hooks — only install rules
-      await installAgentRules(agent, projectRoot);
-      return {
-        agent,
-        configPath: getProjectConfigPath(agent, projectRoot),
-        events: [],
-        generated: { note: 'Codex has no hooks system, only rules (AGENTS.md) installed' },
-      };
+      if (global) {
+        await installCodexGlobalConfig(configPath);
+        await installCodexGlobalRules();
+        return {
+          agent,
+          configPath,
+          events: ['session_start', 'user_prompt', 'post_tool', 'session_end'],
+          generated: generateCodexConfig(),
+        };
+      }
+      generated = generateCodexConfig();
+      break;
     case 'trae':
       // Trae has no hooks system — only install rules
       await installAgentRules(agent, projectRoot);
@@ -809,6 +951,9 @@ export async function installHooks(
       break;
     case 'kiro':
       events.push('session_end', 'user_prompt', 'post_edit');
+      break;
+    case 'codex':
+      events.push('session_start', 'user_prompt', 'post_tool', 'session_end');
       break;
   }
 

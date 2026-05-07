@@ -631,16 +631,26 @@ export async function runHook(agentOverride?: string): Promise<void> {
     }
   }
 
-  // Build hookSpecificOutput — Claude Code only supports it for 3 event types:
+  // Build hookSpecificOutput.
+  //
+  // Claude Code only supports it for 3 event types:
   //   PreToolUse, UserPromptSubmit, PostToolUse
   // Other events (SessionStart, Stop, PreCompact) must NOT include hookSpecificOutput.
+  //
+  // Codex supports SessionStart.additionalContext, which is the runtime path
+  // that actually supplies retrieved Memorix context at session start.
   // Claude Code sends hook_event_name (snake_case), Copilot sends hookEventName (camelCase)
   const rawEventName = (payload.hook_event_name as string)
     ?? (payload.hookEventName as string)
     ?? '';
   const finalOutput: Record<string, unknown> = { ...output };
   const HSO_EVENTS = new Set(['PreToolUse', 'UserPromptSubmit', 'PostToolUse', 'postToolUse', 'preToolUse', 'userPromptSubmitted']);
-  if (rawEventName && HSO_EVENTS.has(rawEventName)) {
+  if (input.agent === 'codex' && input.event === 'session_start' && output.systemMessage) {
+    finalOutput.hookSpecificOutput = {
+      hookEventName: 'SessionStart',
+      additionalContext: output.systemMessage,
+    };
+  } else if (rawEventName && HSO_EVENTS.has(rawEventName)) {
     const hso: Record<string, unknown> = { hookEventName: rawEventName };
     // additionalContext is REQUIRED for UserPromptSubmit, optional for others
     if (output.systemMessage) {

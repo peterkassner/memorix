@@ -165,7 +165,7 @@ function getAgentHint(agent: string): string {
     antigravity: '.gemini/settings.json',
     'gemini-cli': '.gemini/settings.json',
     trae: '.trae/rules/project_rules.md (rules only, no hooks system)',
-    codex: 'AGENTS.md (rules only, hooks are experimental)',
+    codex: 'AGENTS.md + Codex hooks',
   };
   return hints[agent] || '';
 }

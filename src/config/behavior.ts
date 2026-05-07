@@ -1,13 +1,15 @@
 /**
  * Behavior Configuration Reader
  *
- * Reads behavior settings from ~/.memorix/config.json.
+ * Reads behavior settings from memorix.yml, with ~/.memorix/config.json as a
+ * legacy fallback.
  * Falls back to sensible defaults if config is missing.
  */
 
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { homedir } from 'node:os';
+import { loadYamlConfig } from './yaml-loader.js';
 
 export interface BehaviorConfig {
   sessionInject: 'full' | 'minimal' | 'silent';
@@ -33,10 +35,15 @@ export function getBehaviorConfig(): BehaviorConfig {
   if (cached) return cached;
 
   try {
+    const yamlBehavior = loadYamlConfig().behavior ?? {};
     const configPath = join(homedir(), '.memorix', 'config.json');
-    const raw = readFileSync(configPath, 'utf-8');
-    const config = JSON.parse(raw);
-    const behavior = config.behavior ?? {};
+    let legacyBehavior: Partial<BehaviorConfig> = {};
+    try {
+      const raw = readFileSync(configPath, 'utf-8');
+      const config = JSON.parse(raw);
+      legacyBehavior = config.behavior ?? {};
+    } catch { /* legacy file is optional */ }
+    const behavior = { ...legacyBehavior, ...yamlBehavior };
 
     cached = {
       sessionInject: behavior.sessionInject ?? DEFAULTS.sessionInject,
